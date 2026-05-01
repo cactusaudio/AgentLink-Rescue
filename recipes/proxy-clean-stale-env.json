@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "proxy-clean-stale-env",
+  "title": "Clean stale shell proxy env",
+  "description": "Adds a managed zsh block that unsets proxy environment variables.",
+  "supportedOS": ["darwin"],
+  "failureClasses": ["USER_PROXY_DIRTY"],
+  "risk": "reversible_patch",
+  "requiresRoot": false,
+  "autoAllowed": false,
+  "preconditions": [
+    {"type": "os_is", "value": "darwin"},
+    {"type": "file_exists_or_creatable", "path": "~/.zshrc"}
+  ],
+  "probes": [],
+  "patches": [
+    {
+      "id": "proxy-clean-block",
+      "type": "append_managed_block_if_missing",
+      "path": "~/.zshrc",
+      "marker": "PROXY_CLEAN_BLOCK",
+      "content": "unset HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY\nunset http_proxy https_proxy all_proxy no_proxy"
+    }
+  ],
+  "verify": [
+    {"id": "managed_block_count", "args": {"path": "~/.zshrc", "marker": "PROXY_CLEAN_BLOCK", "count": "1"}},
+    {"id": "env_proxy_absent"}
+  ],
+  "rollback": [
+    {"type": "restore_file", "path": "~/.zshrc"}
+  ],
+  "docs": ["docs/offline/RECIPE_AUTHORING.md"]
+}
+

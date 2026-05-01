@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "claude-code-deepseek-env-config",
+  "title": "Claude Code DeepSeek env config detect-only",
+  "description": "v0.2 detect-only specification for Claude Code DeepSeek environment configuration.",
+  "supportedOS": ["darwin"],
+  "failureClasses": ["CLAUDE_PROVIDER_STATUS_UNKNOWN"],
+  "risk": "read_only",
+  "requiresRoot": false,
+  "autoAllowed": false,
+  "preconditions": [
+    {"type": "os_is", "value": "darwin"}
+  ],
+  "probes": [],
+  "patches": [],
+  "verify": [
+    {"id": "env_key_present_redacted", "args": {"env": "DEEPSEEK_API_KEY", "required": "false"}}
+  ],
+  "rollback": [],
+  "docs": ["docs/offline/RECIPE_AUTHORING.md"]
+}

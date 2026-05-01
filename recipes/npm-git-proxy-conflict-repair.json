@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "npm-git-proxy-conflict-repair",
+  "title": "Repair npm/git proxy conflict",
+  "description": "Reports proxy config conflicts by default and can unset global git/npm proxy keys with approval.",
+  "supportedOS": ["darwin"],
+  "failureClasses": ["GIT_PROXY_DIRTY", "NPM_PROXY_DIRTY"],
+  "risk": "reversible_patch",
+  "requiresRoot": false,
+  "autoAllowed": false,
+  "params": [
+    {"name": "mode", "default": "report", "allowed": ["report", "clean"]}
+  ],
+  "preconditions": [
+    {"type": "os_is", "value": "darwin"}
+  ],
+  "probes": [],
+  "patches": [
+    {"id": "unset-git-http", "type": "unset_git_config_key", "key": "http.proxy", "whenParamEquals": {"mode": "clean"}},
+    {"id": "unset-git-https", "type": "unset_git_config_key", "key": "https.proxy", "whenParamEquals": {"mode": "clean"}},
+    {"id": "unset-npm-proxy", "type": "unset_npm_config_key", "key": "proxy", "whenParamEquals": {"mode": "clean"}},
+    {"id": "unset-npm-https", "type": "unset_npm_config_key", "key": "https-proxy", "whenParamEquals": {"mode": "clean"}}
+  ],
+  "verify": [
+    {"id": "git_proxy_absent", "args": {"key": "http.proxy"}},
+    {"id": "git_proxy_absent", "args": {"key": "https.proxy"}},
+    {"id": "npm_proxy_absent", "args": {"key": "proxy"}},
+    {"id": "npm_proxy_absent", "args": {"key": "https-proxy"}}
+  ],
+  "rollback": [
+    {"type": "restore_recorded_config_values", "key": "git/npm proxy"}
+  ],
+  "docs": ["docs/offline/RECIPE_AUTHORING.md"]
+}

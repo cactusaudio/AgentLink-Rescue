@@ -1,0 +1,13 @@
+<dictionary> {
+  ExceptionsList : <array> {
+    0 : *.local
+  }
+  FTPPassive : 1
+  HTTPEnable : 0
+  HTTPSEnable : 1
+  HTTPSProxy : 127.0.0.1
+  HTTPSPort : 7890
+  SOCKSEnable : 0
+  ProxyAutoConfigEnable : 0
+}
+

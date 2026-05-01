@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "id": "proxy-clash-7897-apply",
+  "title": "Apply Clash local proxy 7897",
+  "description": "Adds a managed zsh proxy block for a local Clash-compatible proxy on 127.0.0.1:7897.",
+  "supportedOS": ["darwin"],
+  "failureClasses": ["PROXY_REQUIRED"],
+  "risk": "reversible_patch",
+  "requiresRoot": false,
+  "autoAllowed": false,
+  "params": [
+    {"name": "setGitNpm", "default": "false", "allowed": ["true", "false"]}
+  ],
+  "preconditions": [
+    {"type": "os_is", "value": "darwin"},
+    {"type": "file_exists_or_creatable", "path": "~/.zshrc"},
+    {"type": "port_listening", "port": "7897", "optionalWithYes": true}
+  ],
+  "probes": [],
+  "patches": [
+    {
+      "id": "proxy-block",
+      "type": "append_managed_block_if_missing",
+      "path": "~/.zshrc",
+      "marker": "PROXY_BLOCK",
+      "content": "export HTTP_PROXY=http://127.0.0.1:7897\nexport HTTPS_PROXY=http://127.0.0.1:7897\nexport ALL_PROXY=socks5://127.0.0.1:7897\nexport http_proxy=\"$HTTP_PROXY\"\nexport https_proxy=\"$HTTPS_PROXY\"\nexport all_proxy=\"$ALL_PROXY\""
+    },
+    {"id": "git-http-proxy", "type": "set_git_config_key", "key": "http.proxy", "value": "http://127.0.0.1:7897", "whenParamEquals": {"setGitNpm": "true"}},
+    {"id": "git-https-proxy", "type": "set_git_config_key", "key": "https.proxy", "value": "http://127.0.0.1:7897", "whenParamEquals": {"setGitNpm": "true"}},
+    {"id": "npm-proxy", "type": "set_npm_config_key", "key": "proxy", "value": "http://127.0.0.1:7897", "whenParamEquals": {"setGitNpm": "true"}},
+    {"id": "npm-https-proxy", "type": "set_npm_config_key", "key": "https-proxy", "value": "http://127.0.0.1:7897", "whenParamEquals": {"setGitNpm": "true"}}
+  ],
+  "verify": [
+    {"id": "managed_block_count", "args": {"path": "~/.zshrc", "marker": "PROXY_BLOCK", "count": "1"}},
+    {"id": "local_port_listening", "args": {"port": "7897"}},
+    {"id": "env_proxy_matches", "args": {"value": "http://127.0.0.1:7897"}},
+    {"id": "git_proxy_matches", "args": {"key": "http.proxy", "value": "http://127.0.0.1:7897"}, "whenParamEquals": {"setGitNpm": "true"}},
+    {"id": "git_proxy_matches", "args": {"key": "https.proxy", "value": "http://127.0.0.1:7897"}, "whenParamEquals": {"setGitNpm": "true"}},
+    {"id": "npm_proxy_matches", "args": {"key": "proxy", "value": "http://127.0.0.1:7897"}, "whenParamEquals": {"setGitNpm": "true"}},
+    {"id": "npm_proxy_matches", "args": {"key": "https-proxy", "value": "http://127.0.0.1:7897"}, "whenParamEquals": {"setGitNpm": "true"}}
+  ],
+  "rollback": [
+    {"type": "restore_file", "path": "~/.zshrc"},
+    {"type": "restore_recorded_config_values", "key": "git/npm proxy"}
+  ],
+  "docs": ["docs/offline/RECIPE_AUTHORING.md"]
+}

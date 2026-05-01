@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "opencode-deepseek-provider-config",
+  "title": "OpenCode DeepSeek provider config detect-only",
+  "description": "v0.2 detect-only specification for OpenCode DeepSeek provider configuration.",
+  "supportedOS": ["darwin"],
+  "failureClasses": ["OPENCODE_PROVIDER_STATUS_UNKNOWN"],
+  "risk": "read_only",
+  "requiresRoot": false,
+  "autoAllowed": false,
+  "preconditions": [
+    {"type": "os_is", "value": "darwin"}
+  ],
+  "probes": [],
+  "patches": [],
+  "verify": [
+    {"id": "env_key_present_redacted", "args": {"env": "DEEPSEEK_API_KEY", "required": "false"}}
+  ],
+  "rollback": [],
+  "docs": ["docs/offline/RECIPE_AUTHORING.md"]
+}

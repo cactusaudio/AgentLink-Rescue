@@ -1,0 +1,22 @@
+{
+  "rawIPs": [
+    "1.1.1.1",
+    "8.8.8.8"
+  ],
+  "dnsNames": [
+    "apple.com",
+    "github.com"
+  ],
+  "httpsTargets": [
+    "https://www.apple.com/",
+    "https://github.com/"
+  ],
+  "agentTargets": [
+    "https://api.openai.com/",
+    "https://chatgpt.com/",
+    "https://api.anthropic.com/",
+    "https://github.com/",
+    "https://objects.githubusercontent.com/"
+  ]
+}
+

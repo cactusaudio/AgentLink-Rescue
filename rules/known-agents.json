@@ -1,0 +1,197 @@
+[
+  {
+    "id": "clash_verge",
+    "displayName": "Clash Verge / Clash Verge Rev",
+    "risk": "network_proxy_tun_residue",
+    "autoQuarantineAllowed": true,
+    "patterns": [
+      "*clash*",
+      "*verge*",
+      "*mihomo*",
+      "io.github.clashverge.helper",
+      "io.github.clash-verge-rev*"
+    ],
+    "paths": [
+      "/Library/LaunchDaemons",
+      "/Library/PrivilegedHelperTools",
+      "~/Library/LaunchAgents",
+      "~/Library/Group Containers",
+      "~/Library/Application Support",
+      "~/Library/Caches",
+      "~/Library/Preferences"
+    ]
+  },
+  {
+    "id": "surge",
+    "displayName": "Surge",
+    "risk": "network_proxy_vpn_detect_only",
+    "autoQuarantineAllowed": false,
+    "patterns": [
+      "*surge*",
+      "com.nssurge.*"
+    ],
+    "paths": [
+      "/Library/LaunchDaemons",
+      "/Library/PrivilegedHelperTools",
+      "~/Library/LaunchAgents",
+      "~/Library/Application Support",
+      "~/Library/Preferences"
+    ]
+  },
+  {
+    "id": "tailscale",
+    "displayName": "Tailscale",
+    "risk": "vpn_network_extension_detect_only",
+    "autoQuarantineAllowed": false,
+    "patterns": [
+      "*tailscale*",
+      "io.tailscale.*"
+    ],
+    "paths": [
+      "/Library/LaunchDaemons",
+      "/Library/PrivilegedHelperTools",
+      "~/Library/LaunchAgents",
+      "~/Library/Application Support",
+      "~/Library/Preferences"
+    ]
+  },
+  {
+    "id": "adguard",
+    "displayName": "AdGuard",
+    "risk": "dns_filter_detect_only",
+    "autoQuarantineAllowed": false,
+    "patterns": [
+      "*adguard*",
+      "com.adguard.*"
+    ],
+    "paths": [
+      "/Library/LaunchDaemons",
+      "/Library/PrivilegedHelperTools",
+      "~/Library/LaunchAgents",
+      "~/Library/Application Support",
+      "~/Library/Preferences"
+    ]
+  },
+  {
+    "id": "cloudflare_warp",
+    "displayName": "Cloudflare WARP",
+    "risk": "vpn_network_extension_detect_only",
+    "autoQuarantineAllowed": false,
+    "patterns": [
+      "*cloudflare*",
+      "*warp*",
+      "com.cloudflare.*"
+    ],
+    "paths": [
+      "/Library/LaunchDaemons",
+      "/Library/PrivilegedHelperTools",
+      "~/Library/LaunchAgents",
+      "~/Library/Application Support",
+      "~/Library/Preferences"
+    ]
+  },
+  {
+    "id": "little_snitch",
+    "displayName": "Little Snitch",
+    "risk": "firewall_network_extension_detect_only",
+    "autoQuarantineAllowed": false,
+    "patterns": [
+      "*littlesnitch*",
+      "*little snitch*",
+      "at.obdev.littlesnitch*"
+    ],
+    "paths": [
+      "/Library/LaunchDaemons",
+      "/Library/PrivilegedHelperTools",
+      "~/Library/LaunchAgents",
+      "~/Library/Application Support",
+      "~/Library/Preferences"
+    ]
+  },
+  {
+    "id": "charles",
+    "displayName": "Charles Proxy",
+    "risk": "proxy_tool_detect_only",
+    "autoQuarantineAllowed": false,
+    "patterns": [
+      "*charles*",
+      "com.xk72.charles*"
+    ],
+    "paths": [
+      "/Library/LaunchDaemons",
+      "~/Library/LaunchAgents",
+      "~/Library/Application Support",
+      "~/Library/Preferences"
+    ]
+  },
+  {
+    "id": "proxyman",
+    "displayName": "Proxyman",
+    "risk": "proxy_tool_detect_only",
+    "autoQuarantineAllowed": false,
+    "patterns": [
+      "*proxyman*",
+      "com.proxyman.*"
+    ],
+    "paths": [
+      "/Library/LaunchDaemons",
+      "~/Library/LaunchAgents",
+      "~/Library/Application Support",
+      "~/Library/Preferences"
+    ]
+  },
+  {
+    "id": "cisco_anyconnect",
+    "displayName": "Cisco AnyConnect",
+    "risk": "vpn_network_extension_detect_only",
+    "autoQuarantineAllowed": false,
+    "patterns": [
+      "*anyconnect*",
+      "*cisco*",
+      "com.cisco.anyconnect*"
+    ],
+    "paths": [
+      "/Library/LaunchDaemons",
+      "/Library/PrivilegedHelperTools",
+      "~/Library/LaunchAgents",
+      "~/Library/Application Support",
+      "~/Library/Preferences"
+    ]
+  },
+  {
+    "id": "zscaler",
+    "displayName": "Zscaler",
+    "risk": "security_vpn_filter_detect_only",
+    "autoQuarantineAllowed": false,
+    "patterns": [
+      "*zscaler*",
+      "com.zscaler.*"
+    ],
+    "paths": [
+      "/Library/LaunchDaemons",
+      "/Library/PrivilegedHelperTools",
+      "~/Library/LaunchAgents",
+      "~/Library/Application Support",
+      "~/Library/Preferences"
+    ]
+  },
+  {
+    "id": "globalprotect",
+    "displayName": "Palo Alto GlobalProtect",
+    "risk": "vpn_network_extension_detect_only",
+    "autoQuarantineAllowed": false,
+    "patterns": [
+      "*globalprotect*",
+      "*paloalto*",
+      "com.paloaltonetworks.*"
+    ],
+    "paths": [
+      "/Library/LaunchDaemons",
+      "/Library/PrivilegedHelperTools",
+      "~/Library/LaunchAgents",
+      "~/Library/Application Support",
+      "~/Library/Preferences"
+    ]
+  }
+]
+

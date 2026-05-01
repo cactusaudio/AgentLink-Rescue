@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "api-key-detection-redaction",
+  "title": "API key detection and redaction",
+  "description": "Detects common API key environment variables and reports redacted presence only.",
+  "supportedOS": ["darwin"],
+  "failureClasses": ["KEYS_STATUS_UNKNOWN"],
+  "risk": "read_only",
+  "requiresRoot": false,
+  "autoAllowed": true,
+  "preconditions": [
+    {"type": "os_is", "value": "darwin"}
+  ],
+  "probes": [],
+  "patches": [],
+  "verify": [
+    {"id": "env_key_present_redacted", "args": {"env": "OPENAI_API_KEY", "required": "false"}},
+    {"id": "env_key_present_redacted", "args": {"env": "ANTHROPIC_API_KEY", "required": "false"}},
+    {"id": "env_key_present_redacted", "args": {"env": "DEEPSEEK_API_KEY", "required": "false"}},
+    {"id": "env_key_present_redacted", "args": {"env": "OPENROUTER_API_KEY", "required": "false"}},
+    {"id": "no_secret_leak_in_report", "args": {"text": "API key report redacted"}}
+  ],
+  "rollback": [],
+  "docs": ["docs/offline/REPORT_FORMAT.md"]
+}

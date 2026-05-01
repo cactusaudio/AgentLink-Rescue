@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "codex-config-parse-repair",
+  "title": "Codex config parse repair",
+  "description": "If ~/.codex/config.toml is malformed, backs it up and writes a minimal valid template.",
+  "supportedOS": ["darwin"],
+  "failureClasses": ["CODEX_CONFIG_MALFORMED"],
+  "risk": "reversible_patch",
+  "requiresRoot": false,
+  "autoAllowed": false,
+  "preconditions": [
+    {"type": "os_is", "value": "darwin"},
+    {"type": "file_exists_or_creatable", "path": "~/.codex/config.toml"}
+  ],
+  "probes": [],
+  "patches": [
+    {
+      "id": "minimal-codex-config",
+      "type": "write_file_from_template_with_backup",
+      "path": "~/.codex/config.toml",
+      "onlyIfTomlMalformed": true,
+      "template": "# Recreated by Cactus AgentLink Rescue.\nmodel = \"gpt-5.5\"\n"
+    }
+  ],
+  "verify": [
+    {"id": "codex_config_exists", "args": {"path": "~/.codex/config.toml"}},
+    {"id": "codex_config_basic_syntax_ok", "args": {"path": "~/.codex/config.toml"}},
+    {"id": "key_not_written_to_config", "args": {"path": "~/.codex/config.toml"}}
+  ],
+  "rollback": [
+    {"type": "restore_file", "path": "~/.codex/config.toml"}
+  ],
+  "docs": ["docs/offline/RECIPE_AUTHORING.md"]
+}
+

@@ -1,0 +1,5 @@
+1 extension(s)
+--- com.apple.system_extension.network_extension
+enabled active teamID bundleID (version) name [state]
+* * ABCD123456 io.github.clash-verge-rev.ClashNetworkExtension (1.0/1) Clash Verge Network Extension [activated enabled]
+

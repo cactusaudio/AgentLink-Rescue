@@ -1,0 +1,4 @@
+/Library/LaunchDaemons/io.github.clashverge.helper.plist
+/Library/PrivilegedHelperTools/io.github.clashverge.helper
+/Users/test/Library/LaunchAgents/com.proxyman.NSProxy.Helper.plist
+

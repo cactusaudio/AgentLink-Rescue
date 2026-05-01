@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "id": "macos-zsh-path-repair",
+  "title": "macOS zsh PATH repair",
+  "description": "Adds a managed PATH block to ~/.zshrc for common local tool directories.",
+  "supportedOS": ["darwin"],
+  "failureClasses": ["PATH_MISSING_TOOL_DIR"],
+  "risk": "reversible_patch",
+  "requiresRoot": false,
+  "autoAllowed": true,
+  "preconditions": [
+    {"type": "os_is", "value": "darwin"},
+    {"type": "file_exists_or_creatable", "path": "~/.zshrc"}
+  ],
+  "probes": [],
+  "patches": [
+    {
+      "id": "path-block",
+      "type": "append_managed_block_if_missing",
+      "path": "~/.zshrc",
+      "marker": "PATH_BLOCK",
+      "content": "agentlink_path_prepend() {\n  case \":$PATH:\" in\n    *\":$1:\"*) ;;\n    *) PATH=\"$1:$PATH\" ;;\n  esac\n}\nagentlink_path_prepend \"$HOME/bin\"\nagentlink_path_prepend \"$HOME/.local/bin\"\nagentlink_path_prepend \"/opt/homebrew/bin\"\nagentlink_path_prepend \"/usr/local/bin\"\nexport PATH"
+    }
+  ],
+  "verify": [
+    {"id": "managed_block_count", "args": {"path": "~/.zshrc", "marker": "PATH_BLOCK", "count": "1"}},
+    {"id": "shell_login_path_contains", "args": {"path": "${HOME}/bin"}},
+    {"id": "shell_login_path_contains", "args": {"path": "${HOME}/.local/bin"}},
+    {"id": "shell_login_path_contains", "args": {"path": "/opt/homebrew/bin"}},
+    {"id": "shell_login_path_contains", "args": {"path": "/usr/local/bin"}}
+  ],
+  "rollback": [
+    {"type": "restore_file", "path": "~/.zshrc"}
+  ],
+  "docs": ["docs/offline/RECIPE_AUTHORING.md"]
+}
+

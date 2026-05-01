@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "intent": "repair",
+  "failureClass": "CODEX_PROVIDER_MISSING",
+  "confidence": 0.4,
+  "selectedRecipe": {
+    "id": "codex-deepseek-provider-config",
+    "params": {}
+  },
+  "risk": "reversible_patch",
+  "requiresUserApproval": true,
+  "expectedVerifiers": [
+    "codex_provider_env_key_present"
+  ],
+  "fallbackRecipes": [],
+  "explanationForUser": "Low confidence repair fixture should be rejected."
+}

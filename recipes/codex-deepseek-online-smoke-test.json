@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "codex-deepseek-online-smoke-test",
+  "title": "Codex DeepSeek online smoke test",
+  "description": "Explicit opt-in network smoke checks for a DeepSeek-backed Codex provider. Does not spend API tokens in v0.2.1.",
+  "supportedOS": ["darwin"],
+  "failureClasses": ["CODEX_PROVIDER_SMOKE_TEST_REQUIRED"],
+  "risk": "network_action",
+  "requiresRoot": false,
+  "autoAllowed": false,
+  "params": [
+    {"name": "apiKeyEnv", "default": "DEEPSEEK_API_KEY"},
+    {"name": "baseURL", "default": "https://api.deepseek.com"}
+  ],
+  "preconditions": [
+    {"type": "os_is", "value": "darwin"}
+  ],
+  "probes": [],
+  "patches": [],
+  "verify": [
+    {"id": "env_key_present_redacted", "args": {"env": "${apiKeyEnv}", "required": "true"}},
+    {"id": "curl_https_optional", "args": {"url": "${baseURL}"}},
+    {"id": "codex_version_runs", "args": {}}
+  ],
+  "rollback": [],
+  "docs": ["docs/offline/RECIPE_AUTHORING.md", "docs/offline/PLANNER_CONTRACT.md"]
+}

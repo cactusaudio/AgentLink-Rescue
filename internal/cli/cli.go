@@ -1,0 +1,772 @@
+package cli
+
+import (
+	"context"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+
+	"cactus-agentlink-rescue/internal/classify"
+	"cactus-agentlink-rescue/internal/command"
+	"cactus-agentlink-rescue/internal/diagnose"
+	"cactus-agentlink-rescue/internal/facts"
+	"cactus-agentlink-rescue/internal/planner"
+	"cactus-agentlink-rescue/internal/recipe"
+	"cactus-agentlink-rescue/internal/repair"
+	"cactus-agentlink-rescue/internal/report"
+	"cactus-agentlink-rescue/internal/rollback"
+	"cactus-agentlink-rescue/internal/session"
+	"cactus-agentlink-rescue/internal/snapshot"
+	"cactus-agentlink-rescue/internal/system"
+	"cactus-agentlink-rescue/internal/verifier"
+	"cactus-agentlink-rescue/internal/verify"
+)
+
+func Main(args []string, stdout io.Writer, stderr io.Writer) int {
+	if len(args) == 0 {
+		usage(stdout)
+		return 50
+	}
+	cmd := args[0]
+	if cmd != "version" && cmd != "selftest" && !system.IsDarwin() {
+		fmt.Fprintln(stderr, "unsupported platform: agentlink supports macOS only")
+		return 60
+	}
+	ctx := context.Background()
+	runner := command.NewExecRunner()
+	rulesDir := findRulesDir()
+	switch cmd {
+	case "doctor":
+		return runDoctor(ctx, runner, args[1:], stdout, stderr)
+	case "snapshot":
+		return runSnapshot(ctx, runner, args[1:], stdout, stderr)
+	case "diff":
+		return runDiff(ctx, runner, args[1:], stdout, stderr)
+	case "restore":
+		return runRestore(ctx, runner, args[1:], stdout, stderr)
+	case "recipe":
+		return runRecipe(ctx, runner, args[1:], stdout, stderr)
+	case "repair":
+		return runTargetRepair(ctx, runner, args[1:], stdout, stderr)
+	case "config":
+		return runConfig(ctx, runner, args[1:], stdout, stderr)
+	case "proxy":
+		return runProxy(ctx, runner, args[1:], stdout, stderr)
+	case "keys":
+		return runKeys(ctx, runner, args[1:], stdout, stderr)
+	case "planner":
+		return runPlanner(ctx, runner, args[1:], stdout, stderr)
+	case "diagnose":
+		return runDiagnose(ctx, runner, rulesDir, args[1:], stdout, stderr)
+	case "classify":
+		return runClassify(ctx, runner, rulesDir, args[1:], stdout, stderr)
+	case "rescue":
+		return runRescue(ctx, runner, rulesDir, args[1:], stdout, stderr)
+	case "rollback":
+		return runRollback(ctx, runner, rulesDir, args[1:], stdout, stderr)
+	case "report":
+		return runReport(ctx, runner, args[1:], stdout, stderr)
+	case "selftest":
+		return runSelftest(stdout, stderr)
+	case "version":
+		fmt.Fprintf(stdout, "agentlink %s\n", system.Version)
+		return 0
+	default:
+		fmt.Fprintf(stderr, "unknown command: %s\n", cmd)
+		usage(stderr)
+		return 50
+	}
+}
+
+func runDoctor(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("doctor", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	jsonOut := fs.Bool("json", false, "print JSON")
+	if err := fs.Parse(args); err != nil {
+		return 50
+	}
+	home := currentHome(ctx, runner)
+	f := facts.Collect(ctx, runner, home, true)
+	if *jsonOut {
+		data, _ := json.MarshalIndent(f, "", "  ")
+		fmt.Fprintln(stdout, string(data))
+		return 0
+	}
+	fmt.Fprintf(stdout, "Cactus AgentLink Rescue %s doctor\n\n", system.Version)
+	fmt.Fprintf(stdout, "OS: %s/%s\nShell: %s\n", f.OS, f.Arch, f.Shell)
+	fmt.Fprintf(stdout, "Likely failures: %s\n", strings.Join(f.LikelyFailures, ", "))
+	fmt.Fprintf(stdout, "Codex config: %s\n", existsText(f.ConfigPaths["codex"].Exists))
+	fmt.Fprintf(stdout, "Proxy env vars: %d\n", len(f.ProxyEnv))
+	return 0
+}
+
+func runSnapshot(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
+	_ = args
+	home := currentHome(ctx, runner)
+	rp, err := snapshot.NewRestorePointWithPolicy(system.UserRestorePointsDir(home), system.Version, system.MutationOptions{RealUserHome: home})
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 30
+	}
+	fmt.Fprintf(stdout, "Created snapshot: %s\n", rp.Path)
+	return 0
+}
+
+func runDiff(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("diff", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	id := fs.String("snapshot", "", "snapshot id")
+	if err := fs.Parse(args); err != nil {
+		return 50
+	}
+	home := currentHome(ctx, runner)
+	rp, err := loadUserSnapshot(home, *id)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 30
+	}
+	fmt.Fprintf(stdout, "Snapshot: %s\n", rp.Manifest.ID)
+	for _, entry := range rp.Manifest.Entries {
+		fmt.Fprintf(stdout, "- %s %s\n", entry.Action, entry.OriginalPath)
+	}
+	return 0
+}
+
+func runRestore(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
+	if len(args) != 1 || args[0] != "last" {
+		fmt.Fprintln(stderr, "restore requires: restore last")
+		return 50
+	}
+	home := currentHome(ctx, runner)
+	rp, err := snapshot.Latest(system.UserRestorePointsDir(home))
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 30
+	}
+	rp.SetMutationPolicy(system.MutationOptions{RealUserHome: home, IncludeNetworkExtensionPlists: true, ExtraAllowedPaths: manifestPaths(rp.Manifest)})
+	if err := rp.RestoreAllWithRunner(ctx, runner); err != nil {
+		fmt.Fprintln(stderr, err)
+		return 30
+	}
+	fmt.Fprintf(stdout, "Restored snapshot: %s\n", rp.Manifest.ID)
+	return 0
+}
+
+func runRecipe(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		fmt.Fprintln(stderr, "recipe requires list, inspect, or run")
+		return 50
+	}
+	reg, err := recipe.LoadRegistry(recipe.FindRecipesDir())
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 30
+	}
+	switch args[0] {
+	case "list":
+		fs := flag.NewFlagSet("recipe list", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		jsonOut := fs.Bool("json", false, "print JSON")
+		if err := fs.Parse(args[1:]); err != nil {
+			return 50
+		}
+		list := reg.List()
+		if *jsonOut {
+			data, _ := json.MarshalIndent(list, "", "  ")
+			fmt.Fprintln(stdout, string(data))
+		} else {
+			for _, r := range list {
+				fmt.Fprintf(stdout, "%s\t%s\t%s\n", r.ID, r.Risk, r.Title)
+			}
+		}
+		return 0
+	case "inspect":
+		fs := flag.NewFlagSet("recipe inspect", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		jsonOut := fs.Bool("json", false, "print JSON")
+		parseArgs := args[1:]
+		id := ""
+		if len(parseArgs) > 0 && !strings.HasPrefix(parseArgs[0], "-") {
+			id = parseArgs[0]
+			parseArgs = parseArgs[1:]
+		}
+		if err := fs.Parse(parseArgs); err != nil {
+			return 50
+		}
+		if id == "" && fs.NArg() == 1 {
+			id = fs.Arg(0)
+		}
+		if id == "" {
+			fmt.Fprintln(stderr, "recipe inspect requires id")
+			return 50
+		}
+		r, ok := reg.Get(id)
+		if !ok {
+			fmt.Fprintln(stderr, "unknown recipe")
+			return 30
+		}
+		if *jsonOut {
+			data, _ := json.MarshalIndent(r, "", "  ")
+			fmt.Fprintln(stdout, string(data))
+		} else {
+			fmt.Fprintf(stdout, "%s\n%s\nRisk: %s\n", r.Title, r.Description, r.Risk)
+		}
+		return 0
+	case "run":
+		fs := flag.NewFlagSet("recipe run", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		dryRun := fs.Bool("dry-run", false, "dry run")
+		yes := fs.Bool("yes", false, "approve")
+		jsonOut := fs.Bool("json", false, "JSON")
+		params := paramFlags{}
+		fs.Var(&params, "param", "key=value param")
+		parseArgs := args[1:]
+		id := ""
+		if len(parseArgs) > 0 && !strings.HasPrefix(parseArgs[0], "-") {
+			id = parseArgs[0]
+			parseArgs = parseArgs[1:]
+		}
+		if err := fs.Parse(parseArgs); err != nil {
+			return 50
+		}
+		if id == "" && fs.NArg() == 1 {
+			id = fs.Arg(0)
+		}
+		if id == "" {
+			fmt.Fprintln(stderr, "recipe run requires id")
+			return 50
+		}
+		return executeRecipe(ctx, runner, reg, id, recipe.RunOptions{Home: currentHome(ctx, runner), DryRun: *dryRun, Yes: *yes, JSON: *jsonOut, Params: params.values, CommandLine: append([]string{"recipe", "run", id}, args[1:]...)}, *jsonOut, stdout, stderr)
+	default:
+		fmt.Fprintln(stderr, "unknown recipe subcommand")
+		return 50
+	}
+}
+
+func runTargetRepair(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("repair", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	target := fs.String("target", "", "path, proxy, codex, or keys")
+	dryRun := fs.Bool("dry-run", false, "dry run")
+	yes := fs.Bool("yes", false, "approve")
+	jsonOut := fs.Bool("json", false, "JSON")
+	if err := fs.Parse(args); err != nil {
+		return 50
+	}
+	id := map[string]string{"path": "macos-zsh-path-repair", "proxy": "proxy-clean-stale-env", "codex": "codex-config-parse-repair", "keys": "api-key-detection-redaction"}[*target]
+	if id == "" {
+		fmt.Fprintln(stderr, "repair --target must be path, proxy, codex, or keys")
+		return 50
+	}
+	reg, err := recipe.LoadRegistry(recipe.FindRecipesDir())
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 30
+	}
+	return executeRecipe(ctx, runner, reg, id, recipe.RunOptions{Home: currentHome(ctx, runner), DryRun: *dryRun, Yes: *yes, JSON: *jsonOut, CommandLine: append([]string{"repair"}, args...)}, *jsonOut, stdout, stderr)
+}
+
+func executeRecipe(ctx context.Context, runner command.Runner, reg recipe.Registry, id string, opts recipe.RunOptions, jsonOut bool, stdout, stderr io.Writer) int {
+	res := recipe.Run(ctx, runner, reg, id, opts)
+	if jsonOut {
+		data, _ := json.MarshalIndent(res, "", "  ")
+		fmt.Fprintln(stdout, string(data))
+	} else {
+		fmt.Fprintf(stdout, "Recipe: %s\nStatus: %s\n", res.RecipeID, res.Status)
+		if res.DryRun {
+			fmt.Fprintln(stdout, "Dry run: no changes made")
+		}
+		for _, a := range res.PlannedActions {
+			fmt.Fprintf(stdout, "- %s %s\n", a.Description, a.Path)
+		}
+		for _, v := range res.VerifierResults {
+			fmt.Fprintf(stdout, "- verifier %s: %s\n", v.ID, v.Status)
+		}
+		for _, w := range res.Warnings {
+			fmt.Fprintf(stdout, "- warning: %s\n", w)
+		}
+		if res.SnapshotID != "" {
+			fmt.Fprintf(stdout, "Rollback: agentlink restore last\n")
+		}
+		if res.HumanReportPath != "" {
+			fmt.Fprintf(stdout, "Report path: %s\n", res.HumanReportPath)
+		}
+	}
+	if res.Error != "" {
+		fmt.Fprintln(stderr, res.Error)
+		return 30
+	}
+	if res.Status == "fail" || res.Status == recipe.StatusVerifierFailed {
+		return 30
+	}
+	return 0
+}
+
+func runConfig(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 || args[0] != "doctor" {
+		fmt.Fprintln(stderr, "config requires doctor")
+		return 50
+	}
+	f := facts.Collect(ctx, runner, currentHome(ctx, runner), false)
+	out := map[string]any{"codexConfig": f.ConfigPaths["codex"]}
+	jsonOut := contains(args[1:], "--json")
+	if jsonOut {
+		data, _ := json.MarshalIndent(out, "", "  ")
+		fmt.Fprintln(stdout, string(data))
+	} else {
+		fmt.Fprintf(stdout, "Codex config: %s\n", f.ConfigPaths["codex"].Path)
+	}
+	return 0
+}
+
+func runProxy(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 || args[0] != "detect" {
+		fmt.Fprintln(stderr, "proxy requires detect")
+		return 50
+	}
+	f := facts.Collect(ctx, runner, currentHome(ctx, runner), false)
+	out := map[string]any{"proxyEnv": f.ProxyEnv, "ports": f.Ports}
+	if contains(args[1:], "--json") {
+		data, _ := json.MarshalIndent(out, "", "  ")
+		fmt.Fprintln(stdout, string(data))
+	} else {
+		fmt.Fprintf(stdout, "Proxy env vars: %d\n", len(f.ProxyEnv))
+		for _, p := range f.Ports {
+			fmt.Fprintf(stdout, "Port %s listening: %v\n", p.Port, p.Listening)
+		}
+	}
+	return 0
+}
+
+func runKeys(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 || args[0] != "doctor" {
+		fmt.Fprintln(stderr, "keys requires doctor")
+		return 50
+	}
+	f := facts.Collect(ctx, runner, currentHome(ctx, runner), false)
+	if contains(args[1:], "--json") {
+		data, _ := json.MarshalIndent(f.APIKeys, "", "  ")
+		fmt.Fprintln(stdout, string(data))
+	} else {
+		for _, k := range f.APIKeys {
+			fmt.Fprintf(stdout, "%s present: %v\n", k.Name, k.Present)
+		}
+	}
+	return 0
+}
+
+func runPlanner(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
+	_ = ctx
+	_ = runner
+	if len(args) != 2 || args[0] != "validate" {
+		fmt.Fprintln(stderr, "planner requires validate <decision.json>")
+		return 50
+	}
+	reg, err := recipe.LoadRegistry(recipe.FindRecipesDir())
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 30
+	}
+	decision, err := planner.LoadDecision(args[1])
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 30
+	}
+	if err := planner.ValidateDecision(decision, reg, verifier.NewRegistry()); err != nil {
+		fmt.Fprintln(stderr, err)
+		return 30
+	}
+	fmt.Fprintln(stdout, "planner decision valid")
+	return 0
+}
+
+func runDiagnose(ctx context.Context, runner command.Runner, rulesDir string, args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("diagnose", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	jsonOut := fs.Bool("json", false, "print JSON")
+	verbose := fs.Bool("verbose", false, "include raw command output")
+	if err := fs.Parse(args); err != nil {
+		return 50
+	}
+	engine := diagnose.NewEngine(runner, diagnose.Options{RulesDir: rulesDir, Verbose: *verbose})
+	r := engine.Run(ctx)
+	classify.Apply(&r)
+	if path, err := report.WriteDiagnosticForUser(&r, system.UserInfo{Name: r.Host.RealUser, Home: r.Host.RealUserHome, UID: r.Host.RealUserUID, GID: r.Host.RealUserGID}); err == nil {
+		r.ReportPath = path
+	} else {
+		fmt.Fprintf(stderr, "warning: could not write diagnostic report: %v\n", err)
+	}
+	if *jsonOut {
+		data, _ := json.MarshalIndent(r, "", "  ")
+		fmt.Fprintln(stdout, string(data))
+	} else {
+		fmt.Fprint(stdout, report.HumanDiagnostic(r))
+	}
+	return 0
+}
+
+func runClassify(ctx context.Context, runner command.Runner, rulesDir string, args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("classify", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	jsonOut := fs.Bool("json", false, "print JSON")
+	if err := fs.Parse(args); err != nil {
+		return 50
+	}
+	engine := diagnose.NewEngine(runner, diagnose.Options{RulesDir: rulesDir})
+	r := engine.Run(ctx)
+	classify.Apply(&r)
+	if path, err := report.WriteDiagnosticForUser(&r, system.UserInfo{Name: r.Host.RealUser, Home: r.Host.RealUserHome, UID: r.Host.RealUserUID, GID: r.Host.RealUserGID}); err == nil {
+		r.ReportPath = path
+	}
+	if *jsonOut {
+		out := map[string]any{"classifications": r.Classifications, "recommendedRepairLevel": r.RecommendedRepairLevel, "reportPath": r.ReportPath}
+		data, _ := json.MarshalIndent(out, "", "  ")
+		fmt.Fprintln(stdout, string(data))
+	} else {
+		fmt.Fprintf(stdout, "Classifications: %s\nRecommended repair level: %s\nReport path: %s\n", strings.Join(r.Classifications, ", "), r.RecommendedRepairLevel, r.ReportPath)
+	}
+	return 0
+}
+
+func runRescue(ctx context.Context, runner command.Runner, rulesDir string, args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("rescue", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	level := fs.String("level", repair.LevelSafe, "safe, standard, or deep")
+	yes := fs.Bool("yes", false, "confirm destructive steps")
+	dryRun := fs.Bool("dry-run", false, "show actions without changing system")
+	jsonOut := fs.Bool("json", false, "print JSON")
+	reboot := fs.Bool("reboot", false, "reboot after deep rescue")
+	includeNE := fs.Bool("include-networkextension-plists", false, "include NetworkExtension plists during deep rescue")
+	if err := fs.Parse(args); err != nil {
+		return 50
+	}
+	if *level == repair.LevelDeep && !*yes {
+		fmt.Fprintln(stderr, "deep rescue requires --yes")
+		return 50
+	}
+	if !*dryRun && !system.IsRoot() {
+		return sudoReexec(append([]string{"rescue"}, args...), stdout, stderr)
+	}
+	res := repair.Run(ctx, runner, repair.Options{
+		Level:                         *level,
+		Yes:                           *yes,
+		DryRun:                        *dryRun,
+		JSON:                          *jsonOut,
+		Reboot:                        *reboot,
+		IncludeNetworkExtensionPlists: *includeNE,
+		RulesDir:                      rulesDir,
+		Stdin:                         os.Stdin,
+		Stdout:                        stdout,
+	})
+	if *jsonOut {
+		fmt.Fprintln(stdout, repair.JSON(res))
+	} else {
+		if res.DryRun {
+			printDryRun(stdout, res)
+		} else {
+			if res.ReportPath != "" {
+				if data, err := os.ReadFile(res.ReportPath); err == nil {
+					fmt.Fprint(stdout, string(data))
+				} else {
+					printRescueSummary(stdout, res)
+				}
+			} else {
+				printRescueSummary(stdout, res)
+			}
+		}
+	}
+	if res.Error != "" {
+		fmt.Fprintln(stderr, res.Error)
+	}
+	return res.ExitCode
+}
+
+func printRescueSummary(stdout io.Writer, res repair.Result) {
+	fmt.Fprintf(stdout, "Cactus AgentLink Rescue %s\n\n", res.ToolVersion)
+	fmt.Fprintf(stdout, "Status: %s\n", res.Status)
+	if res.RestorePointPath != "" {
+		fmt.Fprintf(stdout, "Restore point: %s\n", res.RestorePointPath)
+	}
+	if res.ReportPath != "" {
+		fmt.Fprintf(stdout, "Report path: %s\n", res.ReportPath)
+	}
+	if res.RollbackCommand != "" {
+		fmt.Fprintf(stdout, "Rollback: %s\n", res.RollbackCommand)
+	}
+}
+
+func runRollback(ctx context.Context, runner command.Runner, rulesDir string, args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("rollback", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	last := fs.Bool("last", false, "use latest restore point")
+	id := fs.String("id", "", "restore point id")
+	dryRun := fs.Bool("dry-run", false, "show actions without changing system")
+	jsonOut := fs.Bool("json", false, "print JSON")
+	if err := fs.Parse(args); err != nil {
+		return 50
+	}
+	if !*dryRun && !system.IsRoot() {
+		return sudoReexec(append([]string{"rollback"}, args...), stdout, stderr)
+	}
+	res := rollback.Run(ctx, runner, rollback.Options{ID: *id, Last: *last, DryRun: *dryRun, JSON: *jsonOut, RulesDir: rulesDir})
+	if *jsonOut {
+		fmt.Fprintln(stdout, rollback.JSON(res))
+	} else {
+		fmt.Fprint(stdout, rollback.Human(res))
+	}
+	if res.Error != "" {
+		fmt.Fprintln(stderr, res.Error)
+	}
+	return res.ExitCode
+}
+
+func runReport(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("report", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	latest := fs.Bool("latest", false, "show latest report")
+	id := fs.String("id", "", "restore point/report id")
+	jsonOut := fs.Bool("json", false, "print JSON")
+	forHuman := fs.Bool("for-human", false, "print latest human session report")
+	forCodex := fs.Bool("for-codex", false, "print latest agent dispatch report")
+	if err := fs.Parse(args); err != nil {
+		return 50
+	}
+	if *forHuman || *forCodex {
+		if !*latest {
+			fmt.Fprintln(stderr, "report --for-human/--for-codex requires --latest")
+			return 50
+		}
+		store := session.NewStore(currentHome(ctx, runner))
+		sess, err := store.Latest()
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			return 30
+		}
+		path := sess.HumanReportPath
+		if *forCodex {
+			path = sess.AgentDispatchPath
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			return 30
+		}
+		fmt.Fprint(stdout, string(data))
+		return 0
+	}
+	if !*latest && *id == "" {
+		fmt.Fprintln(stderr, "report requires --latest or --id")
+		return 50
+	}
+	if *id != "" {
+		return printRestoreReport(*id, *jsonOut, stdout, stderr)
+	}
+	if rp, err := snapshot.Latest(system.RestorePointsDir()); err == nil {
+		if *jsonOut {
+			data, _ := json.MarshalIndent(rp.Manifest, "", "  ")
+			fmt.Fprintln(stdout, string(data))
+			return 0
+		}
+		if data, err := os.ReadFile(rp.Manifest.HumanReportPath); err == nil {
+			fmt.Fprint(stdout, string(data))
+			return 0
+		}
+	}
+	u := system.RealConsoleUser(context.Background(), command.NewExecRunner())
+	path, err := report.LatestDiagnosticPath(u.Home)
+	if err != nil {
+		fmt.Fprintln(stderr, "no report found")
+		return 30
+	}
+	if *jsonOut {
+		data, _ := os.ReadFile(path)
+		fmt.Fprintln(stdout, string(data))
+		return 0
+	}
+	r, err := report.LoadDiagnostic(path)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 30
+	}
+	fmt.Fprint(stdout, report.HumanDiagnostic(r))
+	return 0
+}
+
+type paramFlags struct {
+	values map[string]string
+}
+
+func (p *paramFlags) String() string {
+	return fmt.Sprint(p.values)
+}
+
+func (p *paramFlags) Set(value string) error {
+	if p.values == nil {
+		p.values = map[string]string{}
+	}
+	parts := strings.SplitN(value, "=", 2)
+	if len(parts) != 2 || parts[0] == "" {
+		return fmt.Errorf("expected key=value")
+	}
+	p.values[parts[0]] = parts[1]
+	return nil
+}
+
+func currentHome(ctx context.Context, runner command.Runner) string {
+	if !system.IsRoot() {
+		if home := os.Getenv("HOME"); home != "" {
+			return home
+		}
+	}
+	u := system.RealConsoleUser(ctx, runner)
+	if u.Home != "" {
+		return u.Home
+	}
+	home, _ := os.UserHomeDir()
+	return home
+}
+
+func existsText(ok bool) string {
+	if ok {
+		return "exists"
+	}
+	return "missing"
+}
+
+func loadUserSnapshot(home, id string) (snapshot.RestorePoint, error) {
+	if id == "" {
+		return snapshot.Latest(system.UserRestorePointsDir(home))
+	}
+	return snapshot.Load(filepath.Join(system.UserRestorePointsDir(home), filepath.Base(id)))
+}
+
+func manifestPaths(m snapshot.Manifest) []string {
+	var out []string
+	for _, entry := range m.Entries {
+		if entry.OriginalPath != "" {
+			out = append(out, entry.OriginalPath)
+		}
+	}
+	return out
+}
+
+func contains(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
+}
+
+func printRestoreReport(id string, jsonOut bool, stdout, stderr io.Writer) int {
+	rp, err := snapshot.Load(filepath.Join(system.RestorePointsDir(), filepath.Base(id)))
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 30
+	}
+	if jsonOut {
+		data, _ := json.MarshalIndent(rp.Manifest, "", "  ")
+		fmt.Fprintln(stdout, string(data))
+		return 0
+	}
+	if data, err := os.ReadFile(rp.Manifest.HumanReportPath); err == nil {
+		fmt.Fprint(stdout, string(data))
+		return 0
+	}
+	fmt.Fprintf(stdout, "Restore point: %s\nStatus: %s\n", rp.Path, rp.Manifest.RollbackStatus)
+	return 0
+}
+
+func runSelftest(stdout, stderr io.Writer) int {
+	errs := verify.Selftest()
+	if len(errs) == 0 {
+		fmt.Fprintf(stdout, "agentlink selftest OK\n")
+		return 0
+	}
+	for _, err := range errs {
+		fmt.Fprintln(stderr, err)
+	}
+	return 30
+}
+
+func printDryRun(stdout io.Writer, res repair.Result) {
+	fmt.Fprintf(stdout, "Cactus AgentLink Rescue %s\n\n", res.ToolVersion)
+	fmt.Fprintf(stdout, "Dry run: no changes made.\n")
+	fmt.Fprintf(stdout, "Level: %s\n\n", res.Level)
+	fmt.Fprintf(stdout, "Preflight classes: %s\n\n", strings.Join(res.Preflight, ", "))
+	fmt.Fprintln(stdout, "Planned actions:")
+	for _, a := range res.Actions {
+		if len(a.Command) > 0 {
+			fmt.Fprintf(stdout, "- %s: %s\n", a.Description, strings.Join(a.Command, " "))
+		} else {
+			fmt.Fprintf(stdout, "- %s\n", a.Description)
+		}
+	}
+}
+
+func sudoReexec(args []string, stdout, stderr io.Writer) int {
+	exe, err := os.Executable()
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 40
+	}
+	sudo := "/usr/bin/sudo"
+	cmd := exec.Command(sudo, append([]string{exe}, args...)...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+	if err := cmd.Run(); err != nil {
+		if ee, ok := err.(*exec.ExitError); ok {
+			return ee.ExitCode()
+		}
+		fmt.Fprintln(stderr, err)
+		return 40
+	}
+	return 0
+}
+
+func findRulesDir() string {
+	candidates := []string{}
+	if cwd, err := os.Getwd(); err == nil {
+		candidates = append(candidates, filepath.Join(cwd, "rules"))
+	}
+	if exe, err := os.Executable(); err == nil {
+		dir := filepath.Dir(exe)
+		candidates = append(candidates, filepath.Join(dir, "rules"), filepath.Join(dir, "..", "rules"), filepath.Join(dir, "..", "..", "rules"))
+	}
+	for _, c := range candidates {
+		if st, err := os.Stat(c); err == nil && st.IsDir() {
+			return c
+		}
+	}
+	return ""
+}
+
+func usage(w io.Writer) {
+	fmt.Fprintln(w, "Usage:")
+	fmt.Fprintln(w, "  agentlink doctor [--json]")
+	fmt.Fprintln(w, "  agentlink snapshot")
+	fmt.Fprintln(w, "  agentlink diff [--snapshot ID]")
+	fmt.Fprintln(w, "  agentlink restore last")
+	fmt.Fprintln(w, "  agentlink recipe list [--json]")
+	fmt.Fprintln(w, "  agentlink recipe inspect <id> [--json]")
+	fmt.Fprintln(w, "  agentlink recipe run <id> [--dry-run] [--yes] [--json] [--param key=value]")
+	fmt.Fprintln(w, "  agentlink repair --target path|proxy|codex|keys [--dry-run] [--yes] [--json]")
+	fmt.Fprintln(w, "  agentlink config doctor [--json]")
+	fmt.Fprintln(w, "  agentlink proxy detect [--json]")
+	fmt.Fprintln(w, "  agentlink keys doctor [--json]")
+	fmt.Fprintln(w, "  agentlink planner validate <decision.json>")
+	fmt.Fprintln(w, "  agentlink diagnose [--json] [--verbose]")
+	fmt.Fprintln(w, "  agentlink classify [--json]")
+	fmt.Fprintln(w, "  agentlink rescue [--level safe|standard|deep] [--yes] [--dry-run] [--json]")
+	fmt.Fprintln(w, "  agentlink rollback [--last | --id RESTORE_POINT_ID] [--dry-run] [--json]")
+	fmt.Fprintln(w, "  agentlink report [--latest | --id REPORT_ID] [--json]")
+	fmt.Fprintln(w, "  agentlink selftest")
+	fmt.Fprintln(w, "  agentlink version")
+}
