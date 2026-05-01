@@ -1,4 +1,4 @@
-Cactus AgentLink Rescue 0.2.1
+Cactus AgentLink Rescue 0.2.2
 
 1. Put this folder anywhere, for example Downloads.
 2. Double-click agentlink.command.

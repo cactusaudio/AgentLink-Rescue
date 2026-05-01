@@ -181,7 +181,9 @@ func Run(ctx context.Context, runner command.Runner, reg Registry, id string, op
 		res.Status = finalRecipeStatus(r, res, warned)
 	}
 	if r.ID == "codex-deepseek-provider-config" && res.Status != StatusVerifierFailed {
+		res.Warnings = appendIfMissing(res.Warnings, "static config template generated")
 		res.Warnings = appendIfMissing(res.Warnings, "provider_smoke_test_required")
+		res.Warnings = appendIfMissing(res.Warnings, "not proven operational until explicit online smoke test passes")
 	}
 	sess.Warnings = append([]string(nil), res.Warnings...)
 	sess.Finish(res.Status)
@@ -394,6 +396,12 @@ func configPatch(ctx context.Context, runner command.Runner, holder *snapshotHol
 	}
 	oldValue := strings.TrimSpace(getRes.Stdout)
 	existed := getRes.ExitCode == 0 && oldValue != "" && oldValue != "null" && oldValue != "undefined"
+	if tool == "npm" && !existed {
+		if val, ok := readNPMRCValue(key); ok {
+			oldValue = val
+			existed = true
+		}
+	}
 	if holder != nil && holder.rp != nil {
 		if err := holder.rp.RecordConfigValue(tool, scope, key, existed, oldValue); err != nil {
 			return "", err
@@ -417,14 +425,14 @@ func configPatch(ctx context.Context, runner command.Runner, holder *snapshotHol
 func configPatchCommands(tool, key, value string) (string, []string, []string, []string, string, error) {
 	switch tool {
 	case "git":
-		return "/usr/bin/git",
+		return configToolPath("git"),
 			[]string{"config", "--global", "--get", key},
 			[]string{"config", "--global", key, value},
 			[]string{"config", "--global", "--unset", key},
 			"global",
 			nil
 	case "npm":
-		return "/usr/bin/npm",
+		return configToolPath("npm"),
 			[]string{"config", "get", key},
 			[]string{"config", "set", key, value},
 			[]string{"config", "delete", key},
@@ -433,6 +441,52 @@ func configPatchCommands(tool, key, value string) (string, []string, []string, [
 	default:
 		return "", nil, nil, nil, "", fmt.Errorf("unsupported config tool: %s", tool)
 	}
+}
+
+func configToolPath(tool string) string {
+	switch tool {
+	case "git":
+		if path, ok := system.FindFirstExisting("/usr/bin/git", "/opt/homebrew/bin/git", "/usr/local/bin/git"); ok {
+			return path
+		}
+		return "/usr/bin/git"
+	case "npm":
+		if path, ok := system.FindFirstExisting("/usr/bin/npm", "/opt/homebrew/bin/npm", "/usr/local/bin/npm"); ok {
+			return path
+		}
+		return "/usr/bin/npm"
+	default:
+		return tool
+	}
+}
+
+func readNPMRCValue(key string) (string, bool) {
+	path := os.Getenv("NPM_CONFIG_USERCONFIG")
+	if path == "" {
+		home := os.Getenv("HOME")
+		if home == "" {
+			return "", false
+		}
+		path = filepath.Join(home, ".npmrc")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", false
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		if strings.TrimSpace(parts[0]) == key {
+			return strings.Trim(strings.TrimSpace(parts[1]), `"'`), true
+		}
+	}
+	return "", false
 }
 
 func logCommand(sess *session.Session, id string, res command.Result) {

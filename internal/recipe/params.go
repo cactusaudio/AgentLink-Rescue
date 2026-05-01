@@ -12,9 +12,7 @@ func ResolveParams(r Recipe, supplied map[string]string) (map[string]string, err
 	allowed := map[string]ParamSpec{}
 	for _, p := range r.Params {
 		allowed[p.Name] = p
-		if p.Default != "" {
-			out[p.Name] = p.Default
-		}
+		out[p.Name] = p.Default
 	}
 	for k, v := range supplied {
 		spec, ok := allowed[k]
@@ -39,11 +37,19 @@ func Interpolate(s string, home string, params map[string]string) string {
 	out := strings.ReplaceAll(s, "{{home}}", home)
 	out = strings.ReplaceAll(out, "${HOME}", home)
 	out = strings.ReplaceAll(out, "$HOME", home)
+	out = strings.ReplaceAll(out, "${wireAPILine}", wireAPILine(params["wireAPI"]))
 	for k, v := range params {
 		out = strings.ReplaceAll(out, "{{param."+k+"}}", v)
 		out = strings.ReplaceAll(out, "${"+k+"}", v)
 	}
 	return out
+}
+
+func wireAPILine(value string) string {
+	if value == "responses" {
+		return "wire_api = \"responses\"\n"
+	}
+	return ""
 }
 
 func ParamPairs(args []string) (map[string]string, error) {

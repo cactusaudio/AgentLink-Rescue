@@ -123,18 +123,20 @@ func TestRestoreConfigEntriesRestoresExistedAndUnsetsMissing(t *testing.T) {
 	if err := rp.RecordConfigValue("npm", "user", "proxy", false, ""); err != nil {
 		t.Fatal(err)
 	}
+	gitPath := restoreConfigToolPath("git")
+	npmPath := restoreConfigToolPath("npm")
 	runner := &command.MockRunner{Results: map[string]command.Result{
-		command.Render("/usr/bin/npm", "config", "delete", "proxy"):                                   {ExitCode: 0},
-		command.Render("/usr/bin/git", "config", "--global", "http.proxy", "http://old.example:7890"): {ExitCode: 0},
+		command.Render(npmPath, "config", "delete", "proxy"):                                   {ExitCode: 0},
+		command.Render(gitPath, "config", "--global", "http.proxy", "http://old.example:7890"): {ExitCode: 0},
 	}}
 	if err := rp.RestoreConfigEntries(context.Background(), runner); err != nil {
 		t.Fatal(err)
 	}
 	joined := strings.Join(runner.Calls, "\n")
-	if !strings.Contains(joined, "/usr/bin/git config --global http.proxy http://old.example:7890") {
+	if !strings.Contains(joined, command.Render(gitPath, "config", "--global", "http.proxy", "http://old.example:7890")) {
 		t.Fatalf("git restore missing: %s", joined)
 	}
-	if !strings.Contains(joined, "/usr/bin/npm config delete proxy") {
+	if !strings.Contains(joined, command.Render(npmPath, "config", "delete", "proxy")) {
 		t.Fatalf("npm delete missing: %s", joined)
 	}
 }

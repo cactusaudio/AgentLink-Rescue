@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"cactus-agentlink-rescue/internal/command"
+	"cactus-agentlink-rescue/internal/system"
 )
 
 var proxyEnvKeys = []string{"HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "all_proxy", "no_proxy"}
@@ -53,7 +54,7 @@ func localPortListening(ctx Context, args map[string]string) Result {
 }
 
 func gitProxyAbsent(ctx Context, args map[string]string) Result {
-	return configAbsent(ctx, "/usr/bin/git", []string{"config", "--global", "--get", args["key"]}, args["key"])
+	return configAbsent(ctx, verifierConfigToolPath("git"), []string{"config", "--global", "--get", args["key"]}, args["key"])
 }
 
 func gitProxyMatches(ctx Context, args map[string]string) Result {
@@ -61,7 +62,7 @@ func gitProxyMatches(ctx Context, args map[string]string) Result {
 	if key == "" {
 		key = "http.proxy"
 	}
-	return configMatches(ctx, "/usr/bin/git", []string{"config", "--global", "--get", key}, args["value"])
+	return configMatches(ctx, verifierConfigToolPath("git"), []string{"config", "--global", "--get", key}, args["value"])
 }
 
 func npmProxyAbsent(ctx Context, args map[string]string) Result {
@@ -69,7 +70,7 @@ func npmProxyAbsent(ctx Context, args map[string]string) Result {
 	if key == "" {
 		key = "proxy"
 	}
-	return configAbsent(ctx, "/usr/bin/npm", []string{"config", "get", key}, key)
+	return configAbsent(ctx, verifierConfigToolPath("npm"), []string{"config", "get", key}, key)
 }
 
 func npmProxyMatches(ctx Context, args map[string]string) Result {
@@ -77,7 +78,7 @@ func npmProxyMatches(ctx Context, args map[string]string) Result {
 	if key == "" {
 		key = "proxy"
 	}
-	return configMatches(ctx, "/usr/bin/npm", []string{"config", "get", key}, args["value"])
+	return configMatches(ctx, verifierConfigToolPath("npm"), []string{"config", "get", key}, args["value"])
 }
 
 func curlHTTPSOptional(ctx Context, args map[string]string) Result {
@@ -129,4 +130,21 @@ func configMatches(ctx Context, path string, args []string, want string) Result 
 
 func currentEnv(key string) string {
 	return os.Getenv(key)
+}
+
+func verifierConfigToolPath(tool string) string {
+	switch tool {
+	case "git":
+		if path, ok := system.FindFirstExisting("/usr/bin/git", "/opt/homebrew/bin/git", "/usr/local/bin/git"); ok {
+			return path
+		}
+		return "/usr/bin/git"
+	case "npm":
+		if path, ok := system.FindFirstExisting("/usr/bin/npm", "/opt/homebrew/bin/npm", "/usr/local/bin/npm"); ok {
+			return path
+		}
+		return "/usr/bin/npm"
+	default:
+		return tool
+	}
 }

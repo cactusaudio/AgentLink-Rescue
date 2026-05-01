@@ -20,3 +20,9 @@ func codexVersionRuns(ctx Context, args map[string]string) Result {
 	}
 	return warn(commandString(res))
 }
+
+func providerSmokeTestRequired(ctx Context, args map[string]string) Result {
+	_ = ctx
+	_ = args
+	return warn("provider_smoke_test_required: static config template is not proof of online provider compatibility")
+}

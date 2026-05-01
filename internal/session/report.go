@@ -23,6 +23,18 @@ func HumanReport(s Session) string {
 	if s.DryRun {
 		b.WriteString("Dry run: true\n")
 	}
+	if s.FinalState != "" {
+		b.WriteString("Recipe status: " + s.FinalState + "\n")
+	}
+	if isTemplateOnly(s) {
+		b.WriteString("Template generation: static config template only; not proven operational until explicit online smoke test passes.\n")
+	}
+	if s.SnapshotID != "" {
+		b.WriteString("Snapshot ID: " + s.SnapshotID + "\n")
+	}
+	if s.SnapshotPath != "" {
+		b.WriteString("Snapshot path: " + s.SnapshotPath + "\n")
+	}
 	if len(s.ChangedFiles) > 0 {
 		b.WriteString("\nChanged files:\n")
 		for _, path := range s.ChangedFiles {
@@ -52,9 +64,6 @@ func HumanReport(s Session) string {
 		b.WriteString("\nRollback:\n")
 		b.WriteString("agentlink restore last\n")
 	}
-	if s.FinalState != "" {
-		b.WriteString("\nFinal state: " + s.FinalState + "\n")
-	}
 	return safety.RedactSensitive(b.String())
 }
 
@@ -83,17 +92,36 @@ func AgentDispatch(s Session) string {
 func nextTask(s Session) string {
 	for _, v := range s.VerifierResults {
 		if v.Status == "fail" {
-			return "Investigate verifier failure: " + v.ID
+			return "Inspect the failed verifier with: agentlink report --for-codex --latest"
 		}
 	}
 	if s.FinalState == "success" || s.FinalState == "ok" {
 		return "No immediate action required."
 	}
 	if s.FinalState == "needs_user_secret" {
-		return "Set the missing API key in the environment, then rerun the relevant verifier or online smoke test."
+		return "Set DEEPSEEK_API_KEY in the shell, then run: agentlink recipe run codex-deepseek-online-smoke-test --yes"
 	}
 	if s.FinalState == "needs_online_smoke_test" {
-		return "Run an explicit online smoke test before treating the provider as operational."
+		return "Run: agentlink recipe run codex-deepseek-online-smoke-test --yes"
 	}
-	return "Review session report and choose next bounded recipe."
+	if s.FinalState == "dry-run" && s.SelectedRecipe != "" {
+		return "Review planned actions, then run: agentlink recipe run " + s.SelectedRecipe + " --yes"
+	}
+	return "Run: agentlink doctor"
+}
+
+func isTemplateOnly(s Session) bool {
+	return s.FinalState == "config_template_generated" ||
+		s.FinalState == "needs_user_secret" ||
+		s.FinalState == "needs_online_smoke_test" ||
+		containsWarning(s.Warnings, "provider_smoke_test_required")
+}
+
+func containsWarning(values []string, needle string) bool {
+	for _, value := range values {
+		if strings.Contains(value, needle) {
+			return true
+		}
+	}
+	return false
 }

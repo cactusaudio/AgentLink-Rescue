@@ -139,9 +139,10 @@ func TestVerifierFailureCausesRecipeFailure(t *testing.T) {
 }
 
 func TestGitNpmOriginalValuesRecorded(t *testing.T) {
+	gitPath := configToolPath("git")
 	runner := &command.MockRunner{Results: map[string]command.Result{
-		command.Render("/usr/bin/git", "config", "--global", "--get", "http.proxy"):   {ExitCode: 0, Stdout: "http://user:pass@127.0.0.1:7890\n"},
-		command.Render("/usr/bin/git", "config", "--global", "--unset", "http.proxy"): {ExitCode: 0},
+		command.Render(gitPath, "config", "--global", "--get", "http.proxy"):   {ExitCode: 0, Stdout: "http://user:pass@127.0.0.1:7890\n"},
+		command.Render(gitPath, "config", "--global", "--unset", "http.proxy"): {ExitCode: 0},
 	}}
 	reg := Registry{recipes: map[string]Recipe{
 		"git-clean": {
@@ -192,11 +193,25 @@ func TestCodexDeepSeekRecipeUsesEnvKeyAndDefaults(t *testing.T) {
 		t.Fatalf("model=%s", params["model"])
 	}
 	content := Interpolate(r.Patches[0].Content, t.TempDir(), params)
+	if !strings.Contains(content, `name = "DeepSeek"`) {
+		t.Fatalf("provider name missing:\n%s", content)
+	}
 	if !strings.Contains(content, `env_key = "DEEPSEEK_API_KEY"`) {
 		t.Fatalf("env_key missing:\n%s", content)
 	}
 	if strings.Contains(content, "api_"+"key_env") {
 		t.Fatalf("stale Codex API key env field found:\n%s", content)
+	}
+	if strings.Contains(content, "wire_api") {
+		t.Fatalf("wire_api should be omitted by default:\n%s", content)
+	}
+	withWire, err := ResolveParams(r, map[string]string{"wireAPI": "responses"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wireContent := Interpolate(r.Patches[0].Content, t.TempDir(), withWire)
+	if !strings.Contains(wireContent, `wire_api = "responses"`) {
+		t.Fatalf("wire_api responses missing:\n%s", wireContent)
 	}
 }
 
@@ -222,14 +237,47 @@ func TestCodexDeepSeekLegacyModelWarningAndSecretStatus(t *testing.T) {
 	if !strings.Contains(joined, "provider_smoke_test_required") {
 		t.Fatalf("smoke warning missing: %+v", res.Warnings)
 	}
+	if !strings.Contains(joined, "static config template generated") {
+		t.Fatalf("static template warning missing: %+v", res.Warnings)
+	}
 	path := filepath.Join(home, ".codex", "config.toml")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	text := string(data)
+	if !strings.Contains(text, `name = "DeepSeek"`) {
+		t.Fatalf("provider name missing:\n%s", text)
+	}
 	if !strings.Contains(text, `env_key = "DEEPSEEK_API_KEY"`) || strings.Contains(text, "api_"+"key_env") {
 		t.Fatalf("bad DeepSeek config:\n%s", text)
+	}
+	for _, vr := range res.VerifierResults {
+		if vr.ID == "codex_provider_smoke_test_required" && vr.Status != "warn" {
+			t.Fatalf("smoke verifier should warn, got %+v", vr)
+		}
+	}
+}
+
+func TestCodexDeepSeekProviderDoesNotWriteLiteralSecretAndNeedsSmoke(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("DEEPSEEK_API_KEY", "sk-test-literal-secret")
+	reg := testRegistry(t)
+	res := Run(context.Background(), nil, reg, "codex-deepseek-provider-config", RunOptions{Home: home, Yes: true})
+	if res.Status != StatusNeedsOnlineSmokeTest {
+		t.Fatalf("status=%s result=%+v", res.Status, res)
+	}
+	data, err := os.ReadFile(filepath.Join(home, ".codex", "config.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(data)
+	if strings.Contains(text, "sk-test-literal-secret") {
+		t.Fatalf("literal key written to config:\n%s", text)
+	}
+	if !strings.Contains(strings.Join(res.Warnings, "\n"), "not proven operational") {
+		t.Fatalf("online smoke warning missing: %+v", res.Warnings)
 	}
 }
 
@@ -258,15 +306,22 @@ func TestProxyClashSetGitNpmRecordsAndRestoresValues(t *testing.T) {
 	if err := os.WriteFile(zshrc, []byte("# original\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
+	npmrc := filepath.Join(home, ".npmrc")
+	t.Setenv("NPM_CONFIG_USERCONFIG", npmrc)
+	if err := os.WriteFile(npmrc, []byte("proxy=http://old-npm.example:7890\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	gitPath := configToolPath("git")
+	npmPath := configToolPath("npm")
 	runner := &command.MockRunner{Results: map[string]command.Result{
-		command.Render("/usr/bin/git", "config", "--global", "--get", "http.proxy"):                  {ExitCode: 0, Stdout: "http://old.example:7890\n"},
-		command.Render("/usr/bin/git", "config", "--global", "--get", "https.proxy"):                 {ExitCode: 1},
-		command.Render("/usr/bin/npm", "config", "get", "proxy"):                                     {ExitCode: 0, Stdout: "null\n"},
-		command.Render("/usr/bin/npm", "config", "get", "https-proxy"):                               {ExitCode: 0, Stdout: "https://old.example:7890\n"},
-		command.Render("/usr/bin/git", "config", "--global", "http.proxy", "http://127.0.0.1:7897"):  {ExitCode: 0},
-		command.Render("/usr/bin/git", "config", "--global", "https.proxy", "http://127.0.0.1:7897"): {ExitCode: 0},
-		command.Render("/usr/bin/npm", "config", "set", "proxy", "http://127.0.0.1:7897"):            {ExitCode: 0},
-		command.Render("/usr/bin/npm", "config", "set", "https-proxy", "http://127.0.0.1:7897"):      {ExitCode: 0},
+		command.Render(gitPath, "config", "--global", "--get", "http.proxy"):                  {ExitCode: 0, Stdout: "http://old.example:7890\n"},
+		command.Render(gitPath, "config", "--global", "--get", "https.proxy"):                 {ExitCode: 1},
+		command.Render(npmPath, "config", "get", "proxy"):                                     {ExitCode: 1, Stderr: "npm error The proxy option is protected"},
+		command.Render(npmPath, "config", "get", "https-proxy"):                               {ExitCode: 0, Stdout: "https://old.example:7890\n"},
+		command.Render(gitPath, "config", "--global", "http.proxy", "http://127.0.0.1:7897"):  {ExitCode: 0},
+		command.Render(gitPath, "config", "--global", "https.proxy", "http://127.0.0.1:7897"): {ExitCode: 0},
+		command.Render(npmPath, "config", "set", "proxy", "http://127.0.0.1:7897"):            {ExitCode: 0},
+		command.Render(npmPath, "config", "set", "https-proxy", "http://127.0.0.1:7897"):      {ExitCode: 0},
 	}}
 	reg := testRegistry(t)
 	r, ok := reg.Get("proxy-clash-7897-apply")
@@ -288,20 +343,20 @@ func TestProxyClashSetGitNpmRecordsAndRestoresValues(t *testing.T) {
 		t.Fatalf("config entries=%d %+v", len(rp.Manifest.ConfigEntries), rp.Manifest.ConfigEntries)
 	}
 	restoreRunner := &command.MockRunner{Results: map[string]command.Result{
-		command.Render("/usr/bin/npm", "config", "set", "https-proxy", "https://old.example:7890"):    {ExitCode: 0},
-		command.Render("/usr/bin/npm", "config", "delete", "proxy"):                                   {ExitCode: 0},
-		command.Render("/usr/bin/git", "config", "--global", "--unset", "https.proxy"):                {ExitCode: 0},
-		command.Render("/usr/bin/git", "config", "--global", "http.proxy", "http://old.example:7890"): {ExitCode: 0},
+		command.Render(npmPath, "config", "set", "https-proxy", "https://old.example:7890"):    {ExitCode: 0},
+		command.Render(npmPath, "config", "set", "proxy", "http://old-npm.example:7890"):       {ExitCode: 0},
+		command.Render(gitPath, "config", "--global", "--unset", "https.proxy"):                {ExitCode: 0},
+		command.Render(gitPath, "config", "--global", "http.proxy", "http://old.example:7890"): {ExitCode: 0},
 	}}
 	if err := rp.RestoreConfigEntries(context.Background(), restoreRunner); err != nil {
 		t.Fatal(err)
 	}
 	joined := strings.Join(restoreRunner.Calls, "\n")
 	for _, want := range []string{
-		"/usr/bin/git config --global http.proxy http://old.example:7890",
-		"/usr/bin/git config --global --unset https.proxy",
-		"/usr/bin/npm config delete proxy",
-		"/usr/bin/npm config set https-proxy https://old.example:7890",
+		command.Render(gitPath, "config", "--global", "http.proxy", "http://old.example:7890"),
+		command.Render(gitPath, "config", "--global", "--unset", "https.proxy"),
+		command.Render(npmPath, "config", "set", "proxy", "http://old-npm.example:7890"),
+		command.Render(npmPath, "config", "set", "https-proxy", "https://old.example:7890"),
 	} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("missing restore command %q in\n%s", want, joined)

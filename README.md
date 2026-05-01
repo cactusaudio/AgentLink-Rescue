@@ -126,7 +126,7 @@ The output folder is:
 
 ```text
 dist/Cactus-AgentLink-Rescue/
-dist/Cactus-AgentLink-Rescue-v0.2.1.zip
+dist/Cactus-AgentLink-Rescue-v0.2.2.zip
 ```
 
 It can be copied to Downloads and launched with `agentlink.command`.
@@ -166,5 +166,7 @@ AgentLink Rescue logs local diagnostic state needed to classify and repair agent
 - Detect-only VPN, firewall, proxy, and security tools are reported but not automatically removed.
 - MDM/profile state is detected but never modified.
 - Deep rescue may require reboot before macOS fully rebuilds network configuration.
-- Codex DeepSeek provider recipes generate a static config template with `env_key`; an explicit online smoke test is required before treating the provider as operational.
+- Codex DeepSeek provider recipes generate a static config template with current `name`, `base_url`, `env_key`, and model fields; an explicit online smoke test is required before treating the provider as operational.
+- DeepSeek Chat Completions compatibility and Codex Responses wire protocol may not be equivalent; do not claim runtime compatibility without a smoke test.
+- Some provider failures may be outside local repair scope.
 - The fallback `rescue.sh` is intentionally simpler than the Go engine and should be used only when the binary is blocked.

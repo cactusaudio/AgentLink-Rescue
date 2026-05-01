@@ -9,7 +9,7 @@ if [ ! -x bin/agentlink ]; then
 fi
 
 OUT="$ROOT/dist/Cactus-AgentLink-Rescue"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.2.1.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.2.2.zip"
 mkdir -p "$ROOT/dist"
 rm -rf "$OUT"
 rm -f "$ROOT"/dist/Cactus-AgentLink-Rescue*.zip

@@ -13,7 +13,8 @@
     {"name": "baseURL", "default": "https://api.deepseek.com"},
     {"name": "model", "default": "deepseek-v4-flash", "allowed": ["deepseek-v4-flash", "deepseek-v4-pro", "deepseek-chat", "deepseek-reasoner"]},
     {"name": "apiKeyEnv", "default": "DEEPSEEK_API_KEY"},
-    {"name": "requireKey", "default": "false", "allowed": ["true", "false"]}
+    {"name": "requireKey", "default": "false", "allowed": ["true", "false"]},
+    {"name": "wireAPI", "default": "", "allowed": ["", "responses"]}
   ],
   "preconditions": [
     {"type": "os_is", "value": "darwin"},
@@ -26,17 +27,19 @@
       "type": "append_managed_block_if_missing",
       "path": "~/.codex/config.toml",
       "marker": "CODEX_DEEPSEEK_PROVIDER",
-      "content": "[model_providers.${provider}]\nbase_url = \"${baseURL}\"\nenv_key = \"${apiKeyEnv}\"\n\n[profiles.${provider}]\nmodel = \"${model}\"\nmodel_provider = \"${provider}\""
+      "content": "[model_providers.${provider}]\nname = \"DeepSeek\"\nbase_url = \"${baseURL}\"\n${wireAPILine}env_key = \"${apiKeyEnv}\"\n\n[profiles.${provider}]\nmodel = \"${model}\"\nmodel_provider = \"${provider}\""
     }
   ],
   "verify": [
     {"id": "managed_block_count", "args": {"path": "~/.codex/config.toml", "marker": "CODEX_DEEPSEEK_PROVIDER", "count": "1"}},
     {"id": "codex_provider_section_present", "args": {"path": "~/.codex/config.toml", "contains": "[model_providers.deepseek]"}},
+    {"id": "codex_provider_name_present", "args": {"path": "~/.codex/config.toml", "contains": "name = \"DeepSeek\""}},
     {"id": "codex_provider_base_url_present", "args": {"path": "~/.codex/config.toml", "contains": "${baseURL}"}},
     {"id": "codex_model_present", "args": {"path": "~/.codex/config.toml", "contains": "${model}"}},
     {"id": "codex_provider_env_key_present", "args": {"path": "~/.codex/config.toml", "contains": "env_key = \"${apiKeyEnv}\""}},
     {"id": "codex_provider_key_env_present_redacted", "args": {"env": "${apiKeyEnv}", "required": "${requireKey}"}},
-    {"id": "key_not_written_to_config", "args": {"path": "~/.codex/config.toml"}}
+    {"id": "key_not_written_to_config", "args": {"path": "~/.codex/config.toml"}},
+    {"id": "codex_provider_smoke_test_required", "args": {}}
   ],
   "rollback": [
     {"type": "restore_file", "path": "~/.codex/config.toml"}

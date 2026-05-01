@@ -392,16 +392,33 @@ func configRestoreCommand(entry ConfigEntry) (string, []string, error) {
 	switch entry.Tool {
 	case "git":
 		if entry.Existed {
-			return "/usr/bin/git", []string{"config", "--global", entry.Key, entry.OldValue}, nil
+			return restoreConfigToolPath("git"), []string{"config", "--global", entry.Key, entry.OldValue}, nil
 		}
-		return "/usr/bin/git", []string{"config", "--global", "--unset", entry.Key}, nil
+		return restoreConfigToolPath("git"), []string{"config", "--global", "--unset", entry.Key}, nil
 	case "npm":
 		if entry.Existed {
-			return "/usr/bin/npm", []string{"config", "set", entry.Key, entry.OldValue}, nil
+			return restoreConfigToolPath("npm"), []string{"config", "set", entry.Key, entry.OldValue}, nil
 		}
-		return "/usr/bin/npm", []string{"config", "delete", entry.Key}, nil
+		return restoreConfigToolPath("npm"), []string{"config", "delete", entry.Key}, nil
 	default:
 		return "", nil, fmt.Errorf("unsupported config restore tool: %s", entry.Tool)
+	}
+}
+
+func restoreConfigToolPath(tool string) string {
+	switch tool {
+	case "git":
+		if path, ok := system.FindFirstExisting("/usr/bin/git", "/opt/homebrew/bin/git", "/usr/local/bin/git"); ok {
+			return path
+		}
+		return "/usr/bin/git"
+	case "npm":
+		if path, ok := system.FindFirstExisting("/usr/bin/npm", "/opt/homebrew/bin/npm", "/usr/local/bin/npm"); ok {
+			return path
+		}
+		return "/usr/bin/npm"
+	default:
+		return tool
 	}
 }
 

@@ -6,7 +6,7 @@ BIN="$ROOT/bin/agentlink"
 FALLBACK="$ROOT/rescue.sh"
 
 clear
-echo "Cactus AgentLink Rescue 0.2.1"
+echo "Cactus AgentLink Rescue 0.2.2"
 echo
 
 xattr -cr "$ROOT" 2>/dev/null || true
@@ -39,8 +39,8 @@ if ! "$BIN" version >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "Running diagnose first..."
-"$BIN" diagnose
+echo "Running doctor first..."
+"$BIN" doctor
 echo
 
 while true; do
