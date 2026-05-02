@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.2-core.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.3-core.zip"
 
 if [ ! -f "$ZIP" ]; then
   "$ROOT/scripts/package.sh"
@@ -36,7 +36,7 @@ if find "$PKG/assets/runtimes" -type f -name 'llama-cli' -print | grep .; then
   exit 1
 fi
 
-"$BIN" version | grep '0.4.2'
+"$BIN" version | grep '0.4.3'
 "$BIN" selftest
 "$BIN" doctor --json > "$TMP/core-doctor.json"
 /usr/bin/python3 -m json.tool "$TMP/core-doctor.json" >/dev/null

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "clash-verge-rev",
+  "source": "https://github.com/clash-verge-rev/clash-verge-rev/releases",
+  "architectures": {
+    "arm64": {
+      "directory": "macos-arm64",
+      "assetPattern": "aarch64.dmg"
+    },
+    "amd64": {
+      "directory": "macos-amd64",
+      "assetPattern": "x64.dmg"
+    }
+  },
+  "notes": [
+    "DMG files are downloaded into this directory tree and ignored by git.",
+    "AgentLink opens or reports the embedded DMG. It does not enable proxy or TUN automatically."
+  ]
+}

@@ -18,6 +18,7 @@ import (
 	"cactus-agentlink-rescue/internal/diagnose"
 	"cactus-agentlink-rescue/internal/facts"
 	"cactus-agentlink-rescue/internal/guided"
+	"cactus-agentlink-rescue/internal/installer"
 	"cactus-agentlink-rescue/internal/planner"
 	"cactus-agentlink-rescue/internal/recipe"
 	"cactus-agentlink-rescue/internal/repair"
@@ -68,6 +69,8 @@ func Main(args []string, stdout io.Writer, stderr io.Writer) int {
 		return runPlanner(ctx, runner, args[1:], stdout, stderr)
 	case "brain":
 		return runBrain(ctx, runner, args[1:], stdout, stderr)
+	case "installer":
+		return runInstaller(ctx, runner, args[1:], stdout, stderr)
 	case "diagnose":
 		return runDiagnose(ctx, runner, rulesDir, args[1:], stdout, stderr)
 	case "classify":
@@ -506,7 +509,7 @@ func runPlanner(ctx context.Context, runner command.Runner, args []string, stdou
 
 func runBrain(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "brain requires doctor, fetch, selftest, prompt, plan, or explain")
+		fmt.Fprintln(stderr, "brain requires doctor, fetch, selftest, prompt, chat, plan, or explain")
 		return 50
 	}
 	home := currentHome(ctx, runner)
@@ -587,6 +590,31 @@ func runBrain(ctx context.Context, runner command.Runner, args []string, stdout,
 			fmt.Fprint(stdout, resp.RawText)
 		}
 		return 0
+	case "chat":
+		fs := flag.NewFlagSet("brain chat", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		prompt := fs.String("prompt", "", "chat prompt")
+		jsonOut := fs.Bool("json", false, "JSON")
+		if err := fs.Parse(args[1:]); err != nil {
+			return 50
+		}
+		if *prompt == "" {
+			fmt.Fprintln(stderr, "brain chat requires --prompt")
+			return 50
+		}
+		rep := brain.Chat(ctx, runner, home, *prompt)
+		if *jsonOut {
+			data, _ := json.MarshalIndent(rep, "", "  ")
+			fmt.Fprintln(stdout, string(data))
+		} else if rep.OK {
+			fmt.Fprintln(stdout, rep.Response)
+		} else {
+			fmt.Fprintf(stderr, "brain chat failed: %s\n", rep.Error)
+		}
+		if !rep.OK {
+			return 30
+		}
+		return 0
 	case "plan":
 		fs := flag.NewFlagSet("brain plan", flag.ContinueOnError)
 		fs.SetOutput(stderr)
@@ -650,6 +678,155 @@ func runBrainFetch(ctx context.Context, runner command.Runner, args []string, st
 	fmt.Fprint(stdout, res.Stdout)
 	if res.ExitCode != 0 {
 		fmt.Fprint(stderr, res.Stderr)
+		return 30
+	}
+	return 0
+}
+
+func runInstaller(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		fmt.Fprintln(stderr, "installer requires list, doctor, inspect, dry-run, install, verify, or open")
+		return 50
+	}
+	catalog, err := installer.LoadCatalog(installer.FindCatalogPath())
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 30
+	}
+	switch args[0] {
+	case "list":
+		fs := flag.NewFlagSet("installer list", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		jsonOut := fs.Bool("json", false, "JSON")
+		if err := fs.Parse(args[1:]); err != nil {
+			return 50
+		}
+		if *jsonOut {
+			data, _ := json.MarshalIndent(catalog.Installers, "", "  ")
+			fmt.Fprintln(stdout, string(data))
+		} else {
+			for _, in := range catalog.Installers {
+				fmt.Fprintf(stdout, "%s\t%s\t%s\n", in.ID, in.Risk, in.DisplayName)
+			}
+		}
+		return 0
+	case "doctor":
+		fs := flag.NewFlagSet("installer doctor", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		jsonOut := fs.Bool("json", false, "JSON")
+		if err := fs.Parse(args[1:]); err != nil {
+			return 50
+		}
+		rep := installer.Doctor(ctx, runner, catalog, system.Version)
+		if *jsonOut {
+			data, _ := json.MarshalIndent(rep, "", "  ")
+			fmt.Fprintln(stdout, string(data))
+		} else {
+			fmt.Fprintf(stdout, "Cactus AgentLink Installer Center %s\n", system.Version)
+			for _, r := range rep.Reports {
+				fmt.Fprintf(stdout, "%s\t%s\t%s\n", r.ID, r.Status, r.NextAction)
+			}
+		}
+		return 0
+	case "inspect":
+		id, jsonOut, ok := parseInstallerIDFlag("installer inspect", args[1:], stderr)
+		if !ok {
+			return 50
+		}
+		in, found := catalog.Find(id)
+		if !found {
+			fmt.Fprintf(stderr, "unknown installer: %s\n", id)
+			return 50
+		}
+		if jsonOut {
+			data, _ := json.MarshalIndent(in, "", "  ")
+			fmt.Fprintln(stdout, string(data))
+		} else {
+			fmt.Fprintf(stdout, "%s\nRisk: %s\nDefault method: %s\n", in.DisplayName, in.Risk, in.DefaultMethod)
+			for _, w := range in.Warnings {
+				fmt.Fprintf(stdout, "Warning: %s\n", w)
+			}
+		}
+		return 0
+	case "dry-run", "install", "verify", "open":
+		return runInstallerAction(ctx, runner, catalog, args[0], args[1:], stdout, stderr)
+	default:
+		fmt.Fprintln(stderr, "unknown installer subcommand")
+		return 50
+	}
+}
+
+func parseInstallerIDFlag(name string, args []string, stderr io.Writer) (string, bool, bool) {
+	fs := flag.NewFlagSet(name, flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	jsonOut := fs.Bool("json", false, "JSON")
+	parseArgs := args
+	id := ""
+	if len(parseArgs) > 0 && !strings.HasPrefix(parseArgs[0], "-") {
+		id = parseArgs[0]
+		parseArgs = parseArgs[1:]
+	}
+	if err := fs.Parse(parseArgs); err != nil {
+		return "", false, false
+	}
+	if id == "" && fs.NArg() == 1 {
+		id = fs.Arg(0)
+	}
+	if id == "" {
+		fmt.Fprintf(stderr, "%s requires installer id\n", name)
+		return "", *jsonOut, false
+	}
+	return id, *jsonOut, true
+}
+
+func runInstallerAction(ctx context.Context, runner command.Runner, catalog installer.Catalog, action string, args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("installer "+action, flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	jsonOut := fs.Bool("json", false, "JSON")
+	yes := fs.Bool("yes", false, "execute install")
+	method := fs.String("method", "", "installer method")
+	parseArgs := args
+	id := ""
+	if len(parseArgs) > 0 && !strings.HasPrefix(parseArgs[0], "-") {
+		id = parseArgs[0]
+		parseArgs = parseArgs[1:]
+	}
+	if err := fs.Parse(parseArgs); err != nil {
+		return 50
+	}
+	if id == "" && fs.NArg() == 1 {
+		id = fs.Arg(0)
+	}
+	if id == "" {
+		fmt.Fprintf(stderr, "installer %s requires installer id\n", action)
+		return 50
+	}
+	rep, err := installer.Run(ctx, runner, catalog, installer.Options{
+		Action:  installer.Action(action),
+		ID:      id,
+		Method:  *method,
+		Yes:     *yes,
+		Version: system.Version,
+	})
+	if *jsonOut {
+		data, _ := json.MarshalIndent(rep, "", "  ")
+		fmt.Fprintln(stdout, string(data))
+	} else {
+		fmt.Fprintf(stdout, "%s: %s\n", rep.ID, rep.Status)
+		if rep.NextAction != "" {
+			fmt.Fprintf(stdout, "Next: %s\n", rep.NextAction)
+		}
+		for _, cmd := range rep.Commands {
+			fmt.Fprintf(stdout, "Command: %s\n", cmd.Display)
+		}
+		for _, w := range rep.Warnings {
+			fmt.Fprintf(stdout, "Warning: %s\n", w)
+		}
+	}
+	if err != nil {
+		if !*jsonOut {
+			fmt.Fprintln(stderr, err)
+		}
 		return 30
 	}
 	return 0
@@ -1054,7 +1231,12 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "  agentlink brain fetch [--model gemma-4-e4b-it-q4km] [--runtime llama.cpp]")
 	fmt.Fprintln(w, "  agentlink brain selftest [--json]")
 	fmt.Fprintln(w, "  agentlink brain prompt --text \"...\" [--json]")
+	fmt.Fprintln(w, "  agentlink brain chat --prompt \"...\" [--json]")
 	fmt.Fprintln(w, "  agentlink brain plan --target path|proxy|codex|keys|network [--json]")
+	fmt.Fprintln(w, "  agentlink installer list [--json]")
+	fmt.Fprintln(w, "  agentlink installer doctor [--json]")
+	fmt.Fprintln(w, "  agentlink installer inspect <id> [--json]")
+	fmt.Fprintln(w, "  agentlink installer dry-run|install|verify|open <id> [--yes] [--json]")
 	fmt.Fprintln(w, "  agentlink repair --auto --brain --target path|proxy|codex|keys|network [--dry-run] [--yes] [--online] [--json]")
 	fmt.Fprintln(w, "  agentlink diagnose [--json] [--verbose]")
 	fmt.Fprintln(w, "  agentlink classify [--json]")

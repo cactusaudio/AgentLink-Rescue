@@ -11,12 +11,12 @@ fi
 "$ROOT/scripts/build.sh"
 
 OUT="$ROOT/dist/Cactus-AgentLink-Rescue"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.2-core.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.3-core.zip"
 mkdir -p "$ROOT/dist"
 rm -rf "$OUT"
 rm -f "$ZIP"
 find "$ROOT/dist" -maxdepth 1 \( -name .DS_Store -o -name .AppleDouble -o -name AppleDouble \) -exec rm -rf {} +
-mkdir -p "$OUT/bin" "$OUT/rules" "$OUT/recipes" "$OUT/docs/offline" "$OUT/assets/manifests" "$OUT/assets/licenses" "$OUT/assets/models" "$OUT/assets/runtimes" "$OUT/scripts"
+mkdir -p "$OUT/bin" "$OUT/rules" "$OUT/recipes" "$OUT/docs/offline" "$OUT/assets/manifests" "$OUT/assets/licenses" "$OUT/assets/models" "$OUT/assets/runtimes" "$OUT/assets/installers" "$OUT/scripts"
 
 cp bin/agentlink "$OUT/bin/agentlink"
 cp README.md LICENSE "$OUT/"
@@ -28,10 +28,12 @@ cp packaging/rescue.sh "$OUT/rescue.sh"
 cp packaging/README_IF_OFFLINE.txt "$OUT/README_IF_OFFLINE.txt"
 cp assets/manifests/*.json "$OUT/assets/manifests/"
 cp -R assets/licenses/* "$OUT/assets/licenses/"
+cp -R assets/installers/* "$OUT/assets/installers/"
 cp assets/README.md "$OUT/assets/README.md"
 cp assets/models/.gitkeep "$OUT/assets/models/.gitkeep"
 cp assets/runtimes/.gitkeep "$OUT/assets/runtimes/.gitkeep"
-cp scripts/fetch_gemma_model.sh scripts/fetch_llamacpp_runtime.sh scripts/fetch_brain_assets.sh "$OUT/scripts/"
+find "$OUT/assets/installers" -name '*.dmg' -delete
+cp scripts/fetch_gemma_model.sh scripts/fetch_llamacpp_runtime.sh scripts/fetch_brain_assets.sh scripts/fetch_clash_verge_rev.sh "$OUT/scripts/"
 
 chmod +x "$OUT/bin/agentlink" "$OUT/agentlink.command" "$OUT/rescue.sh" "$OUT/scripts/"*.sh
 

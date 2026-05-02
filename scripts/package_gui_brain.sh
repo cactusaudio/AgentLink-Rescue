@@ -3,14 +3,15 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP="$ROOT/dist/Cactus AgentLink Rescue.app"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.2-brain-gui-gemma4-e4b-q4km.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.3-brain-gui-gemma4-e4b-q4km.zip"
+PROXYKIT_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.3-brain-gui-gemma4-e4b-q4km-proxykit.zip"
 INFO="$ROOT/gui/CactusAgentLinkRescue/Sources/CactusAgentLinkRescue/Resources/Info.plist"
 
 cd "$ROOT"
 scripts/package_brain.sh
 scripts/build_gui.sh
 
-rm -rf "$APP" "$ZIP"
+rm -rf "$APP" "$ZIP" "$PROXYKIT_ZIP" "$ROOT/dist/proxykit-staging"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$INFO" "$APP/Contents/Info.plist"
 cp "$ROOT/gui/build/CactusAgentLinkRescue" "$APP/Contents/MacOS/CactusAgentLinkRescue"
@@ -46,3 +47,31 @@ fi
 echo "brain GUI app: $APP"
 echo "brain GUI zip: $ZIP"
 /usr/bin/shasum -a 256 "$ZIP"
+
+case "$(uname -m)" in
+  arm64) INSTALLER_ARCH="macos-arm64" ;;
+  x86_64) INSTALLER_ARCH="macos-amd64" ;;
+  *) INSTALLER_ARCH="" ;;
+esac
+if [ -n "$INSTALLER_ARCH" ] && find "$ROOT/assets/installers/clash-verge-rev/$INSTALLER_ARCH" -maxdepth 1 -name '*.dmg' -print -quit 2>/dev/null | grep . >/dev/null; then
+  STAGE="$ROOT/dist/proxykit-staging"
+  mkdir -p "$STAGE"
+  cp -R "$APP" "$STAGE/Cactus AgentLink Rescue.app"
+  mkdir -p "$STAGE/Cactus AgentLink Rescue.app/Contents/Resources/agentlink/assets/installers/clash-verge-rev/$INSTALLER_ARCH"
+  cp "$ROOT/assets/installers/clash-verge-rev/$INSTALLER_ARCH"/*.dmg "$STAGE/Cactus AgentLink Rescue.app/Contents/Resources/agentlink/assets/installers/clash-verge-rev/$INSTALLER_ARCH/"
+  if [ -f "$ROOT/assets/installers/clash-verge-rev/manifest.lock.json" ]; then
+    cp "$ROOT/assets/installers/clash-verge-rev/manifest.lock.json" "$STAGE/Cactus AgentLink Rescue.app/Contents/Resources/agentlink/assets/installers/clash-verge-rev/"
+  fi
+  find "$STAGE" -depth \( -name .DS_Store -o -name __MACOSX -o -name '._*' -o -name .AppleDouble -o -name AppleDouble \) -exec rm -rf {} +
+  (
+    cd "$STAGE"
+    COPYFILE_DISABLE=1 zip -r -X "$(basename "$PROXYKIT_ZIP")" "Cactus AgentLink Rescue.app" >/dev/null
+  )
+  mv "$STAGE/$(basename "$PROXYKIT_ZIP")" "$PROXYKIT_ZIP"
+  if unzip -l "$PROXYKIT_ZIP" | grep -E '__MACOSX|\.DS_Store|AppleDouble|/\._' >/dev/null; then
+    echo "proxykit GUI zip contains Finder metadata" >&2
+    exit 1
+  fi
+  echo "proxykit GUI zip: $PROXYKIT_ZIP"
+  /usr/bin/shasum -a 256 "$PROXYKIT_ZIP"
+fi

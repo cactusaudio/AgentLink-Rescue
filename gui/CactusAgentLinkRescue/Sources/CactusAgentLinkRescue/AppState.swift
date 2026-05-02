@@ -44,6 +44,13 @@ final class AppState: ObservableObject {
     @Published var guidedLastRecipe: String?
     @Published var guidedResult: CommandResult?
     @Published var guidedReport: GuidedRescueReport?
+    @Published var installerDoctor: InstallerDoctorReport?
+    @Published var installerResult: CommandResult?
+    @Published var installerActionReport: InstallerReport?
+    @Published var brainSandboxPresented = false
+    @Published var brainChatPrompt = ""
+    @Published var brainChatReport: BrainChatReport?
+    @Published var brainChatResult: CommandResult?
 
     let client = AgentlinkClient()
 
@@ -75,6 +82,7 @@ final class AppState: ObservableObject {
         await runSelftest()
         await runDoctor()
         await runBrainDoctor()
+        await runInstallerDoctor()
         await loadReports()
     }
 
@@ -201,6 +209,71 @@ final class AppState: ObservableObject {
             rollbackOutput = result.combinedOutput
             appendLog(result)
             await loadReports()
+        }
+    }
+
+    func runInstallerDoctor() async {
+        await runGuarded(mutating: false) {
+            let (result, decoded) = await client.runJSON(InstallerDoctorReport.self, args: ["installer", "doctor", "--json"], timeout: 45)
+            latestResult = result
+            installerResult = result
+            installerDoctor = decoded
+            appendLog(result)
+        }
+    }
+
+    func runInstallerDryRun(_ id: String) async {
+        await runGuarded(mutating: false) {
+            let (result, decoded) = await client.runJSON(InstallerReport.self, args: ["installer", "dry-run", id, "--json"], timeout: 45)
+            latestResult = result
+            installerResult = result
+            installerActionReport = decoded
+            appendLog(result)
+        }
+    }
+
+    func runInstallerVerify(_ id: String) async {
+        await runGuarded(mutating: false) {
+            let (result, decoded) = await client.runJSON(InstallerReport.self, args: ["installer", "verify", id, "--json"], timeout: 45)
+            latestResult = result
+            installerResult = result
+            installerActionReport = decoded
+            appendLog(result)
+        }
+    }
+
+    func runInstallerOpen(_ id: String) async {
+        await runGuarded(mutating: false) {
+            let (result, decoded) = await client.runJSON(InstallerReport.self, args: ["installer", "open", id, "--json"], timeout: 45)
+            latestResult = result
+            installerResult = result
+            installerActionReport = decoded
+            appendLog(result)
+        }
+    }
+
+    func runInstallerInstall(_ id: String) async {
+        await runGuarded(mutating: true) {
+            let (result, decoded) = await client.runJSON(InstallerReport.self, args: ["installer", "install", id, "--yes", "--json"], timeout: 300)
+            latestResult = result
+            installerResult = result
+            installerActionReport = decoded
+            appendLog(result)
+            let (doctorResult, doctorDecoded) = await client.runJSON(InstallerDoctorReport.self, args: ["installer", "doctor", "--json"], timeout: 45)
+            installerDoctor = doctorDecoded
+            appendLog(doctorResult)
+        }
+    }
+
+    func runBrainChat() async {
+        let prompt = brainChatPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !prompt.isEmpty else { return }
+        await runGuarded(mutating: false) {
+            let (result, decoded) = await client.runJSON(BrainChatReport.self, args: ["brain", "chat", "--prompt", prompt, "--json"], timeout: 240)
+            latestResult = result
+            brainChatResult = result
+            brainChatReport = decoded
+            appendLog(result)
         }
     }
 

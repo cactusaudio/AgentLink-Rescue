@@ -1,4 +1,4 @@
-Cactus AgentLink Rescue 0.4.2
+Cactus AgentLink Rescue 0.4.3
 
 1. Put this folder anywhere, for example Downloads.
 2. Double-click agentlink.command.
@@ -51,13 +51,27 @@ Brain mode is planner-only:
 - The deterministic runner executes only local recipes.
 - Gemma never executes arbitrary shell.
 
+Installer Center:
+- Installer Center uses official sources only.
+- Codex CLI: @openai/codex or Homebrew codex.
+- Claude Code CLI: @anthropic-ai/claude-code.
+- Gemini CLI: @google/gemini-cli or Homebrew gemini-cli.
+- Codex App opens the official OpenAI page.
+- Clash Verge Rev can be opened from a cached DMG when using a ProxyKit package.
+- AgentLink does not enable proxy/TUN automatically and does not collect passwords.
+
+Brain Chat Sandbox:
+- Hidden/advanced local Gemma chat for explanations only.
+- It cannot run commands, change settings, or repair the machine.
+- Use Guided Rescue or Expert Console for actual repair flows.
+
 GUI mode is a shell:
 - The GUI calls the bundled ./bin/agentlink.
 - The GUI does not collect sudo passwords.
 - Network rescue safe/standard/deep commands are shown for Terminal copy/paste.
 - The GUI does not implement its own repair engine.
 
-v0.4.2 also includes offline recipe and Brain docs:
+v0.4.3 also includes offline recipe and Brain docs:
 - docs/offline/AGENTLINK_CONSTITUTION.md
 - docs/offline/RECIPE_AUTHORING.md
 - docs/offline/PLANNER_CONTRACT.md
@@ -65,3 +79,6 @@ v0.4.2 also includes offline recipe and Brain docs:
 - docs/offline/GEMMA_BRAIN_PACK.md
 - docs/offline/GEMMA_PLANNER_PROMPT.md
 - docs/offline/BRAIN_RUNTIME_POLICY.md
+- docs/offline/INSTALLER_CENTER.md
+- docs/offline/PROXY_RECOVERY_KIT.md
+- docs/offline/BRAIN_CHAT_SANDBOX.md

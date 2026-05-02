@@ -2,7 +2,7 @@
 
 Cactus AgentLink Rescue is an offline, portable, reversible macOS rescue tool for restoring the broken path between a Mac and AI agents such as Codex, Claude, GitHub, and API endpoints.
 
-v0.4.2 adds Guided Rescue as a CLI-kernel workflow and keeps the native macOS GUI as a thin shell. The main GUI path now starts `agentlink guided rescue`, which handles detect -> plan -> dry-run -> snapshot -> execute -> verify -> rollback/report inside the CLI. Gemma 4 E4B-it Q4_K_M remains a bounded planner only: facts go to Gemma, Gemma returns PlannerDecision JSON, the validator checks it, and the deterministic recipe runner executes only registered rollback-capable recipes. There is still no telemetry, daemon, privileged helper, SMAppService, RAG, queue, remote mutation, sudo execution in the GUI, or arbitrary shell execution.
+v0.4.3 adds Installer Center, Proxy Recovery Kit support, and a hidden Brain Chat Sandbox while keeping the GUI as a thin shell. Guided Rescue still runs inside the CLI kernel. Gemma 4 E4B-it Q4_K_M remains a bounded planner/controller only: facts go to Gemma, Gemma returns PlannerDecision JSON for repair planning, the validator checks it, and the deterministic recipe runner executes only registered rollback-capable recipes. There is still no telemetry, daemon, privileged helper, SMAppService, RAG, queue, remote mutation, sudo execution in the GUI, or arbitrary shell execution.
 
 ## Product Thesis
 
@@ -27,6 +27,9 @@ This is not a generic network reset tool and not a cleanup app.
 - Validates Brain planner JSON before dry-run or execution.
 - Runs Guided Rescue as a bounded CLI workflow for non-developer users.
 - Provides a native macOS GUI rescue console as a thin wrapper around the CLI.
+- Provides Installer Center for Codex CLI, Codex App, Claude Code CLI, Gemini CLI, and Clash Verge Rev recovery from official sources.
+- Can cache a Clash Verge Rev DMG in the Brain GUI ProxyKit package without enabling proxy/TUN automatically.
+- Provides a hidden local Brain Chat Sandbox for explanation only; it cannot execute commands.
 
 ## What It Does Not Do
 
@@ -46,6 +49,9 @@ This is not a generic network reset tool and not a cleanup app.
 - No RAG or queue.
 - No remote SSH/tmux mutation.
 - No automatic paid API smoke tests.
+- No unofficial installer mirrors.
+- No automatic proxy/TUN enablement.
+- No Brain Chat command execution.
 
 ## Safety Model
 
@@ -72,9 +78,17 @@ agentlink brain doctor [--json]
 agentlink brain fetch [--model gemma-4-e4b-it-q4km] [--runtime llama.cpp]
 agentlink brain selftest [--json]
 agentlink brain prompt --text "..." [--json]
+agentlink brain chat --prompt "..." [--json]
 agentlink brain plan --target path|proxy|codex|keys|network [--json]
 agentlink repair --auto --brain --target path|proxy|codex|keys|network [--dry-run] [--yes] [--online] [--json]
 agentlink guided rescue [--target auto|path|proxy|codex|keys|network] [--dry-run] [--yes] [--json]
+agentlink installer list [--json]
+agentlink installer doctor [--json]
+agentlink installer inspect <id> [--json]
+agentlink installer dry-run <id> [--json]
+agentlink installer install <id> --yes [--json]
+agentlink installer verify <id> [--json]
+agentlink installer open <id> [--json]
 agentlink planner validate <decision.json>
 agentlink report --for-human --latest
 agentlink report --for-codex --latest
@@ -151,7 +165,7 @@ The output folder is:
 
 ```text
 dist/Cactus-AgentLink-Rescue/
-dist/Cactus-AgentLink-Rescue-v0.4.2-core.zip
+dist/Cactus-AgentLink-Rescue-v0.4.3-core.zip
 ```
 
 It can be copied to Downloads and launched with `agentlink.command`.
@@ -166,7 +180,7 @@ To build the optional Brain package after fetching the model/runtime:
 Brain package output:
 
 ```text
-dist/Cactus-AgentLink-Rescue-v0.4.2-brain-gemma4-e4b-q4km.zip
+dist/Cactus-AgentLink-Rescue-v0.4.3-brain-gemma4-e4b-q4km.zip
 ```
 
 Native GUI packages:
@@ -179,8 +193,14 @@ Native GUI packages:
 GUI package outputs:
 
 ```text
-dist/Cactus-AgentLink-Rescue-v0.4.2-core-gui.zip
-dist/Cactus-AgentLink-Rescue-v0.4.2-brain-gui-gemma4-e4b-q4km.zip
+dist/Cactus-AgentLink-Rescue-v0.4.3-core-gui.zip
+dist/Cactus-AgentLink-Rescue-v0.4.3-brain-gui-gemma4-e4b-q4km.zip
+```
+
+If a Clash Verge Rev DMG has been fetched, `scripts/package_gui_brain.sh` also emits:
+
+```text
+dist/Cactus-AgentLink-Rescue-v0.4.3-brain-gui-gemma4-e4b-q4km-proxykit.zip
 ```
 
 The GUI app embeds the CLI package under:
@@ -230,6 +250,32 @@ GUI dogfood:
 ```
 
 The GUI is intentionally unsigned in this release. If macOS quarantine blocks it, run `xattr -cr "Cactus AgentLink Rescue.app"` on the extracted app. The GUI never asks for an admin password and never runs sudo; privileged network rescue commands are shown for copy/paste into Terminal.
+
+### Installer Center And Proxy Recovery Kit
+
+Installer Center is available from the GUI and CLI:
+
+```bash
+./bin/agentlink installer doctor
+./bin/agentlink installer dry-run codex-cli
+./bin/agentlink installer dry-run claude-code-cli
+./bin/agentlink installer dry-run gemini-cli
+./bin/agentlink installer open clash-verge-rev
+```
+
+Installer Center uses fixed official package names only: `@openai/codex`, `@anthropic-ai/claude-code`, `@google/gemini-cli`, Homebrew `codex`, and Homebrew `gemini-cli`. Codex App opens the official OpenAI page only. Clash Verge Rev uses the upstream GitHub releases cache when present.
+
+AgentLink does not pipe curl into shell, use random mirrors, collect passwords, run sudo from the GUI, enable system proxy/TUN, or import proxy profiles automatically.
+
+Fetch the optional Clash Verge Rev cache:
+
+```bash
+./scripts/fetch_clash_verge_rev.sh
+```
+
+### Brain Chat Sandbox
+
+The Brain Chat Sandbox is a hidden/advanced local Gemma chat surface for explanation and report summarization. It is available from Settings or by triple-clicking the Dashboard title. It cannot execute commands, read files unless text is pasted, or change system settings. For repair, use Guided Rescue or Expert Console.
 
 ## Reports And Restore Points
 

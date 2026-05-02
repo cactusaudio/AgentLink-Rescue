@@ -39,6 +39,13 @@ func FormatPlannerPrompt(systemPrompt, userPrompt string) string {
 		"<end_of_turn>\n<start_of_turn>model\n"
 }
 
+func FormatChatPrompt(systemPrompt, userPrompt string) string {
+	return "<start_of_turn>user\n" +
+		"System instructions:\n" + systemPrompt + "\n\n" +
+		"User request:\n" + userPrompt + "\n" +
+		"<end_of_turn>\n<start_of_turn>model\n"
+}
+
 type PlanPromptInput struct {
 	Target           string
 	DryRun           bool

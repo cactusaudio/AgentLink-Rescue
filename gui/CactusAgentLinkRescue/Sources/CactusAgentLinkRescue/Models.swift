@@ -116,6 +116,20 @@ struct BrainSelftestReport: Codable {
     var error: String?
 }
 
+struct BrainChatReport: Codable {
+    var schemaVersion: Int?
+    var toolVersion: String?
+    var ok: Bool?
+    var prompt: String?
+    var response: String?
+    var backend: String?
+    var modelID: String?
+    var modelPath: String?
+    var durationMs: Int64?
+    var error: String?
+    var warnings: [String]?
+}
+
 struct PlannerDecisionViewModel: Codable {
     var schemaVersion: Int?
     var intent: String?
@@ -233,9 +247,50 @@ struct SessionSummary: Codable {
     var agentDispatchPath: String?
 }
 
+struct InstallerDoctorReport: Codable {
+    var schemaVersion: Int?
+    var toolVersion: String?
+    var installers: [InstallerReport]?
+    var warnings: [String]?
+}
+
+struct InstallerReport: Codable, Identifiable {
+    var schemaVersion: Int?
+    var toolVersion: String?
+    var id: String
+    var displayName: String?
+    var status: String?
+    var method: String?
+    var requiresNetwork: Bool?
+    var requiresAdmin: Bool?
+    var commands: [InstallerCommandPlan]?
+    var verification: [InstallerVerifyResult]?
+    var warnings: [String]?
+    var assetPath: String?
+    var officialURL: String?
+    var nextAction: String?
+}
+
+struct InstallerCommandPlan: Codable, Identifiable {
+    var id: String { display }
+    var display: String
+    var path: String?
+    var args: [String]?
+    var mutates: Bool?
+}
+
+struct InstallerVerifyResult: Codable, Identifiable {
+    var id: String
+    var type: String?
+    var status: String?
+    var evidence: String?
+    var error: String?
+}
+
 enum RescuePage: String, CaseIterable, Identifiable {
     case dashboard = "Dashboard"
     case guided = "Guided Rescue"
+    case installer = "Installer Center"
     case doctor = "Doctor"
     case brain = "Brain"
     case plan = "Plan"

@@ -51,11 +51,11 @@ fi
 scripts/build.sh
 
 OUT="$ROOT/dist/Cactus-AgentLink-Rescue"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.2-brain-gemma4-e4b-q4km.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.3-brain-gemma4-e4b-q4km.zip"
 mkdir -p "$ROOT/dist"
 rm -rf "$OUT"
 rm -f "$ZIP"
-mkdir -p "$OUT/bin" "$OUT/rules" "$OUT/recipes" "$OUT/docs/offline" "$OUT/assets/models" "$OUT/assets/runtimes/llama.cpp/$ARCH" "$OUT/assets/manifests" "$OUT/assets/licenses" "$OUT/scripts"
+mkdir -p "$OUT/bin" "$OUT/rules" "$OUT/recipes" "$OUT/docs/offline" "$OUT/assets/models" "$OUT/assets/runtimes/llama.cpp/$ARCH" "$OUT/assets/manifests" "$OUT/assets/licenses" "$OUT/assets/installers" "$OUT/scripts"
 
 cp bin/agentlink "$OUT/bin/agentlink"
 cp README.md LICENSE "$OUT/"
@@ -97,8 +97,10 @@ if [ -f "$RUNTIME_DIR/LICENSE" ]; then
   cp "$RUNTIME_DIR/LICENSE" "$OUT/assets/runtimes/llama.cpp/$ARCH/"
 fi
 cp -R assets/licenses/* "$OUT/assets/licenses/"
+cp -R assets/installers/* "$OUT/assets/installers/"
 cp assets/README.md "$OUT/assets/README.md"
-cp scripts/fetch_gemma_model.sh scripts/fetch_llamacpp_runtime.sh scripts/fetch_brain_assets.sh "$OUT/scripts/"
+find "$OUT/assets/installers" -name '*.dmg' -delete
+cp scripts/fetch_gemma_model.sh scripts/fetch_llamacpp_runtime.sh scripts/fetch_brain_assets.sh scripts/fetch_clash_verge_rev.sh "$OUT/scripts/"
 
 chmod +x "$OUT/bin/agentlink" "$OUT/agentlink.command" "$OUT/rescue.sh" "$OUT/scripts/"*.sh "$OUT/assets/runtimes/llama.cpp/$ARCH/llama-cli" "$OUT/assets/runtimes/llama.cpp/$ARCH/llama-completion" 2>/dev/null || true
 find "$OUT" -depth \( -name .DS_Store -o -name __MACOSX -o -name '._*' -o -name .AppleDouble -o -name AppleDouble \) -exec rm -rf {} +

@@ -39,7 +39,7 @@ struct RescueView: View {
     private var networkAdvanced: some View {
         DisclosureGroup("Network Rescue Advanced") {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Network rescue safe/standard/deep may require sudo and system network changes. GUI v0.4.2 does not collect passwords and does not run sudo commands. Copy the command and run it in Terminal.")
+                Text("Network rescue safe/standard/deep may require sudo and system network changes. GUI v0.4.3 does not collect passwords and does not run sudo commands. Copy the command and run it in Terminal.")
                     .foregroundStyle(.secondary)
                 CommandPreview(title: "Safe Rescue", command: state.sudoRescueCommand(level: "safe"))
                 CommandPreview(title: "Standard Rescue", command: state.sudoRescueCommand(level: "standard"))

@@ -13,6 +13,13 @@ struct SettingsView: View {
                     InfoRow(label: "Redaction", value: "enabled")
                     InfoRow(label: "Model override", value: ProcessInfo.processInfo.environment["AGENTLINK_MODEL_PATH"] ?? "not set", monospaced: true)
                     InfoRow(label: "Runtime override", value: ProcessInfo.processInfo.environment["AGENTLINK_LLAMA_CLI"] ?? "not set", monospaced: true)
+                    Divider()
+                    Button("Open Brain Sandbox") {
+                        state.brainSandboxPresented = true
+                    }
+                    Text("The sandbox is local chat only. It cannot execute commands or change your system.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
                 .card()
                 OutputCard(title: "Recent Command Log", text: state.logLines.joined(separator: "\n"), placeholder: "No commands have run yet.", collapsedByDefault: true)

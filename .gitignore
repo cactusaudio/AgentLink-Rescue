@@ -10,4 +10,7 @@ gui/build/
 gui/CactusAgentLinkRescue/.build/
 assets/models/*.gguf
 assets/runtimes/llama.cpp/
+assets/installers/clash-verge-rev/**/*.dmg
 dist/*brain*.zip
+dist/*proxykit*.zip
+dist/*with-installers*.zip

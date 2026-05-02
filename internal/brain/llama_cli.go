@@ -70,7 +70,7 @@ func (b LlamaCLIBackend) Available(ctx context.Context) BrainAvailability {
 	}
 	out.BrainPackAvailable = out.ModelExists && out.ModelSHA256OK && out.RuntimeExecutable
 	if !out.BrainPackAvailable {
-		out.FetchCommands = []string{"./bin/agentlink brain fetch", "./scripts/fetch_brain_assets.sh", "download Cactus-AgentLink-Rescue-v0.4.2-brain-gemma4-e4b-q4km.zip for offline Brain use"}
+		out.FetchCommands = []string{"./bin/agentlink brain fetch", "./scripts/fetch_brain_assets.sh", "download Cactus-AgentLink-Rescue-v0.4.3-brain-gemma4-e4b-q4km.zip for offline Brain use"}
 	}
 	return out
 }
@@ -100,7 +100,10 @@ func (b LlamaCLIBackend) Generate(ctx context.Context, req BrainRequest) (BrainR
 	if req.Timeout <= 0 {
 		req.Timeout = 2 * time.Minute
 	}
-	prompt := FormatPlannerPrompt(req.SystemPrompt, req.UserPrompt)
+	prompt := FormatChatPrompt(req.SystemPrompt, req.UserPrompt)
+	if req.ExpectJSON {
+		prompt = FormatPlannerPrompt(req.SystemPrompt, req.UserPrompt)
+	}
 	bin, args := b.commandForGeneration(avail.RuntimePath, avail.ModelPath, prompt, req.MaxTokens, req.ContextSize, req.Temperature)
 	runner := b.Runner
 	if runner == nil {

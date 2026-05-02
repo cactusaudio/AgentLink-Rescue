@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "installers": [
+    {
+      "id": "clash-verge-rev",
+      "displayName": "Clash Verge Rev",
+      "risk": "reversible_install",
+      "defaultMethod": "embedded_dmg",
+      "methods": [
+        {
+          "id": "embedded_dmg",
+          "type": "embedded_dmg",
+          "requiresNetwork": false,
+          "requiresAdmin": false,
+          "command": []
+        }
+      ],
+      "verify": [
+        {"type": "app_exists", "path": "/Applications/Clash Verge.app"},
+        {"type": "app_exists", "path": "/Applications/Clash Verge Rev.app"}
+      ],
+      "dependencies": [
+        {"command": "/usr/bin/open", "required": true},
+        {"command": "/usr/bin/hdiutil", "required": false}
+      ],
+      "officialDocs": [
+        "https://github.com/clash-verge-rev/clash-verge-rev/releases"
+      ],
+      "warnings": [
+        "Clash/Verge/Mihomo can restore proxy access and can also leave network residue if misconfigured.",
+        "AgentLink will not enable system proxy, TUN, or import a proxy profile automatically."
+      ],
+      "notes": [
+        "Installer Center opens the embedded DMG when present. Manual app install is preferred in v0.4.3."
+      ]
+    },
+    {
+      "id": "codex-cli",
+      "displayName": "OpenAI Codex CLI",
+      "risk": "network_action",
+      "defaultMethod": "npm",
+      "methods": [
+        {
+          "id": "npm",
+          "type": "npm",
+          "requiresNetwork": true,
+          "requiresAdmin": false,
+          "command": ["npm", "install", "-g", "@openai/codex"]
+        },
+        {
+          "id": "homebrew",
+          "type": "homebrew",
+          "requiresNetwork": true,
+          "requiresAdmin": false,
+          "command": ["brew", "install", "codex"]
+        }
+      ],
+      "verify": [
+        {"type": "command_runs", "command": "codex", "args": ["--version"]}
+      ],
+      "dependencies": [
+        {"command": "npm", "required": false},
+        {"command": "brew", "required": false}
+      ],
+      "officialDocs": [
+        "https://developers.openai.com/codex/quickstart"
+      ],
+      "warnings": [
+        "Use only the official OpenAI package name @openai/codex or the Homebrew formula codex."
+      ]
+    },
+    {
+      "id": "codex-app",
+      "displayName": "OpenAI Codex App",
+      "risk": "manual_app_install",
+      "defaultMethod": "official_url",
+      "methods": [
+        {
+          "id": "official_url",
+          "type": "official_url",
+          "requiresNetwork": true,
+          "requiresAdmin": false,
+          "officialURL": "https://developers.openai.com/codex/app",
+          "command": ["/usr/bin/open", "https://developers.openai.com/codex/app"]
+        }
+      ],
+      "verify": [
+        {"type": "app_exists", "path": "/Applications/Codex.app"}
+      ],
+      "dependencies": [
+        {"command": "/usr/bin/open", "required": true}
+      ],
+      "officialDocs": [
+        "https://developers.openai.com/codex/app"
+      ],
+      "warnings": [
+        "AgentLink opens the official OpenAI page only. It does not use third-party app mirrors."
+      ]
+    },
+    {
+      "id": "claude-code-cli",
+      "displayName": "Claude Code CLI",
+      "risk": "network_action",
+      "defaultMethod": "npm",
+      "methods": [
+        {
+          "id": "npm",
+          "type": "npm",
+          "requiresNetwork": true,
+          "requiresAdmin": false,
+          "command": ["npm", "install", "-g", "@anthropic-ai/claude-code"]
+        }
+      ],
+      "verify": [
+        {"type": "command_runs", "command": "claude", "args": ["--version"]},
+        {"type": "command_runs", "command": "claude", "args": ["--help"]}
+      ],
+      "dependencies": [
+        {"command": "node", "required": true, "minimumVersion": "18"},
+        {"command": "npm", "required": true}
+      ],
+      "officialDocs": [
+        "https://code.claude.com/docs/en/setup"
+      ],
+      "warnings": [
+        "Requires Node.js 18 or newer."
+      ]
+    },
+    {
+      "id": "gemini-cli",
+      "displayName": "Gemini CLI",
+      "risk": "network_action",
+      "defaultMethod": "npm",
+      "methods": [
+        {
+          "id": "npm",
+          "type": "npm",
+          "requiresNetwork": true,
+          "requiresAdmin": false,
+          "command": ["npm", "install", "-g", "@google/gemini-cli"]
+        },
+        {
+          "id": "homebrew",
+          "type": "homebrew",
+          "requiresNetwork": true,
+          "requiresAdmin": false,
+          "command": ["brew", "install", "gemini-cli"]
+        }
+      ],
+      "verify": [
+        {"type": "command_runs", "command": "gemini", "args": ["--version"]},
+        {"type": "command_runs", "command": "gemini", "args": ["--help"]}
+      ],
+      "dependencies": [
+        {"command": "npm", "required": false},
+        {"command": "brew", "required": false}
+      ],
+      "officialDocs": [
+        "https://geminicli.com/docs/get-started/installation/"
+      ],
+      "warnings": [
+        "Use only @google/gemini-cli or the official Homebrew formula gemini-cli. Similar package names are refused."
+      ]
+    }
+  ]
+}

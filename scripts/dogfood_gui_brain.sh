@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.2-brain-gui-gemma4-e4b-q4km.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.3-brain-gui-gemma4-e4b-q4km.zip"
 
 scripts/package_gui_brain.sh
 
@@ -42,7 +42,7 @@ find "$PKG/assets/runtimes" -type f -name 'llama-cli' -print | grep .
 
 ACTUAL_MODEL_SHA="$(/usr/bin/shasum -a 256 "$MODEL" | awk '{print $1}')"
 
-HOME="$TMPHOME" "$BIN" version | grep '0.4.2'
+HOME="$TMPHOME" "$BIN" version | grep '0.4.3'
 HOME="$TMPHOME" "$BIN" brain doctor --json > "$TMP/brain-doctor.json"
 /usr/bin/python3 - "$TMP/brain-doctor.json" <<'PY'
 import json, sys

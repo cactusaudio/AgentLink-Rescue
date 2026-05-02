@@ -30,6 +30,9 @@ struct StatusDashboardView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Restore Agent Link")
                     .font(.title2.weight(.semibold))
+                    .onTapGesture(count: 3) {
+                        state.brainSandboxPresented = true
+                    }
                 Text("Detect -> plan -> dry-run -> verify. Optional reversible repair with confirmation.")
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -67,6 +70,10 @@ struct StatusDashboardView: View {
                 .buttonStyle(.borderless)
                 Button("Open Expert Console") {
                     state.page = .doctor
+                }
+                .buttonStyle(.borderless)
+                Button("Installer Center") {
+                    state.page = .installer
                 }
                 .buttonStyle(.borderless)
             }

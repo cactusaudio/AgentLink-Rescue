@@ -6,7 +6,7 @@ BIN="$ROOT/bin/agentlink"
 FALLBACK="$ROOT/rescue.sh"
 
 clear
-echo "Cactus AgentLink Rescue 0.4.2"
+echo "Cactus AgentLink Rescue 0.4.3"
 echo
 
 xattr -cr "$ROOT" 2>/dev/null || true
@@ -55,13 +55,15 @@ while true; do
   echo "  4. Brain Selftest"
   echo "  5. Brain Plan"
   echo "  6. Brain Auto Repair Dry-Run"
-  echo "  7. Network Rescue Safe"
-  echo "  8. Network Rescue Standard"
-  echo "  9. Repair PATH"
-  echo "  10. Proxy Detect"
-  echo "  11. Codex Config Doctor"
-  echo "  12. Rollback Last"
-  echo "  13. Exit"
+  echo "  7. Installer Center Doctor"
+  echo "  8. Brain Chat Sandbox"
+  echo "  9. Network Rescue Safe"
+  echo "  10. Network Rescue Standard"
+  echo "  11. Repair PATH"
+  echo "  12. Proxy Detect"
+  echo "  13. Codex Config Doctor"
+  echo "  14. Rollback Last"
+  echo "  15. Exit"
   printf "> "
   read -r choice
   case "$choice" in
@@ -90,14 +92,23 @@ while true; do
       break
       ;;
     7)
-      sudo "$BIN" rescue --level safe
+      "$BIN" installer doctor
       break
       ;;
     8)
-      sudo "$BIN" rescue --level standard
+      read -r -p "Brain prompt: " prompt
+      "$BIN" brain chat --prompt "$prompt"
       break
       ;;
     9)
+      sudo "$BIN" rescue --level safe
+      break
+      ;;
+    10)
+      sudo "$BIN" rescue --level standard
+      break
+      ;;
+    11)
       echo "PATH repair writes a managed block to ~/.zshrc and creates a rollback snapshot."
       read -r -p "Type YES to continue: " confirm
       if [ "$confirm" = "YES" ]; then
@@ -107,19 +118,19 @@ while true; do
       fi
       break
       ;;
-    10)
+    12)
       "$BIN" proxy detect
       break
       ;;
-    11)
+    13)
       "$BIN" config doctor
       break
       ;;
-    12)
+    14)
       "$BIN" restore last || sudo "$BIN" rollback --last
       break
       ;;
-    13)
+    15)
       exit 0
       ;;
     *)

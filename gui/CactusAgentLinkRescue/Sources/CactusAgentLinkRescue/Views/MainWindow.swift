@@ -11,6 +11,7 @@ struct MainWindow: View {
                 switch state.page {
                 case .dashboard: StatusDashboardView()
                 case .guided: GuidedRescueView()
+                case .installer: InstallerCenterView()
                 case .doctor: DoctorView()
                 case .brain: BrainView()
                 case .plan: PlanView()
@@ -23,12 +24,17 @@ struct MainWindow: View {
             }
             .navigationTitle(state.page.rawValue)
         }
+        .sheet(isPresented: $state.brainSandboxPresented) {
+            BrainSandboxView()
+                .environmentObject(state)
+                .frame(minWidth: 620, minHeight: 520)
+        }
     }
 }
 
 struct SidebarView: View {
     @EnvironmentObject var state: AppState
-    private let mainPages: [RescuePage] = [.dashboard, .guided, .reports, .settings]
+    private let mainPages: [RescuePage] = [.dashboard, .guided, .installer, .reports, .settings]
     private let advancedPages: [RescuePage] = [.doctor, .brain, .plan, .dryRun, .rescue, .rollback]
 
     var body: some View {
@@ -53,6 +59,7 @@ struct SidebarView: View {
         switch page {
         case .dashboard: return "gauge.with.dots.needle.50percent"
         case .guided: return "sparkles.rectangle.stack"
+        case .installer: return "square.and.arrow.down.on.square"
         case .doctor: return "stethoscope"
         case .brain: return "brain.head.profile"
         case .plan: return "list.bullet.clipboard"

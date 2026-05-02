@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "version": "v2.4.7",
+  "assetName": "Clash.Verge_2.4.7_aarch64.dmg",
+  "downloadURL": "https://github.com/clash-verge-rev/clash-verge-rev/releases/download/v2.4.7/Clash.Verge_2.4.7_aarch64.dmg",
+  "sha256": "b4967eeefccc9688c100810fdfefa99147030c23949d1f278d5a5536aa86abf3",
+  "sizeBytes": 50208570,
+  "fetchedAt": "2026-05-02T15:12:54Z",
+  "arch": "arm64"
+}
