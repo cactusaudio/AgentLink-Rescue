@@ -2,7 +2,7 @@
 
 Cactus AgentLink Rescue is an offline, portable, reversible macOS rescue tool for restoring the broken path between a Mac and AI agents such as Codex, Claude, GitHub, and API endpoints.
 
-v0.2 is Core only: deterministic CLI engine plus deterministic recipe runtime, no GUI, no local LLM runtime, no privileged helper, no daemon, no telemetry, and no network-based rule updates.
+v0.3 adds an optional local Qwen Brain Pack. Qwen is a bounded planner only: facts go to Qwen, Qwen returns PlannerDecision JSON, the validator checks it, and the deterministic recipe runner executes only registered rollback-capable recipes. There is still no GUI, telemetry, daemon, privileged helper, SMAppService, RAG, queue, remote mutation, or arbitrary shell execution.
 
 ## Product Thesis
 
@@ -23,12 +23,14 @@ This is not a generic network reset tool and not a cleanup app.
 - Rolls back restore points.
 - Packages as a copyable folder with `agentlink.command` and `rescue.sh`.
 - Runs bounded JSON recipes with snapshot-first mutation and verifier-driven repair.
-- Validates planner JSON without executing model-generated shell.
+- Runs optional local Qwen planning through `llama-cli`.
+- Validates Brain planner JSON before dry-run or execution.
 
 ## What It Does Not Do
 
 - No GUI.
-- No local LLM.
+- No model-generated shell execution.
+- No Qwen executor surface.
 - No permanent privileged helper.
 - No SMAppService.
 - No automatic notarization.
@@ -39,6 +41,9 @@ This is not a generic network reset tool and not a cleanup app.
 - No cloud sync.
 - No network-based rule updates.
 - No MTU changes.
+- No RAG or queue.
+- No remote SSH/tmux mutation.
+- No automatic paid API smoke tests.
 
 ## Safety Model
 
@@ -61,6 +66,12 @@ agentlink recipe list [--json]
 agentlink recipe inspect <id> [--json]
 agentlink recipe run <id> [--dry-run] [--yes] [--json] [--param key=value]
 agentlink repair --target path|proxy|codex|keys [--dry-run] [--yes] [--json]
+agentlink brain doctor [--json]
+agentlink brain fetch [--model qwen3-4b-instruct-2507-q4km] [--runtime llama.cpp]
+agentlink brain selftest [--json]
+agentlink brain prompt --text "..." [--json]
+agentlink brain plan --target path|proxy|codex|keys|network [--json]
+agentlink repair --auto --brain --target path|proxy|codex|keys|network [--dry-run] [--yes] [--online] [--json]
 agentlink planner validate <decision.json>
 agentlink report --for-human --latest
 agentlink report --for-codex --latest
@@ -116,6 +127,12 @@ go test ./...
 ./bin/agentlink rescue --level standard --dry-run
 ```
 
+Brain dogfood, when assets are present:
+
+```bash
+./scripts/dogfood_brain.sh
+```
+
 ## Package
 
 ```bash
@@ -126,10 +143,23 @@ The output folder is:
 
 ```text
 dist/Cactus-AgentLink-Rescue/
-dist/Cactus-AgentLink-Rescue-v0.2.2.zip
+dist/Cactus-AgentLink-Rescue-v0.3.0-core.zip
 ```
 
 It can be copied to Downloads and launched with `agentlink.command`.
+
+To build the optional Brain package after fetching the model/runtime:
+
+```bash
+./scripts/fetch_brain_assets.sh
+./scripts/package_brain.sh
+```
+
+Brain package output:
+
+```text
+dist/Cactus-AgentLink-Rescue-v0.3.0-brain-qwen3-4b-q4km.zip
+```
 
 ## Reports And Restore Points
 
@@ -168,5 +198,7 @@ AgentLink Rescue logs local diagnostic state needed to classify and repair agent
 - Deep rescue may require reboot before macOS fully rebuilds network configuration.
 - Codex DeepSeek provider recipes generate a static config template with current `name`, `base_url`, `env_key`, and model fields; an explicit online smoke test is required before treating the provider as operational.
 - DeepSeek Chat Completions compatibility and Codex Responses wire protocol may not be equivalent; do not claim runtime compatibility without a smoke test.
+- Brain mode requires the Qwen GGUF and llama.cpp runtime. Core package remains functional without them.
+- Qwen planning can recommend only registered recipes; it cannot invoke network rescue safe/standard/deep automatically.
 - Some provider failures may be outside local repair scope.
 - The fallback `rescue.sh` is intentionally simpler than the Go engine and should be used only when the binary is blocked.

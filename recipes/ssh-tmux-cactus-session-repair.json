@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "ssh-tmux-cactus-session-repair",
   "title": "SSH/tmux Cactus session detect-only",
-  "description": "v0.2 detect-only recipe for ssh/tmux availability. No SSH or tmux mutation is performed.",
+  "description": "v0.3 detect-only recipe for ssh/tmux availability. No SSH or tmux mutation is performed.",
   "supportedOS": ["darwin"],
   "failureClasses": ["SSH_TMUX_STATUS_UNKNOWN"],
   "risk": "read_only",
@@ -20,4 +20,3 @@
   "rollback": [],
   "docs": ["docs/offline/RECIPE_AUTHORING.md"]
 }
-

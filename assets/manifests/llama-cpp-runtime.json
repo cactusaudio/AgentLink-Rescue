@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "llama.cpp",
+  "backend": "llama-cli",
+  "source": "ggml-org/llama.cpp GitHub releases",
+  "platforms": ["darwin-arm64", "darwin-amd64"],
+  "requiredBinaries": ["llama-cli"],
+  "optionalBinaries": ["llama-completion", "llama-server"],
+  "requiredSharedLibraries": true
+}

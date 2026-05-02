@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "intent": "repair",
+  "failureClass": "PATH_MISSING_TOOL_DIR",
+  "confidence": 0.86,
+  "selectedRecipe": {
+    "id": "macos-zsh-path-repair",
+    "params": {}
+  },
+  "risk": "reversible_patch",
+  "requiresUserApproval": true,
+  "expectedVerifiers": ["managed_block_count"],
+  "fallbackRecipes": [],
+  "explanationForUser": "PATH repair is the smallest reversible local repair.",
+  "evidence": ["zsh PATH facts"],
+  "stopReason": ""
+}

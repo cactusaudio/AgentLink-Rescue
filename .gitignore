@@ -6,3 +6,6 @@ AppleDouble/
 
 bin/
 dist/
+assets/models/*.gguf
+assets/runtimes/llama.cpp/
+dist/*brain*.zip

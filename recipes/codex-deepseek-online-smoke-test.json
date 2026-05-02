@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "codex-deepseek-online-smoke-test",
   "title": "Codex DeepSeek online smoke test",
-  "description": "Explicit opt-in network smoke checks for a DeepSeek-backed Codex provider. Does not spend API tokens in v0.2.",
+  "description": "Explicit opt-in network smoke checks for a DeepSeek-backed Codex provider. Does not spend API tokens in v0.3.",
   "supportedOS": ["darwin"],
   "failureClasses": ["CODEX_PROVIDER_SMOKE_TEST_REQUIRED"],
   "risk": "network_action",

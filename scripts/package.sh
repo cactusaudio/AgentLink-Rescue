@@ -9,12 +9,12 @@ if [ ! -x bin/agentlink ]; then
 fi
 
 OUT="$ROOT/dist/Cactus-AgentLink-Rescue"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.2.2.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.3.0-core.zip"
 mkdir -p "$ROOT/dist"
 rm -rf "$OUT"
-rm -f "$ROOT"/dist/Cactus-AgentLink-Rescue*.zip
+rm -f "$ZIP"
 find "$ROOT/dist" -maxdepth 1 \( -name .DS_Store -o -name .AppleDouble -o -name AppleDouble \) -exec rm -rf {} +
-mkdir -p "$OUT/bin" "$OUT/rules" "$OUT/recipes" "$OUT/docs/offline"
+mkdir -p "$OUT/bin" "$OUT/rules" "$OUT/recipes" "$OUT/docs/offline" "$OUT/assets/manifests" "$OUT/assets/licenses" "$OUT/assets/models" "$OUT/assets/runtimes" "$OUT/scripts"
 
 cp bin/agentlink "$OUT/bin/agentlink"
 cp README.md LICENSE "$OUT/"
@@ -24,8 +24,14 @@ cp docs/offline/*.md "$OUT/docs/offline/"
 cp packaging/agentlink.command "$OUT/agentlink.command"
 cp packaging/rescue.sh "$OUT/rescue.sh"
 cp packaging/README_IF_OFFLINE.txt "$OUT/README_IF_OFFLINE.txt"
+cp assets/manifests/*.json "$OUT/assets/manifests/"
+cp -R assets/licenses/* "$OUT/assets/licenses/"
+cp assets/README.md "$OUT/assets/README.md"
+cp assets/models/.gitkeep "$OUT/assets/models/.gitkeep"
+cp assets/runtimes/.gitkeep "$OUT/assets/runtimes/.gitkeep"
+cp scripts/fetch_qwen_model.sh scripts/fetch_llamacpp_runtime.sh scripts/fetch_brain_assets.sh "$OUT/scripts/"
 
-chmod +x "$OUT/bin/agentlink" "$OUT/agentlink.command" "$OUT/rescue.sh"
+chmod +x "$OUT/bin/agentlink" "$OUT/agentlink.command" "$OUT/rescue.sh" "$OUT/scripts/"*.sh
 
 find "$OUT" -depth \( -name .DS_Store -o -name __MACOSX -o -name '._*' -o -name .AppleDouble -o -name AppleDouble \) -exec rm -rf {} +
 

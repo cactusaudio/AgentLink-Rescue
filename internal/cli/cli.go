@@ -10,7 +10,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"cactus-agentlink-rescue/internal/brain"
 	"cactus-agentlink-rescue/internal/classify"
 	"cactus-agentlink-rescue/internal/command"
 	"cactus-agentlink-rescue/internal/diagnose"
@@ -61,6 +63,8 @@ func Main(args []string, stdout io.Writer, stderr io.Writer) int {
 		return runKeys(ctx, runner, args[1:], stdout, stderr)
 	case "planner":
 		return runPlanner(ctx, runner, args[1:], stdout, stderr)
+	case "brain":
+		return runBrain(ctx, runner, args[1:], stdout, stderr)
 	case "diagnose":
 		return runDiagnose(ctx, runner, rulesDir, args[1:], stdout, stderr)
 	case "classify":
@@ -251,12 +255,53 @@ func runRecipe(ctx context.Context, runner command.Runner, args []string, stdout
 func runTargetRepair(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("repair", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	target := fs.String("target", "", "path, proxy, codex, or keys")
+	target := fs.String("target", "", "path, proxy, codex, keys, or network")
 	dryRun := fs.Bool("dry-run", false, "dry run")
 	yes := fs.Bool("yes", false, "approve")
 	jsonOut := fs.Bool("json", false, "JSON")
+	auto := fs.Bool("auto", false, "auto-select repair")
+	brainFlag := fs.Bool("brain", false, "use local brain planner")
+	online := fs.Bool("online", false, "allow network_action recipes")
 	if err := fs.Parse(args); err != nil {
 		return 50
+	}
+	if *auto || *brainFlag {
+		if !*auto || !*brainFlag {
+			fmt.Fprintln(stderr, "brain auto repair requires --auto --brain")
+			return 50
+		}
+		if *target == "" {
+			fmt.Fprintln(stderr, "repair --auto --brain requires --target")
+			return 50
+		}
+		reg, err := recipe.LoadRegistry(recipe.FindRecipesDir())
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			return 30
+		}
+		res := brain.RunLoop(ctx, runner, reg, brain.LoopOptions{Home: currentHome(ctx, runner), Target: *target, DryRun: *dryRun, Yes: *yes, Online: *online, JSON: *jsonOut, CommandLine: append([]string{"repair"}, args...)})
+		if *jsonOut {
+			fmt.Fprintln(stdout, brain.MarshalLoopResult(res))
+		} else {
+			fmt.Fprintf(stdout, "Brain auto repair\nTarget: %s\nStatus: %s\n", res.Target, res.Status)
+			if res.StopReason != "" {
+				fmt.Fprintf(stdout, "Stop reason: %s\n", res.StopReason)
+			}
+			if res.RecipeResult.RecipeID != "" {
+				fmt.Fprintf(stdout, "Recipe: %s\n", res.RecipeResult.RecipeID)
+			}
+			if res.RecipeResult.SnapshotID != "" {
+				fmt.Fprintln(stdout, "Rollback: agentlink restore last")
+			}
+			if res.HumanReportPath != "" {
+				fmt.Fprintf(stdout, "Report path: %s\n", res.HumanReportPath)
+			}
+		}
+		if res.Error != "" {
+			fmt.Fprintln(stderr, res.Error)
+			return 30
+		}
+		return 0
 	}
 	id := map[string]string{"path": "macos-zsh-path-repair", "proxy": "proxy-clean-stale-env", "codex": "codex-config-parse-repair", "keys": "api-key-detection-redaction"}[*target]
 	if id == "" {
@@ -382,6 +427,157 @@ func runPlanner(ctx context.Context, runner command.Runner, args []string, stdou
 		return 30
 	}
 	fmt.Fprintln(stdout, "planner decision valid")
+	return 0
+}
+
+func runBrain(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		fmt.Fprintln(stderr, "brain requires doctor, fetch, selftest, prompt, plan, or explain")
+		return 50
+	}
+	home := currentHome(ctx, runner)
+	reg, err := recipe.LoadRegistry(recipe.FindRecipesDir())
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 30
+	}
+	switch args[0] {
+	case "doctor":
+		fs := flag.NewFlagSet("brain doctor", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		jsonOut := fs.Bool("json", false, "JSON")
+		if err := fs.Parse(args[1:]); err != nil {
+			return 50
+		}
+		doc := brain.Doctor(ctx, runner, home)
+		if *jsonOut {
+			data, _ := json.MarshalIndent(doc, "", "  ")
+			fmt.Fprintln(stdout, string(data))
+		} else {
+			fmt.Fprintf(stdout, "Cactus AgentLink Brain %s doctor\n", system.Version)
+			fmt.Fprintf(stdout, "Backend: %s\nModel exists: %v\nModel SHA256 OK: %v\nRuntime executable: %v\n", doc.Backend, doc.ModelExists, doc.ModelSHA256OK, doc.RuntimeExecutable)
+			if len(doc.MissingAssets) > 0 {
+				fmt.Fprintf(stdout, "Missing assets: %s\n", strings.Join(doc.MissingAssets, ", "))
+				fmt.Fprintln(stdout, "Fetch:")
+				for _, c := range doc.FetchCommands {
+					fmt.Fprintf(stdout, "  %s\n", c)
+				}
+			}
+		}
+		return 0
+	case "fetch":
+		return runBrainFetch(ctx, runner, args[1:], stdout, stderr)
+	case "selftest":
+		fs := flag.NewFlagSet("brain selftest", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		jsonOut := fs.Bool("json", false, "JSON")
+		if err := fs.Parse(args[1:]); err != nil {
+			return 50
+		}
+		res := brain.Selftest(ctx, runner, home, reg)
+		if *jsonOut {
+			data, _ := json.MarshalIndent(res, "", "  ")
+			fmt.Fprintln(stdout, string(data))
+		} else if res.OK {
+			fmt.Fprintln(stdout, "agentlink brain selftest OK")
+			fmt.Fprintf(stdout, "Decision: %s confidence %.2f\n", res.Decision.Intent, res.Decision.Confidence)
+		} else {
+			fmt.Fprintf(stderr, "brain selftest failed: %s\n", res.Error)
+			return 30
+		}
+		if !res.OK {
+			return 30
+		}
+		return 0
+	case "prompt":
+		fs := flag.NewFlagSet("brain prompt", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		text := fs.String("text", "", "prompt text")
+		jsonOut := fs.Bool("json", false, "JSON")
+		if err := fs.Parse(args[1:]); err != nil {
+			return 50
+		}
+		if *text == "" {
+			fmt.Fprintln(stderr, "brain prompt requires --text")
+			return 50
+		}
+		resp, err := brain.NewLlamaCLIBackend(runner, home).Generate(ctx, brain.BrainRequest{SystemPrompt: "Return a short response.", UserPrompt: *text, MaxTokens: 256, Temperature: 0, ContextSize: 2048, Timeout: 2 * time.Minute})
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			return 30
+		}
+		if *jsonOut {
+			data, _ := json.MarshalIndent(resp, "", "  ")
+			fmt.Fprintln(stdout, string(data))
+		} else {
+			fmt.Fprint(stdout, resp.RawText)
+		}
+		return 0
+	case "plan":
+		fs := flag.NewFlagSet("brain plan", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		target := fs.String("target", "", "path, proxy, codex, keys, or network")
+		jsonOut := fs.Bool("json", false, "JSON")
+		if err := fs.Parse(args[1:]); err != nil {
+			return 50
+		}
+		if *target == "" {
+			fmt.Fprintln(stderr, "brain plan requires --target")
+			return 50
+		}
+		f := facts.Collect(ctx, runner, home, *target == "network")
+		pl := brain.NewPlanner(brain.NewLlamaCLIBackend(runner, home), reg)
+		plan, err := pl.Plan(ctx, brain.PlanInput{Target: *target, Home: home, Facts: f})
+		if *jsonOut {
+			data, _ := json.MarshalIndent(plan, "", "  ")
+			fmt.Fprintln(stdout, string(data))
+		} else if err == nil {
+			fmt.Fprintf(stdout, "Intent: %s\nRecipe: %s\nConfidence: %.2f\n", plan.Decision.Intent, plan.Decision.SelectedRecipe.ID, plan.Decision.Confidence)
+		}
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			return 30
+		}
+		return 0
+	case "explain":
+		if len(args) != 2 || args[1] != "--latest" {
+			fmt.Fprintln(stderr, "brain explain requires --latest")
+			return 50
+		}
+		store := session.NewStore(home)
+		sess, err := store.Latest()
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			return 30
+		}
+		fmt.Fprint(stdout, session.HumanReport(sess))
+		return 0
+	default:
+		fmt.Fprintln(stderr, "unknown brain subcommand")
+		return 50
+	}
+}
+
+func runBrainFetch(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("brain fetch", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	_ = fs.String("model", brain.DefaultModelID, "model id")
+	_ = fs.String("runtime", "llama.cpp", "runtime")
+	if err := fs.Parse(args); err != nil {
+		return 50
+	}
+	script := findScript("fetch_brain_assets.sh")
+	if script == "" {
+		fmt.Fprintln(stderr, "fetch script not found; run scripts/fetch_brain_assets.sh from the source checkout")
+		return 30
+	}
+	fetchRunner := command.ExecRunner{Timeout: 4 * time.Hour}
+	res := fetchRunner.Run(ctx, "/bin/bash", script)
+	fmt.Fprint(stdout, res.Stdout)
+	if res.ExitCode != 0 {
+		fmt.Fprint(stderr, res.Stderr)
+		return 30
+	}
 	return 0
 }
 
@@ -748,6 +944,23 @@ func findRulesDir() string {
 	return ""
 }
 
+func findScript(name string) string {
+	candidates := []string{}
+	if cwd, err := os.Getwd(); err == nil {
+		candidates = append(candidates, filepath.Join(cwd, "scripts", name))
+	}
+	if exe, err := os.Executable(); err == nil {
+		dir := filepath.Dir(exe)
+		candidates = append(candidates, filepath.Join(dir, "..", "scripts", name), filepath.Join(dir, "scripts", name))
+	}
+	for _, c := range candidates {
+		if system.Exists(c) {
+			return c
+		}
+	}
+	return ""
+}
+
 func usage(w io.Writer) {
 	fmt.Fprintln(w, "Usage:")
 	fmt.Fprintln(w, "  agentlink doctor [--json]")
@@ -762,6 +975,12 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "  agentlink proxy detect [--json]")
 	fmt.Fprintln(w, "  agentlink keys doctor [--json]")
 	fmt.Fprintln(w, "  agentlink planner validate <decision.json>")
+	fmt.Fprintln(w, "  agentlink brain doctor [--json]")
+	fmt.Fprintln(w, "  agentlink brain fetch [--model qwen3-4b-instruct-2507-q4km] [--runtime llama.cpp]")
+	fmt.Fprintln(w, "  agentlink brain selftest [--json]")
+	fmt.Fprintln(w, "  agentlink brain prompt --text \"...\" [--json]")
+	fmt.Fprintln(w, "  agentlink brain plan --target path|proxy|codex|keys|network [--json]")
+	fmt.Fprintln(w, "  agentlink repair --auto --brain --target path|proxy|codex|keys|network [--dry-run] [--yes] [--online] [--json]")
 	fmt.Fprintln(w, "  agentlink diagnose [--json] [--verbose]")
 	fmt.Fprintln(w, "  agentlink classify [--json]")
 	fmt.Fprintln(w, "  agentlink rescue [--level safe|standard|deep] [--yes] [--dry-run] [--json]")

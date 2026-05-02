@@ -1,0 +1,19 @@
+Planner decision:
+{
+  "schemaVersion": 1,
+  "intent": "report",
+  "failureClass": "UNKNOWN",
+  "confidence": 0.72,
+  "selectedRecipe": {
+    "id": "",
+    "params": {}
+  },
+  "risk": "read_only",
+  "requiresUserApproval": false,
+  "expectedVerifiers": [],
+  "fallbackRecipes": [],
+  "explanationForUser": "No bounded repair is justified.",
+  "evidence": [],
+  "stopReason": "outside local scope"
+}
+End.

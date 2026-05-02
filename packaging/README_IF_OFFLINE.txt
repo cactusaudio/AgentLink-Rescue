@@ -1,4 +1,4 @@
-Cactus AgentLink Rescue 0.2.2
+Cactus AgentLink Rescue 0.3.0
 
 1. Put this folder anywhere, for example Downloads.
 2. Double-click agentlink.command.
@@ -22,8 +22,24 @@ Manual restore structure:
 
 Do not paste admin passwords into commands. Let sudo show its normal prompt.
 
-v0.2 also includes offline recipe docs:
+Core vs Brain package:
+- Core package has no Qwen model and no llama.cpp runtime. It still runs doctor, recipe repair, network rescue, reports, and rollback.
+- Brain package includes the local Qwen GGUF and llama.cpp runtime. It runs offline with no model download.
+- If using Core and you want Brain mode, run:
+  ./bin/agentlink brain fetch
+  or from a source checkout:
+  ./scripts/fetch_brain_assets.sh
+
+Brain mode is planner-only:
+- Qwen outputs PlannerDecision JSON.
+- The deterministic runner executes only local recipes.
+- Qwen never executes arbitrary shell.
+
+v0.3 also includes offline recipe and Brain docs:
 - docs/offline/AGENTLINK_CONSTITUTION.md
 - docs/offline/RECIPE_AUTHORING.md
 - docs/offline/PLANNER_CONTRACT.md
 - docs/offline/REPORT_FORMAT.md
+- docs/offline/QWEN_BRAIN_PACK.md
+- docs/offline/QWEN_PLANNER_PROMPT.md
+- docs/offline/BRAIN_RUNTIME_POLICY.md

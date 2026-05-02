@@ -50,7 +50,7 @@ func ValidateRecipe(r Recipe) error {
 		return fmt.Errorf("invalid risk %q", r.Risk)
 	}
 	if r.Risk == RiskDestructiveAction {
-		return fmt.Errorf("destructive_action is refused in v0.2")
+		return fmt.Errorf("destructive_action is refused in v0.3")
 	}
 	for _, p := range r.Preconditions {
 		if !validPreconditions[p.Type] {

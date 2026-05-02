@@ -83,7 +83,7 @@ func Run(ctx context.Context, runner command.Runner, reg Registry, id string, op
 	}
 	if r.Risk == RiskDestructiveAction {
 		res.Status = StatusFail
-		res.Error = "destructive_action is refused in v0.2"
+		res.Error = "destructive_action is refused in v0.3"
 		return res
 	}
 	if !opts.DryRun && r.Risk != RiskReadOnly && r.Risk != RiskSafePatch && !opts.Yes {

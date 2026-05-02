@@ -28,12 +28,14 @@ scripts/package.sh
 
 PKG="$ROOT/dist/Cactus-AgentLink-Rescue"
 BIN="$PKG/bin/agentlink"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.2.2.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.3.0-core.zip"
 
-"$BIN" version | grep '0.2.2'
+"$BIN" version | grep '0.3.0'
 "$BIN" selftest
 "$BIN" doctor --json > /tmp/agentlink-release-doctor.json
 /usr/bin/python3 -m json.tool /tmp/agentlink-release-doctor.json >/dev/null
+"$BIN" brain doctor --json > /tmp/agentlink-release-brain-doctor.json
+/usr/bin/python3 -m json.tool /tmp/agentlink-release-brain-doctor.json >/dev/null
 "$BIN" recipe list
 "$BIN" recipe inspect codex-deepseek-provider-config
 "$BIN" recipe run codex-deepseek-provider-config --dry-run
@@ -46,6 +48,15 @@ fi
 
 scripts/dogfood_temp_home.sh
 scripts/dogfood_proxy_config.sh
+
+SOURCE_MODEL="$ROOT/assets/models/Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
+SOURCE_LLAMA="$ROOT/assets/runtimes/llama.cpp/$(uname -m)/llama-cli"
+if [ -f "$SOURCE_MODEL" ] && [ -x "$SOURCE_LLAMA" ]; then
+  AGENTLINK_MODEL_PATH="$SOURCE_MODEL" AGENTLINK_LLAMA_CLI="$SOURCE_LLAMA" "$BIN" brain selftest
+  AGENTLINK_MODEL_PATH="$SOURCE_MODEL" AGENTLINK_LLAMA_CLI="$SOURCE_LLAMA" scripts/dogfood_brain.sh
+else
+  echo "brain assets missing; core release check only"
+fi
 
 if find "$PKG" \( -name '.DS_Store' -o -name '._*' -o -name '__MACOSX' \) -print | grep .; then
   echo "package folder contains Finder metadata" >&2

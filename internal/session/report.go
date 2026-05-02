@@ -2,6 +2,7 @@ package session
 
 import (
 	"encoding/json"
+	"strconv"
 	"strings"
 
 	"cactus-agentlink-rescue/internal/safety"
@@ -34,6 +35,26 @@ func HumanReport(s Session) string {
 	}
 	if s.SnapshotPath != "" {
 		b.WriteString("Snapshot path: " + s.SnapshotPath + "\n")
+	}
+	if s.BrainEnabled {
+		b.WriteString("\nBrain:\n")
+		if s.BrainModelID != "" {
+			b.WriteString("- model: " + s.BrainModelID + "\n")
+		}
+		if s.BrainBackend != "" {
+			b.WriteString("- backend: " + s.BrainBackend + "\n")
+		}
+		b.WriteString("- planner calls: " + intString(len(s.PlannerCalls)) + "\n")
+		if s.PlannerIntent != "" {
+			b.WriteString("- decision intent: " + s.PlannerIntent + "\n")
+			b.WriteString("- decision confidence: " + floatString(s.PlannerConfidence) + "\n")
+		}
+		if s.StopReason != "" {
+			b.WriteString("- stop reason: " + s.StopReason + "\n")
+		}
+		if len(s.ValidationErrors) > 0 {
+			b.WriteString("- validation errors: " + strings.Join(s.ValidationErrors, "; ") + "\n")
+		}
 	}
 	if len(s.ChangedFiles) > 0 {
 		b.WriteString("\nChanged files:\n")
@@ -85,8 +106,28 @@ func AgentDispatch(s Session) string {
 		"rollbackAvailable": s.RollbackAvailable,
 		"exactNextTask":     nextTask(s),
 	}
+	if s.BrainEnabled {
+		out["brain"] = map[string]any{
+			"enabled":              s.BrainEnabled,
+			"modelID":              s.BrainModelID,
+			"backend":              s.BrainBackend,
+			"plannerCalls":         len(s.PlannerCalls),
+			"plannerDecision":      s.PlannerDecision,
+			"validationErrors":     s.ValidationErrors,
+			"loopStateTransitions": s.LoopStateTransitions,
+			"stopReason":           s.StopReason,
+		}
+	}
 	data, _ := json.MarshalIndent(out, "", "  ")
 	return safety.RedactSensitive(string(data))
+}
+
+func intString(v int) string {
+	return strconv.Itoa(v)
+}
+
+func floatString(v float64) string {
+	return strconv.FormatFloat(v, 'f', 2, 64)
 }
 
 func nextTask(s Session) string {

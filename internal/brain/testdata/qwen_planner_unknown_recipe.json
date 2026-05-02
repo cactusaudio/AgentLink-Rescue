@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "intent": "repair",
+  "failureClass": "UNKNOWN",
+  "confidence": 0.80,
+  "selectedRecipe": {
+    "id": "does-not-exist",
+    "params": {}
+  },
+  "risk": "read_only",
+  "requiresUserApproval": false,
+  "expectedVerifiers": [],
+  "fallbackRecipes": [],
+  "explanationForUser": "unknown recipe",
+  "evidence": [],
+  "stopReason": ""
+}

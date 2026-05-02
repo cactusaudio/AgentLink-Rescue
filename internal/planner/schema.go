@@ -11,6 +11,8 @@ type Decision struct {
 	ExpectedVerifiers    []string       `json:"expectedVerifiers"`
 	FallbackRecipes      []string       `json:"fallbackRecipes"`
 	ExplanationForUser   string         `json:"explanationForUser"`
+	Evidence             []string       `json:"evidence,omitempty"`
+	StopReason           string         `json:"stopReason,omitempty"`
 }
 
 type SelectedRecipe struct {

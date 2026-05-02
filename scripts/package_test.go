@@ -17,7 +17,7 @@ func TestPackageScriptRemovesMetadataFiles(t *testing.T) {
 			t.Fatalf("package cleanup missing %s", want)
 		}
 	}
-	for _, want := range []string{"COPYFILE_DISABLE=1", "zip -r -X", "unzip -l", "AppleDouble", "/\\._", "Cactus-AgentLink-Rescue-v0.2.2.zip"} {
+	for _, want := range []string{"COPYFILE_DISABLE=1", "zip -r -X", "unzip -l", "AppleDouble", "/\\._", "Cactus-AgentLink-Rescue-v0.3.0-core.zip", "assets/manifests"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("package zip hardening missing %s", want)
 		}
@@ -43,9 +43,22 @@ func TestReleaseCheckCoversDogfoodAndForbiddenCodexField(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(data)
-	for _, want := range []string{"dogfood_temp_home.sh", "dogfood_proxy_config.sh", "FORBIDDEN_FIELD", "Cactus-AgentLink-Rescue-v0.2.2.zip", "Mach-O universal binary"} {
+	for _, want := range []string{"dogfood_temp_home.sh", "dogfood_proxy_config.sh", "dogfood_brain.sh", "brain assets missing; core release check only", "FORBIDDEN_FIELD", "Cactus-AgentLink-Rescue-v0.3.0-core.zip", "Mach-O universal binary"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("release check missing %s", want)
+		}
+	}
+}
+
+func TestBrainPackageScriptRequiresAssetsAndHygiene(t *testing.T) {
+	data, err := os.ReadFile("package_brain.sh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(data)
+	for _, want := range []string{"Cactus-AgentLink-Rescue-v0.3.0-brain-qwen3-4b-q4km.zip", "DOWNLOAD=1", "assets/models", "assets/runtimes/llama.cpp", "COPYFILE_DISABLE=1", "zip -r -X"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("brain package script missing %s", want)
 		}
 	}
 }

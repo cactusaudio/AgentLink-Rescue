@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "intent": "repair",
+  "failureClass": "PATH_MISSING_TOOL_DIR",
+  "confidence": 0.30,
+  "selectedRecipe": {
+    "id": "macos-zsh-path-repair",
+    "params": {}
+  },
+  "risk": "reversible_patch",
+  "requiresUserApproval": true,
+  "expectedVerifiers": ["managed_block_count"],
+  "fallbackRecipes": [],
+  "explanationForUser": "low confidence repair",
+  "evidence": [],
+  "stopReason": ""
+}
