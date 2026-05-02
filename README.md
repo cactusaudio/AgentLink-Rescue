@@ -2,7 +2,7 @@
 
 Cactus AgentLink Rescue is an offline, portable, reversible macOS rescue tool for restoring the broken path between a Mac and AI agents such as Codex, Claude, GitHub, and API endpoints.
 
-v0.4 adds a native macOS GUI shell. The GUI does not reimplement rescue logic: it displays status, runs package-local `agentlink` CLI commands through argv arrays, and shows reports, dry-runs, rollback state, and copyable sudo commands. Qwen remains a bounded planner only: facts go to Qwen, Qwen returns PlannerDecision JSON, the validator checks it, and the deterministic recipe runner executes only registered rollback-capable recipes. There is still no telemetry, daemon, privileged helper, SMAppService, RAG, queue, remote mutation, or arbitrary shell execution.
+v0.4.1 hardens the native macOS GUI shell with screenshot-driven dogfood fixes and migrates the local Brain model to Gemma 4 E4B-it Q4_K_M. The GUI does not reimplement rescue logic: it displays status, runs package-local `agentlink` CLI commands through argv arrays, and shows reports, dry-runs, rollback state, and copyable sudo commands. Gemma remains a bounded planner only: facts go to Gemma, Gemma returns PlannerDecision JSON, the validator checks it, and the deterministic recipe runner executes only registered rollback-capable recipes. There is still no telemetry, daemon, privileged helper, SMAppService, RAG, queue, remote mutation, or arbitrary shell execution.
 
 ## Product Thesis
 
@@ -23,7 +23,7 @@ This is not a generic network reset tool and not a cleanup app.
 - Rolls back restore points.
 - Packages as a copyable folder with `agentlink.command` and `rescue.sh`.
 - Runs bounded JSON recipes with snapshot-first mutation and verifier-driven repair.
-- Runs optional local Qwen planning through `llama-cli`.
+- Runs optional local Gemma 4 E4B planning through `llama-cli`.
 - Validates Brain planner JSON before dry-run or execution.
 - Provides a native macOS GUI rescue console as a thin wrapper around the CLI.
 
@@ -31,7 +31,7 @@ This is not a generic network reset tool and not a cleanup app.
 
 - No GUI-owned repair logic.
 - No model-generated shell execution.
-- No Qwen executor surface.
+- No model executor surface.
 - No permanent privileged helper.
 - No SMAppService.
 - No automatic notarization.
@@ -68,7 +68,7 @@ agentlink recipe inspect <id> [--json]
 agentlink recipe run <id> [--dry-run] [--yes] [--json] [--param key=value]
 agentlink repair --target path|proxy|codex|keys [--dry-run] [--yes] [--json]
 agentlink brain doctor [--json]
-agentlink brain fetch [--model qwen3-4b-instruct-2507-q4km] [--runtime llama.cpp]
+agentlink brain fetch [--model gemma-4-e4b-it-q4km] [--runtime llama.cpp]
 agentlink brain selftest [--json]
 agentlink brain prompt --text "..." [--json]
 agentlink brain plan --target path|proxy|codex|keys|network [--json]
@@ -147,7 +147,7 @@ The output folder is:
 
 ```text
 dist/Cactus-AgentLink-Rescue/
-dist/Cactus-AgentLink-Rescue-v0.4.0-core.zip
+dist/Cactus-AgentLink-Rescue-v0.4.1-core.zip
 ```
 
 It can be copied to Downloads and launched with `agentlink.command`.
@@ -162,7 +162,7 @@ To build the optional Brain package after fetching the model/runtime:
 Brain package output:
 
 ```text
-dist/Cactus-AgentLink-Rescue-v0.4.0-brain-qwen3-4b-q4km.zip
+dist/Cactus-AgentLink-Rescue-v0.4.1-brain-gemma4-e4b-q4km.zip
 ```
 
 Native GUI packages:
@@ -175,8 +175,8 @@ Native GUI packages:
 GUI package outputs:
 
 ```text
-dist/Cactus-AgentLink-Rescue-v0.4.0-core-gui.zip
-dist/Cactus-AgentLink-Rescue-v0.4.0-brain-gui-qwen3-4b-q4km.zip
+dist/Cactus-AgentLink-Rescue-v0.4.1-core-gui.zip
+dist/Cactus-AgentLink-Rescue-v0.4.1-brain-gui-gemma4-e4b-q4km.zip
 ```
 
 The GUI app embeds the CLI package under:
@@ -189,16 +189,18 @@ The GUI uses the embedded `bin/agentlink`; it does not use a system `agentlink` 
 
 ### Core Package Vs Brain Package
 
-The Core package is the network and recipe runtime. It does not include the Qwen GGUF model or llama.cpp runtime. Core can still run `doctor`, `diagnose`, recipe repairs, network rescue, reports, rollback, and `brain doctor`. In Core, `brain doctor` reports missing Brain assets and prints fetch commands.
+The Core package is the network and recipe runtime. It does not include the Gemma GGUF model or llama.cpp runtime. Core can still run `doctor`, `diagnose`, recipe repairs, network rescue, reports, rollback, and `brain doctor`. In Core, `brain doctor` reports missing Brain assets and prints fetch commands.
 
 The Brain package includes everything in Core plus:
 
-- `assets/models/Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf`
+- `assets/models/gemma-4-E4B-it-Q4_K_M.gguf`
 - `assets/runtimes/llama.cpp/<arch>/llama-cli`
 - required llama.cpp shared libraries
 - manifests and licenses
 
-On an offline Mac, use the Brain package if you need local Qwen planning. After unzip, these commands should run without network:
+Gemma 4 E4B-it Q4_K_M is the default Brain model because it is current, edge-friendly, and suitable for 16GB Macs. The model is roughly 5.07GB before package overhead.
+
+On an offline Mac, use the Brain package if you need local Gemma planning. After unzip, these commands should run without network:
 
 ```bash
 ./bin/agentlink brain doctor
@@ -213,14 +215,17 @@ Core can fetch Brain assets only when the Mac has network access:
 ./bin/agentlink brain fetch
 ```
 
-Qwen is not the executor. It returns PlannerDecision JSON only. The validator rejects unknown recipes, low-confidence repairs, privileged/destructive actions, and invalid JSON. The deterministic runner executes only bundled recipes, and writable repairs still require snapshot and rollback.
+Gemma is not the executor. It returns PlannerDecision JSON only. The validator rejects unknown recipes, low-confidence repairs, privileged/destructive actions, and invalid JSON. The deterministic runner executes only bundled recipes, and writable repairs still require snapshot and rollback.
 
 GUI dogfood:
 
 ```bash
 ./scripts/dogfood_gui_core.sh
 ./scripts/dogfood_gui_brain.sh
+./scripts/dogfood_gui_screenshots.sh
 ```
+
+The GUI is intentionally unsigned in this release. If macOS quarantine blocks it, run `xattr -cr "Cactus AgentLink Rescue.app"` on the extracted app. The GUI never asks for an admin password and never runs sudo; privileged network rescue commands are shown for copy/paste into Terminal.
 
 ## Reports And Restore Points
 
@@ -259,7 +264,7 @@ AgentLink Rescue logs local diagnostic state needed to classify and repair agent
 - Deep rescue may require reboot before macOS fully rebuilds network configuration.
 - Codex DeepSeek provider recipes generate a static config template with current `name`, `base_url`, `env_key`, and model fields; an explicit online smoke test is required before treating the provider as operational.
 - DeepSeek Chat Completions compatibility and Codex Responses wire protocol may not be equivalent; do not claim runtime compatibility without a smoke test.
-- Brain mode requires the Qwen GGUF and llama.cpp runtime. Core package remains functional without them.
-- Qwen planning can recommend only registered recipes; it cannot invoke network rescue safe/standard/deep automatically.
+- Brain mode requires the Gemma 4 E4B GGUF and llama.cpp runtime. Core package remains functional without them.
+- Gemma planning can recommend only registered recipes; it cannot invoke network rescue safe/standard/deep automatically.
 - Some provider failures may be outside local repair scope.
 - The fallback `rescue.sh` is intentionally simpler than the Go engine and should be used only when the binary is blocked.

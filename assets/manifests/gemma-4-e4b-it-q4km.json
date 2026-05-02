@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "gemma-4-e4b-it-q4km",
+  "family": "gemma",
+  "generation": "gemma-4",
+  "model": "gemma-4-E4B-it",
+  "architecture": "dense-effective",
+  "effectiveParameters": "4.5B",
+  "format": "GGUF",
+  "quant": "Q4_K_M",
+  "filename": "gemma-4-E4B-it-Q4_K_M.gguf",
+  "repo": "unsloth/gemma-4-E4B-it-GGUF",
+  "downloadURL": "https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q4_K_M.gguf?download=true",
+  "sha256": "",
+  "sizeBytesApprox": 5070000000,
+  "license": "Apache-2.0",
+  "promptFormat": "gemma4",
+  "defaultContext": 8192,
+  "defaultTemperature": 0.0,
+  "defaultMaxTokens": 1024,
+  "jsonOnlyPolicy": "extract_first_json_object",
+  "recommendedFor": [
+    "16gb-mac",
+    "brain-default",
+    "offline-planner",
+    "agentlink"
+  ]
+}

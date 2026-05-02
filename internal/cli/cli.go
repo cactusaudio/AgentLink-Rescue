@@ -988,7 +988,7 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "  agentlink keys doctor [--json]")
 	fmt.Fprintln(w, "  agentlink planner validate <decision.json>")
 	fmt.Fprintln(w, "  agentlink brain doctor [--json]")
-	fmt.Fprintln(w, "  agentlink brain fetch [--model qwen3-4b-instruct-2507-q4km] [--runtime llama.cpp]")
+	fmt.Fprintln(w, "  agentlink brain fetch [--model gemma-4-e4b-it-q4km] [--runtime llama.cpp]")
 	fmt.Fprintln(w, "  agentlink brain selftest [--json]")
 	fmt.Fprintln(w, "  agentlink brain prompt --text \"...\" [--json]")
 	fmt.Fprintln(w, "  agentlink brain plan --target path|proxy|codex|keys|network [--json]")

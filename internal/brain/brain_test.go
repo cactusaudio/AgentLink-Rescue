@@ -59,11 +59,11 @@ func testRecipeRegistry() recipe.Registry {
 }
 
 func TestModelManifestAndAssetResolution(t *testing.T) {
-	m, err := LoadModelManifest(filepath.Join("..", "..", "assets", "manifests", "qwen3-4b-instruct-2507-q4km.json"))
+	m, err := LoadModelManifest(filepath.Join("..", "..", "assets", "manifests", "gemma-4-e4b-it-q4km.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m.ID != DefaultModelID || m.SHA256 == "" {
+	if m.ID != DefaultModelID || m.Filename != DefaultModelFilename || m.Family != "gemma" || m.SHA256 != "" {
 		t.Fatalf("bad manifest: %+v", m)
 	}
 	home := t.TempDir()
@@ -130,9 +130,9 @@ func TestLlamaCLICommandConstructionAndPrompt(t *testing.T) {
 			t.Fatalf("missing arg %s in %v", want, args)
 		}
 	}
-	prompt := FormatChatML("sys", "user")
-	if !strings.Contains(prompt, "<|im_start|>system\nsys<|im_end|>") || !strings.HasSuffix(prompt, "<|im_start|>assistant\n") {
-		t.Fatalf("bad ChatML prompt: %q", prompt)
+	prompt := FormatPlannerPrompt("sys", "user")
+	if !strings.Contains(prompt, "<start_of_turn>user") || !strings.Contains(prompt, "System instructions:\nsys") || !strings.HasSuffix(prompt, "<start_of_turn>model\n") {
+		t.Fatalf("bad planner prompt: %q", prompt)
 	}
 }
 
@@ -144,7 +144,7 @@ func systemRuntimeArchForTest() string {
 }
 
 func TestJSONExtraction(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("testdata", "qwen_output_with_text_around_json.txt"))
+	data, err := os.ReadFile(filepath.Join("testdata", "gemma_output_with_text_around_json.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,6 +161,17 @@ func TestJSONExtraction(t *testing.T) {
 	if _, err := ExtractJSONObject("not json"); err == nil {
 		t.Fatal("invalid JSON accepted")
 	}
+	fenced := "```json\n{\"schemaVersion\":1,\"intent\":\"report\"}\n```"
+	if got, err := ExtractJSONObject(fenced); err != nil || !strings.Contains(got, `"intent":"report"`) {
+		t.Fatalf("fenced JSON not extracted: %q %v", got, err)
+	}
+	thought := "<think>private reasoning</think>\n{\"schemaVersion\":1,\"intent\":\"report\"}"
+	if got, err := ExtractPlannerJSONObject(thought); err != nil || strings.Contains(got, "private") {
+		t.Fatalf("thought block was not sanitized: %q %v", got, err)
+	}
+	if _, err := ExtractPlannerJSONObject(`{"schemaVersion":1,"intent":"report"} {"schemaVersion":1,"intent":"report"}`); err == nil {
+		t.Fatal("multiple planner JSON objects accepted")
+	}
 	runtimeOutput := `tokenizer.chat_template str = {%- if tools %}
 {"schemaVersion":1,"intent":"report","failureClass":"UNKNOWN","confidence":0.8,"selectedRecipe":{"id":"","params":{}},"risk":"read_only","requiresUserApproval":false,"expectedVerifiers":[],"fallbackRecipes":[],"explanationForUser":"ok","evidence":[],"stopReason":"done"} [end of text]`
 	plannerJSON, err := ExtractPlannerJSONObject(runtimeOutput)
@@ -174,7 +185,7 @@ func TestJSONExtraction(t *testing.T) {
 
 func TestLlamaAssistantOutputIgnoresEchoedPrompt(t *testing.T) {
 	raw := `prompt {"schemaVersion":0}
-<|im_start|>assistant
+<start_of_turn>model
 {"schemaVersion":1,"intent":"report"}`
 	got, err := ExtractJSONObject(llamaAssistantOutput(raw))
 	if err != nil {
@@ -186,7 +197,7 @@ func TestLlamaAssistantOutputIgnoresEchoedPrompt(t *testing.T) {
 }
 
 func TestBrainPlannerValidationAndCorrection(t *testing.T) {
-	valid, _ := os.ReadFile(filepath.Join("testdata", "qwen_planner_valid.json"))
+	valid, _ := os.ReadFile(filepath.Join("testdata", "gemma_planner_valid.json"))
 	fb := &fakeBackend{texts: []string{"invalid", string(valid)}}
 	p := NewPlanner(fb, testRecipeRegistry())
 	plan, err := p.Plan(context.Background(), PlanInput{Target: "path", Facts: facts.Facts{OS: "darwin"}})
@@ -199,7 +210,7 @@ func TestBrainPlannerValidationAndCorrection(t *testing.T) {
 	if plan.Decision.SelectedRecipe.ID != "macos-zsh-path-repair" {
 		t.Fatalf("bad decision: %+v", plan.Decision)
 	}
-	low, _ := os.ReadFile(filepath.Join("testdata", "qwen_planner_low_confidence.json"))
+	low, _ := os.ReadFile(filepath.Join("testdata", "gemma_planner_low_confidence.json"))
 	fb = &fakeBackend{texts: []string{string(low), string(low)}}
 	_, err = NewPlanner(fb, testRecipeRegistry()).Plan(context.Background(), PlanInput{Target: "path"})
 	if err == nil {
@@ -210,7 +221,7 @@ func TestBrainPlannerValidationAndCorrection(t *testing.T) {
 func TestBrainLoopDryRunAndYesPathRepair(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	valid, _ := os.ReadFile(filepath.Join("testdata", "qwen_planner_valid.json"))
+	valid, _ := os.ReadFile(filepath.Join("testdata", "gemma_planner_valid.json"))
 	reg := testRecipeRegistry()
 	backend := &fakeBackend{texts: []string{string(valid)}}
 	pl := NewPlanner(backend, reg)

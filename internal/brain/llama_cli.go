@@ -3,6 +3,7 @@ package brain
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -33,13 +34,18 @@ func (b LlamaCLIBackend) Available(ctx context.Context) BrainAvailability {
 	if manifest.ID == "" {
 		manifest = DefaultModelManifest()
 	}
+	manifest = ResolveModelManifest(b.Home, manifest)
 	loc := LocateAssets(b.Home, manifest)
 	out := BrainAvailability{
 		Backend:            b.Name(),
 		PackageRoot:        loc.PackageRoot,
+		ModelFamily:        manifest.Family,
+		ModelID:            manifest.ID,
+		ModelName:          manifest.Model,
 		ModelPath:          loc.ModelPath,
 		ModelExists:        loc.ModelExists,
 		ModelSHA256OK:      loc.ModelSHA256OK,
+		ModelSizeBytes:     fileSize(loc.ModelPath),
 		RuntimePath:        loc.RuntimePath,
 		RuntimeExists:      loc.RuntimeExists,
 		RuntimeExecutable:  loc.RuntimeExecutable,
@@ -48,10 +54,15 @@ func (b LlamaCLIBackend) Available(ctx context.Context) BrainAvailability {
 		PackageLocalAssets: loc.PackageLocalAssets,
 		UserCacheAssets:    loc.UserCacheAssets,
 	}
-	if !out.ModelExists {
-		out.MissingAssets = append(out.MissingAssets, "qwen model")
+	if profile := os.Getenv("AGENTLINK_BRAIN_PROFILE"); profile != "" && profile != DefaultModelID {
+		out.Warnings = append(out.Warnings, "unsupported Brain profile "+profile+"; Gemma 4 E4B is the active Brain model")
 	}
-	if out.ModelExists && !out.ModelSHA256OK {
+	if !out.ModelExists {
+		out.MissingAssets = append(out.MissingAssets, "gemma model")
+	}
+	if out.ModelExists && manifest.SHA256 == "" {
+		out.Warnings = append(out.Warnings, "model checksum unavailable; run scripts/fetch_brain_assets.sh to refresh manifest.lock.json")
+	} else if out.ModelExists && !out.ModelSHA256OK {
 		out.Warnings = append(out.Warnings, "model checksum mismatch")
 	}
 	if !out.RuntimeExecutable {
@@ -59,7 +70,7 @@ func (b LlamaCLIBackend) Available(ctx context.Context) BrainAvailability {
 	}
 	out.BrainPackAvailable = out.ModelExists && out.ModelSHA256OK && out.RuntimeExecutable
 	if !out.BrainPackAvailable {
-		out.FetchCommands = []string{"./bin/agentlink brain fetch", "./scripts/fetch_brain_assets.sh", "download Cactus-AgentLink-Rescue-v0.4.0-brain-qwen3-4b-q4km.zip for offline Brain use"}
+		out.FetchCommands = []string{"./bin/agentlink brain fetch", "./scripts/fetch_brain_assets.sh", "download Cactus-AgentLink-Rescue-v0.4.1-brain-gemma4-e4b-q4km.zip for offline Brain use"}
 	}
 	return out
 }
@@ -69,6 +80,7 @@ func (b LlamaCLIBackend) Generate(ctx context.Context, req BrainRequest) (BrainR
 	if manifest.ID == "" {
 		manifest = DefaultModelManifest()
 	}
+	manifest = ResolveModelManifest(b.Home, manifest)
 	avail := b.Available(ctx)
 	if !avail.ModelExists {
 		return BrainResponse{}, fmt.Errorf("brain model missing")
@@ -88,7 +100,7 @@ func (b LlamaCLIBackend) Generate(ctx context.Context, req BrainRequest) (BrainR
 	if req.Timeout <= 0 {
 		req.Timeout = 2 * time.Minute
 	}
-	prompt := FormatChatML(req.SystemPrompt, req.UserPrompt)
+	prompt := FormatPlannerPrompt(req.SystemPrompt, req.UserPrompt)
 	bin, args := b.commandForGeneration(avail.RuntimePath, avail.ModelPath, prompt, req.MaxTokens, req.ContextSize, req.Temperature)
 	runner := b.Runner
 	if runner == nil {
@@ -123,9 +135,9 @@ func (b LlamaCLIBackend) Generate(ctx context.Context, req BrainRequest) (BrainR
 }
 
 func llamaAssistantOutput(raw string) string {
-	marker := "<|im_start|>assistant"
-	if idx := strings.LastIndex(raw, marker); idx >= 0 {
-		return raw[idx+len(marker):]
+	gemmaMarker := "<start_of_turn>model"
+	if idx := strings.LastIndex(raw, gemmaMarker); idx >= 0 {
+		return raw[idx+len(gemmaMarker):]
 	}
 	return raw
 }
@@ -163,4 +175,15 @@ func (b LlamaCLIBackend) commandForGeneration(runtimePath, modelPath, prompt str
 		return completion, LlamaCompletionArgs(modelPath, prompt, maxTokens, contextSize, temperature)
 	}
 	return runtimePath, LlamaCLIArgs(modelPath, prompt, maxTokens, contextSize, temperature)
+}
+
+func fileSize(path string) int64 {
+	if path == "" {
+		return 0
+	}
+	st, err := os.Stat(path)
+	if err != nil {
+		return 0
+	}
+	return st.Size()
 }

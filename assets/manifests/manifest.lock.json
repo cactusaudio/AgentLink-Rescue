@@ -1,13 +1,16 @@
 {
-  "schemaVersion": 1,
-  "createdAt": "2026-05-02T05:22:29Z",
+  "schemaVersion": 3,
+  "createdAt": "2026-05-02T10:08:32Z",
+  "defaultBrainProfile": "gemma-4-e4b-it-q4km",
   "model": {
-    "path": "assets/models/Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
-    "filename": "Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
-    "sha256": "2fde00ce69dd4899c70d020845e2638353015bba0fdf161b3eb965f2bca4464e",
-    "sizeBytes": 2497280736
+    "profile": "gemma-4-e4b-it-q4km",
+    "path": "assets/models/gemma-4-E4B-it-Q4_K_M.gguf",
+    "filename": "gemma-4-E4B-it-Q4_K_M.gguf",
+    "sha256": "dff0ffba4c90b4082d70214d53ce9504a28d4d8d998276dcb3b8881a656c742a",
+    "sizeBytes": 4977169088
   },
   "runtime": {
+    "backend": "llama.cpp",
     "path": "assets/runtimes/llama.cpp/arm64/llama-cli",
     "binary": "llama-cli",
     "sha256": "88503cd788dbd304a01c9cbfebb8c17ed9c7f84acb69c7547d0db653f531055e",

@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP="$ROOT/dist/Cactus AgentLink Rescue.app"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.0-brain-gui-qwen3-4b-q4km.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.1-brain-gui-gemma4-e4b-q4km.zip"
 INFO="$ROOT/gui/CactusAgentLinkRescue/Sources/CactusAgentLinkRescue/Resources/Info.plist"
 
 cd "$ROOT"
@@ -19,8 +19,8 @@ chmod +x "$APP/Contents/MacOS/CactusAgentLinkRescue" "$APP/Contents/Resources/ag
 chmod +x "$APP"/Contents/Resources/agentlink/assets/runtimes/llama.cpp/*/llama-* "$APP"/Contents/Resources/agentlink/assets/runtimes/llama.cpp/*/*.dylib 2>/dev/null || true
 xattr -cr "$APP" 2>/dev/null || true
 
-if ! find "$APP/Contents/Resources/agentlink/assets/models" -name 'Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf' -print | grep .; then
-  echo "brain GUI missing Qwen GGUF" >&2
+if ! find "$APP/Contents/Resources/agentlink/assets/models" -name 'gemma-4-E4B-it-Q4_K_M.gguf' -print | grep .; then
+  echo "brain GUI missing Gemma GGUF" >&2
   exit 1
 fi
 if ! find "$APP/Contents/Resources/agentlink/assets/runtimes" -type f -name 'llama-cli' -print | grep .; then

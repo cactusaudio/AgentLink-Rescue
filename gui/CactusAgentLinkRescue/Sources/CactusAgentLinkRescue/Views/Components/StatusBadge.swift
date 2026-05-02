@@ -45,26 +45,45 @@ struct ActionButton: View {
 struct OutputCard: View {
     let title: String
     let text: String
+    var placeholder = "No output."
+    var collapsedByDefault = false
+    var minHeight: CGFloat = 120
+    var maxHeight: CGFloat = 260
+    @State private var expanded: Bool
+
+    init(title: String, text: String, placeholder: String = "No output.", collapsedByDefault: Bool = false, minHeight: CGFloat = 120, maxHeight: CGFloat = 260) {
+        self.title = title
+        self.text = text
+        self.placeholder = placeholder
+        self.collapsedByDefault = collapsedByDefault
+        self.minHeight = minHeight
+        self.maxHeight = maxHeight
+        _expanded = State(initialValue: !collapsedByDefault)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(title).font(.headline)
-                Spacer()
-                Button("Copy") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(text, forType: .string)
+            DisclosureGroup(isExpanded: $expanded) {
+                ScrollView {
+                    Text(text.isEmpty ? placeholder : text)
+                        .font(.system(.caption, design: .monospaced))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .textSelection(.enabled)
+                        .padding(10)
+                }
+                .frame(minHeight: minHeight, maxHeight: maxHeight)
+                .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
+            } label: {
+                HStack {
+                    Text(title).font(.headline)
+                    Spacer()
+                    Button("Copy") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(text, forType: .string)
+                    }
+                    .disabled(text.isEmpty)
                 }
             }
-            ScrollView {
-                Text(text.isEmpty ? "No output." : text)
-                    .font(.system(.caption, design: .monospaced))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .textSelection(.enabled)
-                    .padding(10)
-            }
-            .frame(minHeight: 120)
-            .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
         }
         .padding()
         .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
@@ -76,6 +95,26 @@ struct CommandPreview: View {
     let command: String
 
     var body: some View {
-        OutputCard(title: title, text: command)
+        OutputCard(title: title, text: command, minHeight: 44, maxHeight: 92)
+    }
+}
+
+struct InfoRow: View {
+    let label: String
+    let value: String
+    var monospaced = false
+
+    var body: some View {
+        HStack(alignment: .top) {
+            Text(label)
+                .foregroundStyle(.secondary)
+                .frame(width: 120, alignment: .leading)
+            Text(value)
+                .font(monospaced ? .system(.caption, design: .monospaced) : .body)
+                .lineLimit(2)
+                .truncationMode(.middle)
+                .textSelection(.enabled)
+            Spacer(minLength: 0)
+        }
     }
 }

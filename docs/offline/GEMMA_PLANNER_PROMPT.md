@@ -1,4 +1,4 @@
-# Qwen Planner Prompt
+# Gemma Planner Prompt
 
 System prompt:
 
@@ -17,6 +17,11 @@ Never invent recipe IDs.
 Never claim success; only verifiers decide success.
 Prefer the smallest reversible repair.
 If the issue is outside local scope, return report with stopReason.
+Return only valid PlannerDecision JSON.
+Do not include Markdown.
+Do not include code fences.
+Do not include prose outside JSON.
+Do not include chain-of-thought.
 ```
 
-The developer/user prompt includes target, risk policy, recipe catalog, fact summary, verifier state, and the required JSON schema. Qwen output is validated before any recipe is dry-run or executed.
+The developer/user prompt includes target, risk policy, recipe catalog, fact summary, verifier state, and the required JSON schema. Gemma output is validated before any recipe is dry-run or executed.

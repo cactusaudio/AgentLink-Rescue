@@ -1,4 +1,4 @@
-Cactus AgentLink Rescue 0.4.0
+Cactus AgentLink Rescue 0.4.1
 
 1. Put this folder anywhere, for example Downloads.
 2. Double-click agentlink.command.
@@ -25,8 +25,8 @@ Do not paste admin passwords into commands. Let sudo show its normal prompt.
 
 Core vs Brain package:
 - If you only need network rescue, Core is enough.
-- Core package has no Qwen model and no llama.cpp runtime. It still runs doctor, recipe repair, network rescue, reports, and rollback.
-- Brain package includes the local Qwen GGUF and llama.cpp runtime. Use Brain package on an offline Mac if you need Qwen planner mode.
+- Core package has no Gemma model and no llama.cpp runtime. It still runs doctor, recipe repair, network rescue, reports, and rollback.
+- Brain package includes the local Gemma GGUF and llama.cpp runtime. Use Brain package on an offline Mac if you need Gemma planner mode.
 - If using Core and you want Brain mode, run:
   ./bin/agentlink brain fetch
   or from a source checkout:
@@ -40,9 +40,9 @@ Brain package offline checks:
   ./bin/agentlink repair --auto --brain --target path --dry-run
 
 Brain mode is planner-only:
-- Qwen outputs PlannerDecision JSON.
+- Gemma outputs PlannerDecision JSON.
 - The deterministic runner executes only local recipes.
-- Qwen never executes arbitrary shell.
+- Gemma never executes arbitrary shell.
 
 GUI mode is a shell:
 - The GUI calls the bundled ./bin/agentlink.
@@ -50,11 +50,11 @@ GUI mode is a shell:
 - Network rescue safe/standard/deep commands are shown for Terminal copy/paste.
 - The GUI does not implement its own repair engine.
 
-v0.3 also includes offline recipe and Brain docs:
+v0.4.1 also includes offline recipe and Brain docs:
 - docs/offline/AGENTLINK_CONSTITUTION.md
 - docs/offline/RECIPE_AUTHORING.md
 - docs/offline/PLANNER_CONTRACT.md
 - docs/offline/REPORT_FORMAT.md
-- docs/offline/QWEN_BRAIN_PACK.md
-- docs/offline/QWEN_PLANNER_PROMPT.md
+- docs/offline/GEMMA_BRAIN_PACK.md
+- docs/offline/GEMMA_PLANNER_PROMPT.md
 - docs/offline/BRAIN_RUNTIME_POLICY.md

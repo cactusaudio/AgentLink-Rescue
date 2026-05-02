@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.0-core.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.1-core.zip"
 
 if [ ! -f "$ZIP" ]; then
   "$ROOT/scripts/package.sh"
@@ -36,7 +36,7 @@ if find "$PKG/assets/runtimes" -type f -name 'llama-cli' -print | grep .; then
   exit 1
 fi
 
-"$BIN" version | grep '0.4.0'
+"$BIN" version | grep '0.4.1'
 "$BIN" selftest
 "$BIN" doctor --json > "$TMP/core-doctor.json"
 /usr/bin/python3 -m json.tool "$TMP/core-doctor.json" >/dev/null
@@ -48,7 +48,7 @@ doc=json.load(open(sys.argv[1]))
 assert doc["brainPackAvailable"] is False, doc
 assert doc["modelExists"] is False, doc
 assert doc["runtimeExists"] is False, doc
-assert "qwen model" in doc.get("missingAssets", []), doc
+assert "gemma model" in doc.get("missingAssets", []), doc
 assert "llama-cli runtime" in doc.get("missingAssets", []), doc
 assert doc.get("fetchCommands"), doc
 PY

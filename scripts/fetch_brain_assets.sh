@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-MODEL_PATH="$("$ROOT/scripts/fetch_qwen_model.sh" | tail -1)"
+MODEL_PATH="$("$ROOT/scripts/fetch_gemma_model.sh" | tail -1)"
 RUNTIME_PATH="$("$ROOT/scripts/fetch_llamacpp_runtime.sh" | tail -1)"
 LOCK="$ROOT/assets/manifests/manifest.lock.json"
 
@@ -18,15 +18,18 @@ RUNTIME_ARCH="$(basename "$(dirname "$RUNTIME_PATH")")"
 mkdir -p "$(dirname "$LOCK")"
 cat > "$LOCK" <<JSON
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "createdAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "defaultBrainProfile": "gemma-4-e4b-it-q4km",
   "model": {
+    "profile": "gemma-4-e4b-it-q4km",
     "path": "$MODEL_REL",
     "filename": "$MODEL_FILE",
     "sha256": "$MODEL_SHA",
     "sizeBytes": $MODEL_SIZE
   },
   "runtime": {
+    "backend": "llama.cpp",
     "path": "$RUNTIME_REL",
     "binary": "$RUNTIME_BIN",
     "sha256": "$RUNTIME_SHA",

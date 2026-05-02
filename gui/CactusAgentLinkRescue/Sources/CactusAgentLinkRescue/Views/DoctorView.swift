@@ -14,13 +14,20 @@ struct DoctorView: View {
                     ForEach(state.doctor?.classifications ?? [], id: \.self) { item in
                         StatusBadge(text: item, kind: item == "OK" ? .ok : .warn)
                     }
-                    Text("Recommended repair: \(state.doctor?.recommendedRepairLevel ?? "unknown")")
+                    HStack {
+                        Text("Recommended repair:")
+                        StatusBadge(text: state.recommendationLabel, kind: state.recommendationKind)
+                    }
                     if let path = state.doctor?.reportPath {
                         Text(path).font(.caption).textSelection(.enabled)
                     }
+                    if state.doctor == nil {
+                        Text("Run Doctor to collect current network and agent-link facts.")
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 .card()
-                OutputCard(title: "Raw Doctor Output", text: state.latestResult?.stdout ?? "")
+                OutputCard(title: "Raw Doctor Output", text: state.doctorResult?.stdout ?? "", placeholder: "No doctor run has completed yet.", collapsedByDefault: true)
             }
             .padding()
         }

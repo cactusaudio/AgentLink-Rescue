@@ -23,15 +23,76 @@ struct DoctorReport: Codable {
     var recommendedRepairLevel: String?
     var warnings: [String]?
     var reportPath: String?
+
+    enum CodingKeys: String, CodingKey {
+        case toolVersion
+        case classifications
+        case likelyFailureClasses
+        case recommendedRepairLevel
+        case warnings
+        case reportPath
+        case network
+    }
+
+    init(toolVersion: String? = nil, classifications: [String]? = nil, recommendedRepairLevel: String? = nil, warnings: [String]? = nil, reportPath: String? = nil) {
+        self.toolVersion = toolVersion
+        self.classifications = classifications
+        self.recommendedRepairLevel = recommendedRepairLevel
+        self.warnings = warnings
+        self.reportPath = reportPath
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        toolVersion = try container.decodeIfPresent(String.self, forKey: .toolVersion)
+        reportPath = try container.decodeIfPresent(String.self, forKey: .reportPath)
+        let topWarnings = try container.decodeIfPresent([String].self, forKey: .warnings)
+        let directClasses = try container.decodeIfPresent([String].self, forKey: .classifications)
+        let likelyClasses = try container.decodeIfPresent([String].self, forKey: .likelyFailureClasses)
+        let directRecommendation = try container.decodeIfPresent(String.self, forKey: .recommendedRepairLevel)
+
+        if let nested = try container.decodeIfPresent(NetworkDiagnostic.self, forKey: .network) {
+            classifications = directClasses ?? likelyClasses ?? nested.classifications
+            recommendedRepairLevel = directRecommendation ?? nested.recommendedRepairLevel
+            var mergedWarnings = topWarnings ?? []
+            if let nestedWarnings = nested.warnings {
+                mergedWarnings.append(contentsOf: nestedWarnings)
+            }
+            warnings = mergedWarnings.isEmpty ? nil : mergedWarnings
+        } else {
+            classifications = directClasses ?? likelyClasses
+            recommendedRepairLevel = directRecommendation
+            warnings = topWarnings
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(toolVersion, forKey: .toolVersion)
+        try container.encodeIfPresent(classifications, forKey: .classifications)
+        try container.encodeIfPresent(recommendedRepairLevel, forKey: .recommendedRepairLevel)
+        try container.encodeIfPresent(warnings, forKey: .warnings)
+        try container.encodeIfPresent(reportPath, forKey: .reportPath)
+    }
+}
+
+private struct NetworkDiagnostic: Codable {
+    var classifications: [String]?
+    var recommendedRepairLevel: String?
+    var warnings: [String]?
 }
 
 struct BrainDoctorReport: Codable {
     var backend: String?
     var brainPackAvailable: Bool?
     var packageRoot: String?
+    var modelFamily: String?
+    var modelID: String?
+    var modelName: String?
     var modelPath: String?
     var modelExists: Bool?
     var modelSha256OK: Bool?
+    var modelSizeBytes: Int64?
     var runtimePath: String?
     var runtimeExists: Bool?
     var runtimeExecutable: Bool?
@@ -89,6 +150,19 @@ struct RepairReport: Codable {
     var agentDispatchPath: String?
     var stopReason: String?
     var error: String?
+    var recipeResult: RecipeRunResult?
+}
+
+struct RecipeRunResult: Codable {
+    var recipeId: String?
+    var status: String?
+    var plannedActions: [PlannedAction]?
+}
+
+struct PlannedAction: Codable, Identifiable {
+    var id: String?
+    var description: String?
+    var path: String?
 }
 
 struct RecipeSummary: Codable, Identifiable {

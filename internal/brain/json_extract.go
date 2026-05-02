@@ -3,10 +3,12 @@ package brain
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
 func ExtractJSONObject(text string) (string, error) {
+	text = sanitizeModelOutput(text)
 	start := strings.Index(text, "{")
 	if start < 0 {
 		return "", fmt.Errorf("no JSON object found")
@@ -24,7 +26,8 @@ func ExtractJSONObject(text string) (string, error) {
 }
 
 func ExtractPlannerJSONObject(text string) (string, error) {
-	var best string
+	text = sanitizeModelOutput(text)
+	var plannerObjects []string
 	var lastValid string
 	for i := 0; i < len(text); i++ {
 		if text[i] != '{' {
@@ -36,12 +39,15 @@ func ExtractPlannerJSONObject(text string) (string, error) {
 		}
 		lastValid = candidate
 		if looksLikePlannerDecision(candidate) {
-			best = candidate
+			plannerObjects = append(plannerObjects, candidate)
 		}
 		i = end - 1
 	}
-	if best != "" {
-		return best, nil
+	if len(plannerObjects) > 1 {
+		return "", fmt.Errorf("multiple planner JSON objects found")
+	}
+	if len(plannerObjects) == 1 {
+		return plannerObjects[0], nil
 	}
 	if lastValid != "" {
 		return lastValid, nil
@@ -99,4 +105,13 @@ func extractObjectAt(text string, start int) (string, int, error) {
 
 func looksLikePlannerDecision(text string) bool {
 	return strings.Contains(text, `"schemaVersion"`) && strings.Contains(text, `"intent"`)
+}
+
+func sanitizeModelOutput(text string) string {
+	re := regexp.MustCompile(`(?s)<think>.*?</think>`)
+	text = re.ReplaceAllString(text, "")
+	text = strings.ReplaceAll(text, "```json", "")
+	text = strings.ReplaceAll(text, "```JSON", "")
+	text = strings.ReplaceAll(text, "```", "")
+	return text
 }

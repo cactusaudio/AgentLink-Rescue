@@ -29,12 +29,12 @@ scripts/package.sh
 
 PKG="$ROOT/dist/Cactus-AgentLink-Rescue"
 BIN="$PKG/bin/agentlink"
-CORE_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.0-core.zip"
-BRAIN_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.0-brain-qwen3-4b-q4km.zip"
-CORE_GUI_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.0-core-gui.zip"
-BRAIN_GUI_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.0-brain-gui-qwen3-4b-q4km.zip"
+CORE_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.1-core.zip"
+BRAIN_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.1-brain-gemma4-e4b-q4km.zip"
+CORE_GUI_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.1-core-gui.zip"
+BRAIN_GUI_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.1-brain-gui-gemma4-e4b-q4km.zip"
 
-"$BIN" version | grep '0.4.0'
+"$BIN" version | grep '0.4.1'
 "$BIN" selftest
 "$BIN" doctor --json > /tmp/agentlink-release-doctor.json
 /usr/bin/python3 -m json.tool /tmp/agentlink-release-doctor.json >/dev/null
@@ -54,8 +54,9 @@ scripts/dogfood_temp_home.sh
 scripts/dogfood_proxy_config.sh
 scripts/dogfood_runtime_core.sh
 scripts/dogfood_gui_core.sh
+scripts/dogfood_gui_screenshots.sh
 
-SOURCE_MODEL="$ROOT/assets/models/Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
+SOURCE_MODEL="$ROOT/assets/models/gemma-4-E4B-it-Q4_K_M.gguf"
 case "$(uname -m)" in
   arm64) SOURCE_ARCH="arm64" ;;
   x86_64) SOURCE_ARCH="amd64" ;;
@@ -67,6 +68,7 @@ if [ -f "$SOURCE_MODEL" ] && [ -x "$SOURCE_LLAMA" ]; then
   scripts/package_brain.sh
   scripts/dogfood_runtime_brain.sh
   scripts/dogfood_gui_brain.sh
+  scripts/dogfood_gui_screenshots.sh
 else
   echo "brain assets missing; run scripts/fetch_brain_assets.sh or scripts/package_brain.sh DOWNLOAD=1"
 fi
@@ -97,6 +99,11 @@ file "$BIN" | grep 'Mach-O universal binary'
 FORBIDDEN_FIELD="api_""key_env"
 if find README.md docs packaging recipes internal scripts testdata "$PKG" -type f ! -name agentlink -print0 | xargs -0 grep -n "$FORBIDDEN_FIELD"; then
   echo "forbidden legacy Codex TOML key field found" >&2
+  exit 1
+fi
+LEGACY_MODEL_PATTERN="Q""wen\\|q""wen\\|Q""WEN"
+if grep -R "$LEGACY_MODEL_PATTERN" -n README.md docs packaging recipes internal scripts assets/manifests assets/README.md --exclude-dir=assets/models --exclude-dir=assets/runtimes --exclude='*.zip'; then
+  echo "active legacy model reference found" >&2
   exit 1
 fi
 

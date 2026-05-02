@@ -9,7 +9,7 @@ if [ ! -x bin/agentlink ]; then
 fi
 
 ARCH="$(uname -m)"
-MODEL="$ROOT/assets/models/Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
+MODEL="$ROOT/assets/models/gemma-4-E4B-it-Q4_K_M.gguf"
 LLAMA="$ROOT/assets/runtimes/llama.cpp/$ARCH/llama-cli"
 if [ ! -f "$MODEL" ] || [ ! -x "$LLAMA" ]; then
   echo "brain assets missing; run scripts/fetch_brain_assets.sh" >&2

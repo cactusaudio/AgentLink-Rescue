@@ -16,18 +16,21 @@ struct RescueView: View {
                     ActionButton(title: "Refresh Reports", systemImage: "doc.text", disabled: state.isRunning) { Task { await state.loadReports() } }
                 }
                 .confirmationDialog("Execute reversible repair?", isPresented: $confirmExecute) {
-                    Button("Execute", role: .destructive) { Task { await state.executeRepair() } }
+                    Button("Execute through AgentLink runner", role: .destructive) { Task { await state.executeRepair() } }
                     Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("This uses the same target and recipe validated by the latest dry-run. AgentLink creates a snapshot before mutation.")
                 }
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Repair Result").font(.headline)
                     Text("Status: \(state.repair?.status ?? "none")")
                     Text("Session: \(state.repair?.sessionId ?? "none")")
                     Text("Human report: \(state.repair?.humanReportPath ?? "none")").font(.caption).textSelection(.enabled)
+                    StatusBadge(text: state.executeEnabled ? "Dry-run matched; execute available" : "Run a matching dry-run before execute", kind: state.executeEnabled ? .ok : .warn)
                 }
                 .card()
                 networkAdvanced
-                OutputCard(title: "Live Output", text: state.latestResult?.combinedOutput ?? "")
+                OutputCard(title: "Live Output", text: state.repairResult?.combinedOutput ?? state.dryRunResult?.combinedOutput ?? "", placeholder: "No repair command output yet.", collapsedByDefault: true)
             }
             .padding()
         }
@@ -36,7 +39,7 @@ struct RescueView: View {
     private var networkAdvanced: some View {
         DisclosureGroup("Network Rescue Advanced") {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Network rescue safe/standard/deep may require sudo and system network changes. GUI v0.4.0 does not collect passwords. Copy the command and run it in Terminal.")
+                Text("Network rescue safe/standard/deep may require sudo and system network changes. GUI v0.4.1 does not collect passwords and does not run sudo commands. Copy the command and run it in Terminal.")
                     .foregroundStyle(.secondary)
                 CommandPreview(title: "Safe Rescue", command: state.sudoRescueCommand(level: "safe"))
                 CommandPreview(title: "Standard Rescue", command: state.sudoRescueCommand(level: "standard"))

@@ -8,8 +8,7 @@ if ! command -v go >/dev/null 2>&1 && [ -x /tmp/agentlink-go-current/go/bin/go ]
   export PATH="/tmp/agentlink-go-current/go/bin:$PATH"
 fi
 
-MODEL="assets/models/Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
-MODEL_SHA_EXPECTED="2fde00ce69dd4899c70d020845e2638353015bba0fdf161b3eb965f2bca4464e"
+MODEL="assets/models/gemma-4-E4B-it-Q4_K_M.gguf"
 HOST_ARCH="$(uname -m)"
 case "$HOST_ARCH" in
   arm64) ARCH="arm64" ;;
@@ -29,30 +28,41 @@ if [ ! -f "$MODEL" ] || [ ! -x "$RUNTIME" ]; then
 fi
 
 MODEL_SHA="$(/usr/bin/shasum -a 256 "$MODEL" | awk '{print $1}')"
-if [ "$MODEL_SHA" != "$MODEL_SHA_EXPECTED" ]; then
-  echo "brain model checksum mismatch" >&2
-  echo "expected: $MODEL_SHA_EXPECTED" >&2
-  echo "actual:   $MODEL_SHA" >&2
-  exit 1
-fi
 if [ ! -x "$RUNTIME" ]; then
   echo "llama-cli runtime missing or not executable: $RUNTIME" >&2
   exit 1
 fi
 MODEL_SIZE="$(/usr/bin/stat -f %z "$MODEL")"
 RUNTIME_SHA="$(/usr/bin/shasum -a 256 "$RUNTIME" | awk '{print $1}')"
+LOCK_SHA="$(/usr/bin/python3 - "$ROOT/assets/manifests/manifest.lock.json" <<'PY' 2>/dev/null || true
+import json, sys
+try:
+    print(json.load(open(sys.argv[1])).get("model", {}).get("sha256", ""))
+except Exception:
+    print("")
+PY
+)"
+if [ -n "$LOCK_SHA" ] && [ "$LOCK_SHA" != "$MODEL_SHA" ]; then
+  echo "brain model checksum mismatch against manifest.lock.json" >&2
+  echo "expected: $LOCK_SHA" >&2
+  echo "actual:   $MODEL_SHA" >&2
+  exit 1
+fi
 mkdir -p assets/manifests
 cat > assets/manifests/manifest.lock.json <<JSON
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "createdAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "defaultBrainProfile": "gemma-4-e4b-it-q4km",
   "model": {
+    "profile": "gemma-4-e4b-it-q4km",
     "path": "$MODEL",
     "filename": "$(basename "$MODEL")",
     "sha256": "$MODEL_SHA",
     "sizeBytes": $MODEL_SIZE
   },
   "runtime": {
+    "backend": "llama.cpp",
     "path": "$RUNTIME",
     "binary": "llama-cli",
     "sha256": "$RUNTIME_SHA",
@@ -64,7 +74,7 @@ JSON
 scripts/build.sh
 
 OUT="$ROOT/dist/Cactus-AgentLink-Rescue"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.0-brain-qwen3-4b-q4km.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.1-brain-gemma4-e4b-q4km.zip"
 mkdir -p "$ROOT/dist"
 rm -rf "$OUT"
 rm -f "$ZIP"
@@ -80,10 +90,17 @@ cp packaging/rescue.sh "$OUT/rescue.sh"
 cp packaging/README_IF_OFFLINE.txt "$OUT/README_IF_OFFLINE.txt"
 cp assets/manifests/*.json "$OUT/assets/manifests/"
 cp "$MODEL" "$OUT/assets/models/"
-cp -R "$RUNTIME_DIR"/. "$OUT/assets/runtimes/llama.cpp/$ARCH/"
+cp "$RUNTIME_DIR/llama-cli" "$OUT/assets/runtimes/llama.cpp/$ARCH/"
+if [ -f "$RUNTIME_DIR/llama-completion" ]; then
+  cp "$RUNTIME_DIR/llama-completion" "$OUT/assets/runtimes/llama.cpp/$ARCH/"
+fi
+cp "$RUNTIME_DIR"/*.dylib "$OUT/assets/runtimes/llama.cpp/$ARCH/" 2>/dev/null || true
+if [ -f "$RUNTIME_DIR/LICENSE" ]; then
+  cp "$RUNTIME_DIR/LICENSE" "$OUT/assets/runtimes/llama.cpp/$ARCH/"
+fi
 cp -R assets/licenses/* "$OUT/assets/licenses/"
 cp assets/README.md "$OUT/assets/README.md"
-cp scripts/fetch_qwen_model.sh scripts/fetch_llamacpp_runtime.sh scripts/fetch_brain_assets.sh "$OUT/scripts/"
+cp scripts/fetch_gemma_model.sh scripts/fetch_llamacpp_runtime.sh scripts/fetch_brain_assets.sh "$OUT/scripts/"
 
 chmod +x "$OUT/bin/agentlink" "$OUT/agentlink.command" "$OUT/rescue.sh" "$OUT/scripts/"*.sh "$OUT/assets/runtimes/llama.cpp/$ARCH/llama-cli" "$OUT/assets/runtimes/llama.cpp/$ARCH/llama-completion" 2>/dev/null || true
 find "$OUT" -depth \( -name .DS_Store -o -name __MACOSX -o -name '._*' -o -name .AppleDouble -o -name AppleDouble \) -exec rm -rf {} +

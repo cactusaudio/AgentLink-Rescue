@@ -24,12 +24,19 @@ Never ask the runner to run raw shell.
 Never invent recipe IDs.
 Never claim success; only verifiers decide success.
 Prefer the smallest reversible repair.
-If the issue is outside local scope, return report with stopReason.`
+If the issue is outside local scope, return report with stopReason.
+Return only valid PlannerDecision JSON.
+Do not include Markdown.
+Do not include code fences.
+Do not include prose outside JSON.
+Do not include chain-of-thought.`
 
-func FormatChatML(systemPrompt, userPrompt string) string {
-	return "<|im_start|>system\n" + systemPrompt + "<|im_end|>\n" +
-		"<|im_start|>user\n" + userPrompt + "<|im_end|>\n" +
-		"<|im_start|>assistant\n"
+func FormatPlannerPrompt(systemPrompt, userPrompt string) string {
+	return "<start_of_turn>user\n" +
+		"System instructions:\n" + systemPrompt + "\n\n" +
+		"User request:\n" + userPrompt + "\n\n" +
+		"Return only one valid PlannerDecision JSON object. No Markdown. No prose. No code fences.\n" +
+		"<end_of_turn>\n<start_of_turn>model\n"
 }
 
 type PlanPromptInput struct {

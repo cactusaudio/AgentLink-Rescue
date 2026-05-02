@@ -6,74 +6,75 @@ struct StatusDashboardView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 12)], spacing: 12) {
+                    summaryPill(title: "AgentLink Core", value: state.selftestStatus, kind: state.selftestStatus == "OK" ? .ok : .warn)
+                    summaryPill(title: "Brain Pack", value: state.brainDoctor?.brainPackAvailable == true ? "OK" : "Missing", kind: state.brainDoctor?.brainPackAvailable == true ? .ok : .warn)
+                    summaryPill(title: "Network", value: state.doctor?.classifications?.contains("OK") == true ? "OK" : state.recommendationLabel, kind: state.recommendationKind)
+                    summaryPill(title: "Last Session", value: state.repair?.status ?? state.dryRun?.status ?? "None", kind: state.dryRun?.status == "dry-run" || state.repair?.status == "success" ? .ok : .neutral)
+                }
                 HStack {
                     ActionButton(title: "Run Doctor", systemImage: "stethoscope", disabled: state.isRunning) { Task { await state.runDoctor() } }
-                    ActionButton(title: "Brain Doctor", systemImage: "brain.head.profile", disabled: state.isRunning) { Task { await state.runBrainDoctor() } }
-                    ActionButton(title: "Auto Repair Dry-Run", systemImage: "play.rectangle", disabled: state.isRunning) { Task { await state.runDryRun() } }
+                    ActionButton(title: "Brain Plan", systemImage: "list.bullet.clipboard", disabled: state.isRunning) {
+                        state.page = .plan
+                        Task { await state.runPlan() }
+                    }
+                    ActionButton(title: "Dry Run", systemImage: "play.rectangle", disabled: state.isRunning) {
+                        state.page = .dryRun
+                        Task { await state.runDryRun() }
+                    }
                     Button("Export Report") { export(state.humanReport, name: "AgentLink-Human-Report.txt") }
                 }
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 12)], spacing: 12) {
-                    coreCard
-                    networkCard
-                    brainCard
-                    sessionCard
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 12)], spacing: 12) {
+                    restoreCard
+                    reportsCard
                 }
-                OutputCard(title: "Latest Command", text: state.latestResult?.combinedOutput ?? "")
+                OutputCard(title: "Advanced / Raw Diagnostics", text: state.latestResult?.combinedOutput ?? "", placeholder: "Run Doctor or Brain Plan to see raw output.", collapsedByDefault: true)
             }
             .padding()
         }
     }
 
-    private var coreCard: some View {
+    private var restoreCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Core Status").font(.headline)
-            Text(state.versionText)
+            Text("Restore Agent Link").font(.headline)
+            Text(state.versionText).foregroundStyle(.secondary)
             StatusBadge(text: state.selftestStatus, kind: state.selftestStatus == "OK" ? .ok : .warn)
-            Text("Package: \(state.packageType)")
-            Text(state.client.binaryURL.path).font(.caption).foregroundStyle(.secondary).lineLimit(2)
-        }
-        .card()
-    }
-
-    private var networkCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Network / AgentLink").font(.headline)
-            Text("Recommended: \(state.doctor?.recommendedRepairLevel ?? "unknown")")
+            InfoRow(label: "Package", value: state.packageType)
+            InfoRow(label: "Recommended", value: state.recommendationLabel)
             ForEach((state.doctor?.classifications ?? []).prefix(4), id: \.self) { item in
                 StatusBadge(text: item, kind: item == "OK" ? .ok : .warn)
             }
-            if let warnings = state.doctor?.warnings, !warnings.isEmpty {
-                Text(warnings.joined(separator: "\n")).font(.caption).foregroundStyle(.secondary)
-            }
+            InfoRow(label: "Binary", value: state.client.binaryURL.path, monospaced: true)
         }
         .card()
     }
 
-    private var brainCard: some View {
+    private var reportsCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Brain Status").font(.headline)
-            let available = state.brainDoctor?.brainPackAvailable == true
-            StatusBadge(text: available ? "Brain package available" : "Brain assets missing", kind: available ? .ok : .warn)
-            Text("Model SHA OK: \(state.brainDoctor?.modelSha256OK == true ? "yes" : "no")")
-            Text("Runtime executable: \(state.brainDoctor?.runtimeExecutable == true ? "yes" : "no")")
-            if let fetch = state.brainDoctor?.fetchCommands?.joined(separator: "\n") {
-                Text(fetch).font(.caption).textSelection(.enabled)
-            }
-        }
-        .card()
-    }
-
-    private var sessionCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Last Repair Session").font(.headline)
-            Text("Dry-run: \(state.dryRun?.status ?? "none")")
-            Text("Repair: \(state.repair?.status ?? "none")")
-            Text("Session: \(state.repair?.sessionId ?? state.dryRun?.sessionId ?? "none")")
-            Text("Rollback available after repair if snapshot exists.")
+            Text("Reports & Rollback").font(.headline)
+            InfoRow(label: "Dry-run", value: state.dryRun?.status ?? "None")
+            InfoRow(label: "Repair", value: state.repair?.status ?? "None")
+            InfoRow(label: "Session", value: state.repair?.sessionId ?? state.dryRun?.sessionId ?? "None", monospaced: true)
+            Text("Rollback is available only after a snapshot-backed repair.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            Divider()
+            let available = state.brainDoctor?.brainPackAvailable == true
+            StatusBadge(text: available ? "Brain package available" : "Brain assets missing", kind: available ? .ok : .warn)
+            InfoRow(label: "Model SHA", value: state.brainDoctor?.modelSha256OK == true ? "OK" : "Missing/failed")
+            InfoRow(label: "Runtime", value: state.brainDoctor?.runtimeExecutable == true ? "Executable" : "Missing")
         }
         .card()
+    }
+
+    private func summaryPill(title: String, value: String, kind: StatusBadge.Kind) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(.caption).foregroundStyle(.secondary)
+            StatusBadge(text: value, kind: kind)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
     }
 
     private func export(_ text: String, name: String) {

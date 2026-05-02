@@ -1,7 +1,9 @@
 package scripts_test
 
 import (
+	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -17,7 +19,7 @@ func TestPackageScriptRemovesMetadataFiles(t *testing.T) {
 			t.Fatalf("package cleanup missing %s", want)
 		}
 	}
-	for _, want := range []string{"COPYFILE_DISABLE=1", "zip -r -X", "unzip -l", "AppleDouble", "/\\._", "Cactus-AgentLink-Rescue-v0.4.0-core.zip", "assets/manifests", "core package must not contain GGUF", "core package must not contain llama.cpp"} {
+	for _, want := range []string{"COPYFILE_DISABLE=1", "zip -r -X", "unzip -l", "AppleDouble", "/\\._", "Cactus-AgentLink-Rescue-v0.4.1-core.zip", "assets/manifests", "core package must not contain GGUF", "core package must not contain llama.cpp"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("package zip hardening missing %s", want)
 		}
@@ -43,7 +45,7 @@ func TestReleaseCheckCoversDogfoodAndForbiddenCodexField(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(data)
-	for _, want := range []string{"dogfood_temp_home.sh", "dogfood_proxy_config.sh", "dogfood_runtime_core.sh", "dogfood_runtime_assets.sh", "dogfood_runtime_brain.sh", "dogfood_gui_core.sh", "dogfood_gui_brain.sh", "build_gui.sh", "brain assets missing; run scripts/fetch_brain_assets.sh or scripts/package_brain.sh DOWNLOAD=1", "FORBIDDEN_FIELD", "Cactus-AgentLink-Rescue-v0.4.0-core.zip", "Cactus-AgentLink-Rescue-v0.4.0-core-gui.zip", "Mach-O universal binary"} {
+	for _, want := range []string{"dogfood_temp_home.sh", "dogfood_proxy_config.sh", "dogfood_runtime_core.sh", "dogfood_runtime_assets.sh", "dogfood_runtime_brain.sh", "dogfood_gui_core.sh", "dogfood_gui_brain.sh", "dogfood_gui_screenshots.sh", "build_gui.sh", "brain assets missing; run scripts/fetch_brain_assets.sh or scripts/package_brain.sh DOWNLOAD=1", "FORBIDDEN_FIELD", "active legacy model reference found", "Cactus-AgentLink-Rescue-v0.4.1-core.zip", "Cactus-AgentLink-Rescue-v0.4.1-core-gui.zip", "Mach-O universal binary"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("release check missing %s", want)
 		}
@@ -56,7 +58,7 @@ func TestBrainPackageScriptRequiresAssetsAndHygiene(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(data)
-	for _, want := range []string{"Cactus-AgentLink-Rescue-v0.4.0-brain-qwen3-4b-q4km.zip", "DOWNLOAD=1", "assets/models", "assets/runtimes/llama.cpp", "MODEL_SHA_EXPECTED", "COPYFILE_DISABLE=1", "zip -r -X"} {
+	for _, want := range []string{"Cactus-AgentLink-Rescue-v0.4.1-brain-gemma4-e4b-q4km.zip", "DOWNLOAD=1", "assets/models/gemma-4-E4B-it-Q4_K_M.gguf", "assets/runtimes/llama.cpp", "manifest.lock.json", "COPYFILE_DISABLE=1", "zip -r -X"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("brain package script missing %s", want)
 		}
@@ -70,7 +72,7 @@ func TestRuntimeDogfoodScriptsExist(t *testing.T) {
 			t.Fatal(err)
 		}
 		text := string(data)
-		for _, want := range []string{"0.4.0", "brain"} {
+		for _, want := range []string{"0.4.1", "brain"} {
 			if !strings.Contains(text, want) {
 				t.Fatalf("%s missing %s", name, want)
 			}
@@ -89,6 +91,38 @@ func TestGUIPackageScriptsEmbedAgentlinkResources(t *testing.T) {
 			if !strings.Contains(text, want) {
 				t.Fatalf("%s missing %s", name, want)
 			}
+		}
+	}
+}
+
+func TestNoActiveLegacyModelReferences(t *testing.T) {
+	legacyTerms := []string{"Q" + "wen", "q" + "wen", "Q" + "WEN"}
+	roots := []string{"../README.md", "../packaging", "../docs/offline", "../internal", "../scripts", "../assets/manifests", "../assets/README.md", "../gui/CactusAgentLinkRescue/Sources/CactusAgentLinkRescue"}
+	for _, root := range roots {
+		err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() {
+				if strings.Contains(path, "assets/models") || strings.Contains(path, "assets/runtimes") {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			text := string(data)
+			for _, term := range legacyTerms {
+				if strings.Contains(text, term) {
+					t.Fatalf("active legacy model reference %q found in %s", term, path)
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
 		}
 	}
 }

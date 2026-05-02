@@ -15,9 +15,13 @@ type BrainAvailability struct {
 	Backend            string   `json:"backend"`
 	BrainPackAvailable bool     `json:"brainPackAvailable"`
 	PackageRoot        string   `json:"packageRoot,omitempty"`
+	ModelFamily        string   `json:"modelFamily,omitempty"`
+	ModelID            string   `json:"modelID,omitempty"`
+	ModelName          string   `json:"modelName,omitempty"`
 	ModelPath          string   `json:"modelPath,omitempty"`
 	ModelExists        bool     `json:"modelExists"`
 	ModelSHA256OK      bool     `json:"modelSha256OK"`
+	ModelSizeBytes     int64    `json:"modelSizeBytes,omitempty"`
 	RuntimePath        string   `json:"runtimePath,omitempty"`
 	RuntimeExists      bool     `json:"runtimeExists"`
 	RuntimeExecutable  bool     `json:"runtimeExecutable"`

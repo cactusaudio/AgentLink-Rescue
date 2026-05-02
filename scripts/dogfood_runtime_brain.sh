@@ -2,8 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.0-brain-qwen3-4b-q4km.zip"
-MODEL_SHA="2fde00ce69dd4899c70d020845e2638353015bba0fdf161b3eb965f2bca4464e"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.1-brain-gemma4-e4b-q4km.zip"
 
 if [ ! -f "$ZIP" ]; then
   "$ROOT/scripts/package_brain.sh"
@@ -33,9 +32,9 @@ BIN="$PKG/bin/agentlink"
 xattr -cr "$PKG" 2>/dev/null || true
 chmod +x "$BIN" "$PKG/rescue.sh" "$PKG/agentlink.command" "$PKG"/assets/runtimes/llama.cpp/*/llama-* 2>/dev/null || true
 
-"$BIN" version | grep '0.4.0'
+"$BIN" version | grep '0.4.1'
 HOME="$TMPHOME" "$BIN" brain doctor --json > "$TMP/brain-doctor.json"
-/usr/bin/python3 - "$TMP/brain-doctor.json" "$MODEL_SHA" <<'PY'
+/usr/bin/python3 - "$TMP/brain-doctor.json" <<'PY'
 import json, sys
 doc=json.load(open(sys.argv[1]))
 assert doc["brainPackAvailable"] is True, doc
@@ -46,14 +45,13 @@ assert doc["runtimeExecutable"] is True, doc
 assert doc["packageLocalAssets"] is True, doc
 assert "/Cactus-AgentLink-Rescue/assets/models/" in doc["modelPath"], doc
 assert "/Cactus-AgentLink-Rescue/assets/runtimes/" in doc["runtimePath"], doc
+assert doc.get("modelFamily") == "gemma", doc
+assert doc.get("modelID") == "gemma-4-e4b-it-q4km", doc
 PY
 
-MODEL="$PKG/assets/models/Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
+MODEL="$PKG/assets/models/gemma-4-E4B-it-Q4_K_M.gguf"
+test -f "$MODEL"
 ACTUAL_MODEL_SHA="$(/usr/bin/shasum -a 256 "$MODEL" | awk '{print $1}')"
-if [ "$ACTUAL_MODEL_SHA" != "$MODEL_SHA" ]; then
-  echo "packaged model checksum mismatch" >&2
-  exit 1
-fi
 
 HOME="$TMPHOME" "$BIN" brain selftest --json > "$TMP/brain-selftest.json"
 /usr/bin/python3 - "$TMP/brain-selftest.json" <<'PY'
@@ -103,6 +101,12 @@ if [ -n "$REAL_ZSH_BEFORE" ]; then
     echo "real HOME .zshrc changed during brain runtime dogfood" >&2
     exit 1
   fi
+fi
+
+LEGACY_MODEL_PATTERN="q""wen|Q""wen"
+if unzip -l "$ZIP" | grep -Ei "$LEGACY_MODEL_PATTERN"; then
+  echo "brain runtime zip contains inactive model references" >&2
+  exit 1
 fi
 
 echo "dogfood runtime brain OK: $TMP"

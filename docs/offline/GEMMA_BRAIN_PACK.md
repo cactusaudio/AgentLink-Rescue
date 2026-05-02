@@ -1,15 +1,17 @@
-# Qwen Brain Pack
+# Gemma Brain Pack
 
-Cactus AgentLink Rescue v0.4.0 can use a local Qwen GGUF model through `llama-cli`.
+Cactus AgentLink Rescue v0.4.1 can use a local Gemma 4 E4B-it GGUF model through `llama-cli`.
 
 The Brain is planner-only. It produces `PlannerDecision` JSON. It does not execute commands, shell scripts, network rescue, or arbitrary text from the model. The deterministic recipe runner remains the only executor.
 
 Default model:
 
-- Model ID: `qwen3-4b-instruct-2507-q4km`
-- GGUF: `Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf`
-- Repo: `bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF`
-- SHA256: `2fde00ce69dd4899c70d020845e2638353015bba0fdf161b3eb965f2bca4464e`
+- Model ID: `gemma-4-e4b-it-q4km`
+- Model name: `gemma-4-E4B-it`
+- GGUF: `gemma-4-E4B-it-Q4_K_M.gguf`
+- Repo: `unsloth/gemma-4-E4B-it-GGUF`
+- Approximate model size: 5.07 GB
+- License: Apache-2.0
 
 Asset resolution:
 
@@ -22,7 +24,7 @@ Asset resolution:
 Package-local model path:
 
 ```text
-assets/models/Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf
+assets/models/gemma-4-E4B-it-Q4_K_M.gguf
 ```
 
 Package-local runtime path:
@@ -37,10 +39,10 @@ Verify assets:
 ```sh
 ./bin/agentlink brain doctor --json
 ./bin/agentlink brain selftest --json
-shasum -a 256 assets/models/Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf
+shasum -a 256 assets/models/gemma-4-E4B-it-Q4_K_M.gguf
 ```
 
-Core package users can run:
+Core package users can run while online:
 
 ```sh
 ./bin/agentlink brain fetch
