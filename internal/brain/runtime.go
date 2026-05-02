@@ -14,12 +14,14 @@ type BrainBackend interface {
 type BrainAvailability struct {
 	Backend            string   `json:"backend"`
 	BrainPackAvailable bool     `json:"brainPackAvailable"`
+	PackageRoot        string   `json:"packageRoot,omitempty"`
 	ModelPath          string   `json:"modelPath,omitempty"`
 	ModelExists        bool     `json:"modelExists"`
 	ModelSHA256OK      bool     `json:"modelSha256OK"`
 	RuntimePath        string   `json:"runtimePath,omitempty"`
 	RuntimeExists      bool     `json:"runtimeExists"`
 	RuntimeExecutable  bool     `json:"runtimeExecutable"`
+	RuntimeArch        string   `json:"runtimeArch,omitempty"`
 	EstimatedModelSize int64    `json:"estimatedModelSize"`
 	PackageLocalAssets bool     `json:"packageLocalAssets"`
 	UserCacheAssets    bool     `json:"userCacheAssets"`

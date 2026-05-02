@@ -131,6 +131,9 @@ Brain dogfood, when assets are present:
 
 ```bash
 ./scripts/dogfood_brain.sh
+./scripts/dogfood_runtime_assets.sh
+./scripts/dogfood_runtime_core.sh
+./scripts/dogfood_runtime_brain.sh
 ```
 
 ## Package
@@ -143,7 +146,7 @@ The output folder is:
 
 ```text
 dist/Cactus-AgentLink-Rescue/
-dist/Cactus-AgentLink-Rescue-v0.3.0-core.zip
+dist/Cactus-AgentLink-Rescue-v0.3.1-core.zip
 ```
 
 It can be copied to Downloads and launched with `agentlink.command`.
@@ -158,8 +161,36 @@ To build the optional Brain package after fetching the model/runtime:
 Brain package output:
 
 ```text
-dist/Cactus-AgentLink-Rescue-v0.3.0-brain-qwen3-4b-q4km.zip
+dist/Cactus-AgentLink-Rescue-v0.3.1-brain-qwen3-4b-q4km.zip
 ```
+
+### Core Package Vs Brain Package
+
+The Core package is the network and recipe runtime. It does not include the Qwen GGUF model or llama.cpp runtime. Core can still run `doctor`, `diagnose`, recipe repairs, network rescue, reports, rollback, and `brain doctor`. In Core, `brain doctor` reports missing Brain assets and prints fetch commands.
+
+The Brain package includes everything in Core plus:
+
+- `assets/models/Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf`
+- `assets/runtimes/llama.cpp/<arch>/llama-cli`
+- required llama.cpp shared libraries
+- manifests and licenses
+
+On an offline Mac, use the Brain package if you need local Qwen planning. After unzip, these commands should run without network:
+
+```bash
+./bin/agentlink brain doctor
+./bin/agentlink brain selftest --json
+./bin/agentlink brain plan --target path --json
+./bin/agentlink repair --auto --brain --target path --dry-run
+```
+
+Core can fetch Brain assets only when the Mac has network access:
+
+```bash
+./bin/agentlink brain fetch
+```
+
+Qwen is not the executor. It returns PlannerDecision JSON only. The validator rejects unknown recipes, low-confidence repairs, privileged/destructive actions, and invalid JSON. The deterministic runner executes only bundled recipes, and writable repairs still require snapshot and rollback.
 
 ## Reports And Restore Points
 

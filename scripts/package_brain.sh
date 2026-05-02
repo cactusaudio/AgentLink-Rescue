@@ -9,7 +9,13 @@ if ! command -v go >/dev/null 2>&1 && [ -x /tmp/agentlink-go-current/go/bin/go ]
 fi
 
 MODEL="assets/models/Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
-ARCH="$(uname -m)"
+MODEL_SHA_EXPECTED="2fde00ce69dd4899c70d020845e2638353015bba0fdf161b3eb965f2bca4464e"
+HOST_ARCH="$(uname -m)"
+case "$HOST_ARCH" in
+  arm64) ARCH="arm64" ;;
+  x86_64) ARCH="amd64" ;;
+  *) echo "unsupported macOS arch: $HOST_ARCH" >&2; exit 1 ;;
+esac
 RUNTIME_DIR="assets/runtimes/llama.cpp/$ARCH"
 RUNTIME="$RUNTIME_DIR/llama-cli"
 
@@ -22,10 +28,22 @@ if [ ! -f "$MODEL" ] || [ ! -x "$RUNTIME" ]; then
   fi
 fi
 
+MODEL_SHA="$(/usr/bin/shasum -a 256 "$MODEL" | awk '{print $1}')"
+if [ "$MODEL_SHA" != "$MODEL_SHA_EXPECTED" ]; then
+  echo "brain model checksum mismatch" >&2
+  echo "expected: $MODEL_SHA_EXPECTED" >&2
+  echo "actual:   $MODEL_SHA" >&2
+  exit 1
+fi
+if [ ! -x "$RUNTIME" ]; then
+  echo "llama-cli runtime missing or not executable: $RUNTIME" >&2
+  exit 1
+fi
+
 scripts/build.sh
 
 OUT="$ROOT/dist/Cactus-AgentLink-Rescue"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.3.0-brain-qwen3-4b-q4km.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.3.1-brain-qwen3-4b-q4km.zip"
 mkdir -p "$ROOT/dist"
 rm -rf "$OUT"
 rm -f "$ZIP"
@@ -40,7 +58,6 @@ cp packaging/agentlink.command "$OUT/agentlink.command"
 cp packaging/rescue.sh "$OUT/rescue.sh"
 cp packaging/README_IF_OFFLINE.txt "$OUT/README_IF_OFFLINE.txt"
 cp assets/manifests/*.json "$OUT/assets/manifests/"
-[ ! -f assets/manifest.lock.json ] || cp assets/manifest.lock.json "$OUT/assets/manifest.lock.json"
 cp "$MODEL" "$OUT/assets/models/"
 cp -R "$RUNTIME_DIR"/. "$OUT/assets/runtimes/llama.cpp/$ARCH/"
 cp -R assets/licenses/* "$OUT/assets/licenses/"

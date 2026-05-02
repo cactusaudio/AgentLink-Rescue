@@ -28,9 +28,10 @@ scripts/package.sh
 
 PKG="$ROOT/dist/Cactus-AgentLink-Rescue"
 BIN="$PKG/bin/agentlink"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.3.0-core.zip"
+CORE_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.3.1-core.zip"
+BRAIN_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.3.1-brain-qwen3-4b-q4km.zip"
 
-"$BIN" version | grep '0.3.0'
+"$BIN" version | grep '0.3.1'
 "$BIN" selftest
 "$BIN" doctor --json > /tmp/agentlink-release-doctor.json
 /usr/bin/python3 -m json.tool /tmp/agentlink-release-doctor.json >/dev/null
@@ -48,22 +49,33 @@ fi
 
 scripts/dogfood_temp_home.sh
 scripts/dogfood_proxy_config.sh
+scripts/dogfood_runtime_core.sh
 
 SOURCE_MODEL="$ROOT/assets/models/Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
-SOURCE_LLAMA="$ROOT/assets/runtimes/llama.cpp/$(uname -m)/llama-cli"
+case "$(uname -m)" in
+  arm64) SOURCE_ARCH="arm64" ;;
+  x86_64) SOURCE_ARCH="amd64" ;;
+  *) echo "unsupported macOS arch: $(uname -m)" >&2; exit 1 ;;
+esac
+SOURCE_LLAMA="$ROOT/assets/runtimes/llama.cpp/$SOURCE_ARCH/llama-cli"
 if [ -f "$SOURCE_MODEL" ] && [ -x "$SOURCE_LLAMA" ]; then
-  AGENTLINK_MODEL_PATH="$SOURCE_MODEL" AGENTLINK_LLAMA_CLI="$SOURCE_LLAMA" "$BIN" brain selftest
-  AGENTLINK_MODEL_PATH="$SOURCE_MODEL" AGENTLINK_LLAMA_CLI="$SOURCE_LLAMA" scripts/dogfood_brain.sh
+  scripts/dogfood_runtime_assets.sh
+  scripts/package_brain.sh
+  scripts/dogfood_runtime_brain.sh
 else
-  echo "brain assets missing; core release check only"
+  echo "brain assets missing; run scripts/fetch_brain_assets.sh or scripts/package_brain.sh DOWNLOAD=1"
 fi
 
 if find "$PKG" \( -name '.DS_Store' -o -name '._*' -o -name '__MACOSX' \) -print | grep .; then
   echo "package folder contains Finder metadata" >&2
   exit 1
 fi
-if unzip -l "$ZIP" | grep -E '__MACOSX|\.DS_Store|/\._'; then
+if unzip -l "$CORE_ZIP" | grep -E '__MACOSX|\.DS_Store|/\._'; then
   echo "release zip contains Finder metadata" >&2
+  exit 1
+fi
+if [ -f "$BRAIN_ZIP" ] && unzip -l "$BRAIN_ZIP" | grep -E '__MACOSX|\.DS_Store|/\._'; then
+  echo "brain release zip contains Finder metadata" >&2
   exit 1
 fi
 

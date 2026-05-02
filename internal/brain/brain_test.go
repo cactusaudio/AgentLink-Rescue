@@ -76,12 +76,56 @@ func TestModelManifestAndAssetResolution(t *testing.T) {
 	if loc.ModelPath != model || !loc.ModelExists {
 		t.Fatalf("env model override not used: %+v", loc)
 	}
+	if loc.RuntimeArch != systemRuntimeArchForTest() {
+		t.Fatalf("bad runtime arch: %+v", loc)
+	}
+}
+
+func TestPackageRootSearchAndDoctorFailures(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "assets", "manifests"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "recipes"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	nested := filepath.Join(root, "a", "b")
+	if err := os.MkdirAll(nested, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if got := searchUpForPackageRoot(nested); got != root {
+		t.Fatalf("package root not found, got %q want %q", got, root)
+	}
+	home := t.TempDir()
+	badModel := filepath.Join(home, "bad.gguf")
+	if err := os.WriteFile(badModel, []byte("bad"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("AGENTLINK_MODEL_PATH", badModel)
+	t.Setenv("AGENTLINK_LLAMA_CLI", filepath.Join(home, "missing-llama"))
+	doc := Doctor(context.Background(), &command.MockRunner{}, home)
+	if doc.BrainPackAvailable || !doc.ModelExists || doc.ModelSHA256OK || len(doc.Warnings) == 0 || doc.RuntimeExecutable {
+		t.Fatalf("expected checksum/runtime failure: %+v", doc)
+	}
 }
 
 func TestLlamaCLICommandConstructionAndPrompt(t *testing.T) {
-	args := LlamaCLIArgs("/m.gguf", "prompt", 64, 2048, 0)
-	joined := strings.Join(args, " ")
-	for _, want := range []string{"-m /m.gguf", "-p prompt", "-n 64", "-c 2048", "--temp 0", "-st", "--no-display-prompt", "--simple-io"} {
+	modelPath := "/tmp/path with spaces/model.gguf"
+	promptText := "prompt with spaces"
+	args := LlamaCLIArgs(modelPath, promptText, 64, 2048, 0)
+	argValue := func(flag string) string {
+		for i := 0; i < len(args)-1; i++ {
+			if args[i] == flag {
+				return args[i+1]
+			}
+		}
+		return ""
+	}
+	if argValue("-m") != modelPath || argValue("-p") != promptText {
+		t.Fatalf("paths with spaces must remain single exec args: %v", args)
+	}
+	joined := strings.Join(args, "\x00")
+	for _, want := range []string{"-n\x0064", "-c\x002048", "--temp\x000", "-st", "--no-display-prompt", "--simple-io"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("missing arg %s in %v", want, args)
 		}
@@ -90,6 +134,13 @@ func TestLlamaCLICommandConstructionAndPrompt(t *testing.T) {
 	if !strings.Contains(prompt, "<|im_start|>system\nsys<|im_end|>") || !strings.HasSuffix(prompt, "<|im_start|>assistant\n") {
 		t.Fatalf("bad ChatML prompt: %q", prompt)
 	}
+}
+
+func systemRuntimeArchForTest() string {
+	if strings.Contains(strings.ToLower(os.Getenv("GOARCH")), "amd64") {
+		return "amd64"
+	}
+	return darwinRuntimeArch()
 }
 
 func TestJSONExtraction(t *testing.T) {

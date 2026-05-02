@@ -36,12 +36,14 @@ func (b LlamaCLIBackend) Available(ctx context.Context) BrainAvailability {
 	loc := LocateAssets(b.Home, manifest)
 	out := BrainAvailability{
 		Backend:            b.Name(),
+		PackageRoot:        loc.PackageRoot,
 		ModelPath:          loc.ModelPath,
 		ModelExists:        loc.ModelExists,
 		ModelSHA256OK:      loc.ModelSHA256OK,
 		RuntimePath:        loc.RuntimePath,
 		RuntimeExists:      loc.RuntimeExists,
 		RuntimeExecutable:  loc.RuntimeExecutable,
+		RuntimeArch:        loc.RuntimeArch,
 		EstimatedModelSize: manifest.SizeBytesApprox,
 		PackageLocalAssets: loc.PackageLocalAssets,
 		UserCacheAssets:    loc.UserCacheAssets,
@@ -57,7 +59,7 @@ func (b LlamaCLIBackend) Available(ctx context.Context) BrainAvailability {
 	}
 	out.BrainPackAvailable = out.ModelExists && out.ModelSHA256OK && out.RuntimeExecutable
 	if !out.BrainPackAvailable {
-		out.FetchCommands = []string{"./bin/agentlink brain fetch", "./scripts/fetch_brain_assets.sh"}
+		out.FetchCommands = []string{"./bin/agentlink brain fetch", "./scripts/fetch_brain_assets.sh", "download Cactus-AgentLink-Rescue-v0.3.1-brain-qwen3-4b-q4km.zip for offline Brain use"}
 	}
 	return out
 }

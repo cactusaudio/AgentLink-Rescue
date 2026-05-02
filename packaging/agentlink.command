@@ -6,11 +6,12 @@ BIN="$ROOT/bin/agentlink"
 FALLBACK="$ROOT/rescue.sh"
 
 clear
-echo "Cactus AgentLink Rescue 0.3.0"
+echo "Cactus AgentLink Rescue 0.3.1"
 echo
 
 xattr -cr "$ROOT" 2>/dev/null || true
 chmod +x "$BIN" "$FALLBACK" 2>/dev/null || true
+chmod +x "$ROOT"/assets/runtimes/llama.cpp/*/llama-* "$ROOT"/assets/runtimes/llama.cpp/*/*.dylib 2>/dev/null || true
 
 if [ ! -x "$BIN" ]; then
   echo "agentlink binary was not found or is not executable."

@@ -455,7 +455,7 @@ func runBrain(ctx context.Context, runner command.Runner, args []string, stdout,
 			fmt.Fprintln(stdout, string(data))
 		} else {
 			fmt.Fprintf(stdout, "Cactus AgentLink Brain %s doctor\n", system.Version)
-			fmt.Fprintf(stdout, "Backend: %s\nModel exists: %v\nModel SHA256 OK: %v\nRuntime executable: %v\n", doc.Backend, doc.ModelExists, doc.ModelSHA256OK, doc.RuntimeExecutable)
+			fmt.Fprintf(stdout, "Backend: %s\nPackage root: %s\nRuntime arch: %s\nModel exists: %v\nModel SHA256 OK: %v\nRuntime executable: %v\n", doc.Backend, doc.PackageRoot, doc.RuntimeArch, doc.ModelExists, doc.ModelSHA256OK, doc.RuntimeExecutable)
 			if len(doc.MissingAssets) > 0 {
 				fmt.Fprintf(stdout, "Missing assets: %s\n", strings.Join(doc.MissingAssets, ", "))
 				fmt.Fprintln(stdout, "Fetch:")

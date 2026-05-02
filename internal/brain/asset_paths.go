@@ -14,6 +14,7 @@ import (
 type AssetLocations struct {
 	PackageRoot        string `json:"packageRoot,omitempty"`
 	BrainHome          string `json:"brainHome,omitempty"`
+	RuntimeArch        string `json:"runtimeArch,omitempty"`
 	ModelPath          string `json:"modelPath,omitempty"`
 	ModelExists        bool   `json:"modelExists"`
 	ModelSHA256OK      bool   `json:"modelSha256OK"`
@@ -28,7 +29,7 @@ func LocateAssets(home string, manifest ModelManifest) AssetLocations {
 	if manifest.Filename == "" {
 		manifest = DefaultModelManifest()
 	}
-	loc := AssetLocations{PackageRoot: packageRoot(), BrainHome: brainHome(home)}
+	loc := AssetLocations{PackageRoot: packageRoot(), BrainHome: brainHome(home), RuntimeArch: darwinRuntimeArch()}
 	var packageLocal, userCache bool
 	loc.ModelPath, packageLocal, userCache = locateModel(loc, manifest.Filename)
 	loc.PackageLocalAssets = loc.PackageLocalAssets || packageLocal
@@ -49,12 +50,46 @@ func packageRoot() string {
 	if exe, err := os.Executable(); err == nil {
 		dir := filepath.Dir(exe)
 		if filepath.Base(dir) == "bin" {
-			return filepath.Dir(dir)
+			if root := rootIfPackage(filepath.Dir(dir)); root != "" {
+				return root
+			}
 		}
+		if root := rootIfPackage(dir); root != "" {
+			return root
+		}
+	}
+	if cwd, err := os.Getwd(); err == nil {
+		if root := searchUpForPackageRoot(cwd); root != "" {
+			return root
+		}
+	}
+	return ""
+}
+
+func rootIfPackage(dir string) string {
+	if dir == "" {
+		return ""
+	}
+	if system.Exists(filepath.Join(dir, "assets")) && system.Exists(filepath.Join(dir, "recipes")) {
 		return dir
 	}
-	if cwd, err := os.Getwd(); err == nil && system.Exists(filepath.Join(cwd, "assets")) {
-		return cwd
+	if system.Exists(filepath.Join(dir, "assets", "manifests")) && system.Exists(filepath.Join(dir, "bin")) {
+		return dir
+	}
+	return ""
+}
+
+func searchUpForPackageRoot(start string) string {
+	dir := start
+	for i := 0; i < 5; i++ {
+		if root := rootIfPackage(dir); root != "" {
+			return root
+		}
+		next := filepath.Dir(dir)
+		if next == dir {
+			break
+		}
+		dir = next
 	}
 	return ""
 }
@@ -70,9 +105,6 @@ func brainHome(home string) string {
 }
 
 func darwinRuntimeArch() string {
-	if runtime.GOARCH == "amd64" {
-		return "x86_64"
-	}
 	return runtime.GOARCH
 }
 
@@ -97,7 +129,7 @@ func locateRuntime(loc AssetLocations) (string, bool, bool) {
 	if override := os.Getenv("AGENTLINK_LLAMA_CLI"); override != "" {
 		return override, false, false
 	}
-	arch := darwinRuntimeArch()
+	arch := loc.RuntimeArch
 	if loc.PackageRoot != "" {
 		p := filepath.Join(loc.PackageRoot, "assets", "runtimes", "llama.cpp", arch, "llama-cli")
 		if system.Exists(p) {

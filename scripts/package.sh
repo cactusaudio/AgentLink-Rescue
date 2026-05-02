@@ -9,7 +9,7 @@ if [ ! -x bin/agentlink ]; then
 fi
 
 OUT="$ROOT/dist/Cactus-AgentLink-Rescue"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.3.0-core.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.3.1-core.zip"
 mkdir -p "$ROOT/dist"
 rm -rf "$OUT"
 rm -f "$ZIP"
@@ -34,6 +34,14 @@ cp scripts/fetch_qwen_model.sh scripts/fetch_llamacpp_runtime.sh scripts/fetch_b
 chmod +x "$OUT/bin/agentlink" "$OUT/agentlink.command" "$OUT/rescue.sh" "$OUT/scripts/"*.sh
 
 find "$OUT" -depth \( -name .DS_Store -o -name __MACOSX -o -name '._*' -o -name .AppleDouble -o -name AppleDouble \) -exec rm -rf {} +
+if find "$OUT/assets/models" -name '*.gguf' -print | grep .; then
+  echo "core package must not contain GGUF model files" >&2
+  exit 1
+fi
+if find "$OUT/assets/runtimes" -type f -name 'llama-cli' -print | grep .; then
+  echo "core package must not contain llama.cpp runtime binaries" >&2
+  exit 1
+fi
 
 (
   cd "$ROOT/dist"

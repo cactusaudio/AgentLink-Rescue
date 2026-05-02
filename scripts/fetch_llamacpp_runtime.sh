@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ARCH="$(uname -m)"
 case "$ARCH" in
   arm64) ASSET_ARCH="macos-arm64"; OUT_ARCH="arm64" ;;
-  x86_64) ASSET_ARCH="macos-x64"; OUT_ARCH="x86_64" ;;
+  x86_64) ASSET_ARCH="macos-x64"; OUT_ARCH="amd64" ;;
   *) echo "unsupported macOS arch: $ARCH" >&2; exit 1 ;;
 esac
 
@@ -51,5 +51,9 @@ mkdir -p "$OUT"
 cp -R "$(dirname "$CLI")"/. "$OUT/"
 xattr -cr "$OUT" 2>/dev/null || true
 chmod +x "$OUT/llama-cli" "$OUT/llama-completion" "$OUT/llama-server" 2>/dev/null || true
+RUNTIME_SHA="$(/usr/bin/shasum -a 256 "$OUT/llama-cli" | awk '{print $1}')"
+rm -rf "$OUT.tmp"
 
+echo "runtime path: $OUT/llama-cli"
+echo "runtime sha256: $RUNTIME_SHA"
 echo "$OUT/llama-cli"
