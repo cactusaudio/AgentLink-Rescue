@@ -4,12 +4,14 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-if [ ! -x bin/agentlink ]; then
-  "$ROOT/scripts/build.sh"
+if ! command -v go >/dev/null 2>&1 && [ -x /tmp/agentlink-go-current/go/bin/go ]; then
+  export PATH="/tmp/agentlink-go-current/go/bin:$PATH"
 fi
 
+"$ROOT/scripts/build.sh"
+
 OUT="$ROOT/dist/Cactus-AgentLink-Rescue"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.3.1-core.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.0-core.zip"
 mkdir -p "$ROOT/dist"
 rm -rf "$OUT"
 rm -f "$ZIP"

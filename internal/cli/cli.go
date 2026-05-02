@@ -142,8 +142,14 @@ func runDiff(ctx context.Context, runner command.Runner, args []string, stdout, 
 }
 
 func runRestore(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
-	if len(args) != 1 || args[0] != "last" {
+	if len(args) == 0 || args[0] != "last" {
 		fmt.Fprintln(stderr, "restore requires: restore last")
+		return 50
+	}
+	fs := flag.NewFlagSet("restore last", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	jsonOut := fs.Bool("json", false, "print JSON")
+	if err := fs.Parse(args[1:]); err != nil {
 		return 50
 	}
 	home := currentHome(ctx, runner)
@@ -156,6 +162,12 @@ func runRestore(ctx context.Context, runner command.Runner, args []string, stdou
 	if err := rp.RestoreAllWithRunner(ctx, runner); err != nil {
 		fmt.Fprintln(stderr, err)
 		return 30
+	}
+	if *jsonOut {
+		out := map[string]any{"status": "restored", "snapshotID": rp.Manifest.ID, "snapshotPath": rp.Path}
+		data, _ := json.MarshalIndent(out, "", "  ")
+		fmt.Fprintln(stdout, string(data))
+		return 0
 	}
 	fmt.Fprintf(stdout, "Restored snapshot: %s\n", rp.Manifest.ID)
 	return 0

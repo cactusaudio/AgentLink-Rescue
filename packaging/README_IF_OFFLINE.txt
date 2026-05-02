@@ -1,7 +1,8 @@
-Cactus AgentLink Rescue 0.3.1
+Cactus AgentLink Rescue 0.4.0
 
 1. Put this folder anywhere, for example Downloads.
 2. Double-click agentlink.command.
+   If you are using the GUI package, double-click Cactus AgentLink Rescue.app instead.
 3. If macOS blocks the launcher or binary because of Gatekeeper/quarantine, open Terminal and run:
    xattr -cr "/path/to/Cactus-AgentLink-Rescue"
    /bin/bash "/path/to/rescue.sh" diagnose
@@ -42,6 +43,12 @@ Brain mode is planner-only:
 - Qwen outputs PlannerDecision JSON.
 - The deterministic runner executes only local recipes.
 - Qwen never executes arbitrary shell.
+
+GUI mode is a shell:
+- The GUI calls the bundled ./bin/agentlink.
+- The GUI does not collect sudo passwords.
+- Network rescue safe/standard/deep commands are shown for Terminal copy/paste.
+- The GUI does not implement its own repair engine.
 
 v0.3 also includes offline recipe and Brain docs:
 - docs/offline/AGENTLINK_CONSTITUTION.md

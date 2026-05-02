@@ -24,14 +24,17 @@ fi
 go test ./...
 go vet ./...
 scripts/build.sh
+scripts/build_gui.sh
 scripts/package.sh
 
 PKG="$ROOT/dist/Cactus-AgentLink-Rescue"
 BIN="$PKG/bin/agentlink"
-CORE_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.3.1-core.zip"
-BRAIN_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.3.1-brain-qwen3-4b-q4km.zip"
+CORE_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.0-core.zip"
+BRAIN_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.0-brain-qwen3-4b-q4km.zip"
+CORE_GUI_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.0-core-gui.zip"
+BRAIN_GUI_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.0-brain-gui-qwen3-4b-q4km.zip"
 
-"$BIN" version | grep '0.3.1'
+"$BIN" version | grep '0.4.0'
 "$BIN" selftest
 "$BIN" doctor --json > /tmp/agentlink-release-doctor.json
 /usr/bin/python3 -m json.tool /tmp/agentlink-release-doctor.json >/dev/null
@@ -50,6 +53,7 @@ fi
 scripts/dogfood_temp_home.sh
 scripts/dogfood_proxy_config.sh
 scripts/dogfood_runtime_core.sh
+scripts/dogfood_gui_core.sh
 
 SOURCE_MODEL="$ROOT/assets/models/Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
 case "$(uname -m)" in
@@ -62,6 +66,7 @@ if [ -f "$SOURCE_MODEL" ] && [ -x "$SOURCE_LLAMA" ]; then
   scripts/dogfood_runtime_assets.sh
   scripts/package_brain.sh
   scripts/dogfood_runtime_brain.sh
+  scripts/dogfood_gui_brain.sh
 else
   echo "brain assets missing; run scripts/fetch_brain_assets.sh or scripts/package_brain.sh DOWNLOAD=1"
 fi
@@ -76,6 +81,14 @@ if unzip -l "$CORE_ZIP" | grep -E '__MACOSX|\.DS_Store|/\._'; then
 fi
 if [ -f "$BRAIN_ZIP" ] && unzip -l "$BRAIN_ZIP" | grep -E '__MACOSX|\.DS_Store|/\._'; then
   echo "brain release zip contains Finder metadata" >&2
+  exit 1
+fi
+if unzip -l "$CORE_GUI_ZIP" | grep -E '__MACOSX|\.DS_Store|/\._'; then
+  echo "core GUI zip contains Finder metadata" >&2
+  exit 1
+fi
+if [ -f "$BRAIN_GUI_ZIP" ] && unzip -l "$BRAIN_GUI_ZIP" | grep -E '__MACOSX|\.DS_Store|/\._'; then
+  echo "brain GUI zip contains Finder metadata" >&2
   exit 1
 fi
 

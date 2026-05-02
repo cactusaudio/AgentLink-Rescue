@@ -39,11 +39,32 @@ if [ ! -x "$RUNTIME" ]; then
   echo "llama-cli runtime missing or not executable: $RUNTIME" >&2
   exit 1
 fi
+MODEL_SIZE="$(/usr/bin/stat -f %z "$MODEL")"
+RUNTIME_SHA="$(/usr/bin/shasum -a 256 "$RUNTIME" | awk '{print $1}')"
+mkdir -p assets/manifests
+cat > assets/manifests/manifest.lock.json <<JSON
+{
+  "schemaVersion": 1,
+  "createdAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "model": {
+    "path": "$MODEL",
+    "filename": "$(basename "$MODEL")",
+    "sha256": "$MODEL_SHA",
+    "sizeBytes": $MODEL_SIZE
+  },
+  "runtime": {
+    "path": "$RUNTIME",
+    "binary": "llama-cli",
+    "sha256": "$RUNTIME_SHA",
+    "arch": "$ARCH"
+  }
+}
+JSON
 
 scripts/build.sh
 
 OUT="$ROOT/dist/Cactus-AgentLink-Rescue"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.3.1-brain-qwen3-4b-q4km.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.0-brain-qwen3-4b-q4km.zip"
 mkdir -p "$ROOT/dist"
 rm -rf "$OUT"
 rm -f "$ZIP"

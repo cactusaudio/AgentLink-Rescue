@@ -2,7 +2,7 @@
 
 Cactus AgentLink Rescue is an offline, portable, reversible macOS rescue tool for restoring the broken path between a Mac and AI agents such as Codex, Claude, GitHub, and API endpoints.
 
-v0.3 adds an optional local Qwen Brain Pack. Qwen is a bounded planner only: facts go to Qwen, Qwen returns PlannerDecision JSON, the validator checks it, and the deterministic recipe runner executes only registered rollback-capable recipes. There is still no GUI, telemetry, daemon, privileged helper, SMAppService, RAG, queue, remote mutation, or arbitrary shell execution.
+v0.4 adds a native macOS GUI shell. The GUI does not reimplement rescue logic: it displays status, runs package-local `agentlink` CLI commands through argv arrays, and shows reports, dry-runs, rollback state, and copyable sudo commands. Qwen remains a bounded planner only: facts go to Qwen, Qwen returns PlannerDecision JSON, the validator checks it, and the deterministic recipe runner executes only registered rollback-capable recipes. There is still no telemetry, daemon, privileged helper, SMAppService, RAG, queue, remote mutation, or arbitrary shell execution.
 
 ## Product Thesis
 
@@ -25,10 +25,11 @@ This is not a generic network reset tool and not a cleanup app.
 - Runs bounded JSON recipes with snapshot-first mutation and verifier-driven repair.
 - Runs optional local Qwen planning through `llama-cli`.
 - Validates Brain planner JSON before dry-run or execution.
+- Provides a native macOS GUI rescue console as a thin wrapper around the CLI.
 
 ## What It Does Not Do
 
-- No GUI.
+- No GUI-owned repair logic.
 - No model-generated shell execution.
 - No Qwen executor surface.
 - No permanent privileged helper.
@@ -146,7 +147,7 @@ The output folder is:
 
 ```text
 dist/Cactus-AgentLink-Rescue/
-dist/Cactus-AgentLink-Rescue-v0.3.1-core.zip
+dist/Cactus-AgentLink-Rescue-v0.4.0-core.zip
 ```
 
 It can be copied to Downloads and launched with `agentlink.command`.
@@ -161,8 +162,30 @@ To build the optional Brain package after fetching the model/runtime:
 Brain package output:
 
 ```text
-dist/Cactus-AgentLink-Rescue-v0.3.1-brain-qwen3-4b-q4km.zip
+dist/Cactus-AgentLink-Rescue-v0.4.0-brain-qwen3-4b-q4km.zip
 ```
+
+Native GUI packages:
+
+```bash
+./scripts/package_gui_core.sh
+./scripts/package_gui_brain.sh
+```
+
+GUI package outputs:
+
+```text
+dist/Cactus-AgentLink-Rescue-v0.4.0-core-gui.zip
+dist/Cactus-AgentLink-Rescue-v0.4.0-brain-gui-qwen3-4b-q4km.zip
+```
+
+The GUI app embeds the CLI package under:
+
+```text
+Cactus AgentLink Rescue.app/Contents/Resources/agentlink/
+```
+
+The GUI uses the embedded `bin/agentlink`; it does not use a system `agentlink` from `PATH` unless a developer override is set. It uses `Process` with argument arrays, not shell command strings.
 
 ### Core Package Vs Brain Package
 
@@ -191,6 +214,13 @@ Core can fetch Brain assets only when the Mac has network access:
 ```
 
 Qwen is not the executor. It returns PlannerDecision JSON only. The validator rejects unknown recipes, low-confidence repairs, privileged/destructive actions, and invalid JSON. The deterministic runner executes only bundled recipes, and writable repairs still require snapshot and rollback.
+
+GUI dogfood:
+
+```bash
+./scripts/dogfood_gui_core.sh
+./scripts/dogfood_gui_brain.sh
+```
 
 ## Reports And Restore Points
 

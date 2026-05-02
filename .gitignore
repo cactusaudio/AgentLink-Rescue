@@ -6,6 +6,8 @@ AppleDouble/
 
 bin/
 dist/
+gui/build/
+gui/CactusAgentLinkRescue/.build/
 assets/models/*.gguf
 assets/runtimes/llama.cpp/
 dist/*brain*.zip
