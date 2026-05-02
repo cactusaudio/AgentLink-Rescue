@@ -2,27 +2,18 @@ import SwiftUI
 
 struct StatusDashboardView: View {
     @EnvironmentObject var state: AppState
+    @State private var allowReversibleRepairs = false
+    @State private var confirmReversibleRepair = false
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 18) {
+                guidedHero
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 12)], spacing: 12) {
                     summaryPill(title: "AgentLink Core", value: state.selftestStatus, kind: state.selftestStatus == "OK" ? .ok : .warn)
                     summaryPill(title: "Brain Pack", value: state.brainDoctor?.brainPackAvailable == true ? "OK" : "Missing", kind: state.brainDoctor?.brainPackAvailable == true ? .ok : .warn)
                     summaryPill(title: "Network", value: state.doctor?.classifications?.contains("OK") == true ? "OK" : state.recommendationLabel, kind: state.recommendationKind)
                     summaryPill(title: "Last Session", value: state.repair?.status ?? state.dryRun?.status ?? "None", kind: state.dryRun?.status == "dry-run" || state.repair?.status == "success" ? .ok : .neutral)
-                }
-                HStack {
-                    ActionButton(title: "Run Doctor", systemImage: "stethoscope", disabled: state.isRunning) { Task { await state.runDoctor() } }
-                    ActionButton(title: "Brain Plan", systemImage: "list.bullet.clipboard", disabled: state.isRunning) {
-                        state.page = .plan
-                        Task { await state.runPlan() }
-                    }
-                    ActionButton(title: "Dry Run", systemImage: "play.rectangle", disabled: state.isRunning) {
-                        state.page = .dryRun
-                        Task { await state.runDryRun() }
-                    }
-                    Button("Export Report") { export(state.humanReport, name: "AgentLink-Human-Report.txt") }
                 }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 12)], spacing: 12) {
                     restoreCard
@@ -31,6 +22,66 @@ struct StatusDashboardView: View {
                 OutputCard(title: "Advanced / Raw Diagnostics", text: state.latestResult?.combinedOutput ?? "", placeholder: "Run Doctor or Brain Plan to see raw output.", collapsedByDefault: true)
             }
             .padding()
+        }
+    }
+
+    private var guidedHero: some View {
+        HStack(alignment: .center, spacing: 18) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Restore Agent Link")
+                    .font(.title2.weight(.semibold))
+                Text("Detect -> plan -> dry-run -> verify. Optional reversible repair with confirmation.")
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 8) {
+                    StatusBadge(text: state.packageType, kind: state.packageType == "Brain" ? .ok : .warn)
+                    StatusBadge(text: state.recommendationLabel, kind: state.recommendationKind)
+                    if state.isRunning {
+                        StatusBadge(text: "Running", kind: .warn)
+                    }
+                }
+            }
+            Spacer(minLength: 16)
+            VStack(alignment: .trailing, spacing: 10) {
+                Toggle("Allow reversible repairs", isOn: $allowReversibleRepairs)
+                    .toggleStyle(.checkbox)
+                Button {
+                    state.page = .guided
+                    if allowReversibleRepairs {
+                        confirmReversibleRepair = true
+                    } else {
+                        Task { await state.runGuidedRescue(allowRepair: false) }
+                    }
+                } label: {
+                    Label("Restore Agent Link", systemImage: "sparkles.rectangle.stack")
+                        .font(.headline)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(state.isRunning)
+                Button("Analyze Only") {
+                    state.page = .guided
+                    Task { await state.runGuidedRescue(allowRepair: false) }
+                }
+                .buttonStyle(.borderless)
+                Button("Open Expert Console") {
+                    state.page = .doctor
+                }
+                .buttonStyle(.borderless)
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 10))
+        .alert("Allow reversible repairs?", isPresented: $confirmReversibleRepair) {
+            Button("Cancel", role: .cancel) {}
+            Button("Run Guided Repair") {
+                state.page = .guided
+                Task { await state.runGuidedRescue(allowRepair: true) }
+            }
+        } message: {
+            Text("AgentLink may apply reversible recipe repairs only. It will create snapshots and verify results. It will not run sudo or network deep rescue.")
         }
     }
 

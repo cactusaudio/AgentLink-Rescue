@@ -17,6 +17,7 @@ import (
 	"cactus-agentlink-rescue/internal/command"
 	"cactus-agentlink-rescue/internal/diagnose"
 	"cactus-agentlink-rescue/internal/facts"
+	"cactus-agentlink-rescue/internal/guided"
 	"cactus-agentlink-rescue/internal/planner"
 	"cactus-agentlink-rescue/internal/recipe"
 	"cactus-agentlink-rescue/internal/repair"
@@ -43,6 +44,8 @@ func Main(args []string, stdout io.Writer, stderr io.Writer) int {
 	runner := command.NewExecRunner()
 	rulesDir := findRulesDir()
 	switch cmd {
+	case "guided":
+		return runGuided(ctx, runner, args[1:], stdout, stderr)
 	case "doctor":
 		return runDoctor(ctx, runner, args[1:], stdout, stderr)
 	case "snapshot":
@@ -326,6 +329,65 @@ func runTargetRepair(ctx context.Context, runner command.Runner, args []string, 
 		return 30
 	}
 	return executeRecipe(ctx, runner, reg, id, recipe.RunOptions{Home: currentHome(ctx, runner), DryRun: *dryRun, Yes: *yes, JSON: *jsonOut, CommandLine: append([]string{"repair"}, args...)}, *jsonOut, stdout, stderr)
+}
+
+func runGuided(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 || args[0] != "rescue" {
+		fmt.Fprintln(stderr, "guided requires: guided rescue")
+		return 50
+	}
+	fs := flag.NewFlagSet("guided rescue", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	target := fs.String("target", "auto", "auto, path, proxy, codex, keys, or network")
+	dryRun := fs.Bool("dry-run", false, "analyze and dry-run only")
+	yes := fs.Bool("yes", false, "allow reversible recipe execution")
+	jsonOut := fs.Bool("json", false, "print JSON")
+	maxCycles := fs.Int("max-cycles", 3, "maximum guided cycles")
+	timeoutSeconds := fs.Int("timeout-seconds", 600, "maximum runtime in seconds")
+	if err := fs.Parse(args[1:]); err != nil {
+		return 50
+	}
+	if !validGuidedTarget(*target) {
+		fmt.Fprintln(stderr, "guided rescue --target must be auto, path, proxy, codex, keys, or network")
+		return 50
+	}
+	if *yes && *dryRun {
+		fmt.Fprintln(stderr, "guided rescue cannot combine --yes and --dry-run")
+		return 50
+	}
+	effectiveDryRun := *dryRun || !*yes
+	reg, err := recipe.LoadRegistry(recipe.FindRecipesDir())
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 30
+	}
+	rep := guided.Run(ctx, runner, reg, guided.Options{
+		Home:           currentHome(ctx, runner),
+		Target:         *target,
+		DryRun:         effectiveDryRun,
+		Yes:            *yes,
+		MaxCycles:      *maxCycles,
+		TimeoutSeconds: *timeoutSeconds,
+		CommandLine:    append([]string{"guided", "rescue"}, args[1:]...),
+	})
+	if *jsonOut {
+		fmt.Fprintln(stdout, guided.MarshalReport(rep))
+	} else {
+		fmt.Fprint(stdout, guided.HumanReport(rep))
+	}
+	if rep.Status == guided.StatusFailed {
+		return 30
+	}
+	return 0
+}
+
+func validGuidedTarget(target string) bool {
+	switch target {
+	case "auto", "path", "proxy", "codex", "keys", "network":
+		return true
+	default:
+		return false
+	}
 }
 
 func executeRecipe(ctx context.Context, runner command.Runner, reg recipe.Registry, id string, opts recipe.RunOptions, jsonOut bool, stdout, stderr io.Writer) int {
@@ -987,6 +1049,7 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "  agentlink proxy detect [--json]")
 	fmt.Fprintln(w, "  agentlink keys doctor [--json]")
 	fmt.Fprintln(w, "  agentlink planner validate <decision.json>")
+	fmt.Fprintln(w, "  agentlink guided rescue [--target auto|path|proxy|codex|keys|network] [--dry-run] [--yes] [--json]")
 	fmt.Fprintln(w, "  agentlink brain doctor [--json]")
 	fmt.Fprintln(w, "  agentlink brain fetch [--model gemma-4-e4b-it-q4km] [--runtime llama.cpp]")
 	fmt.Fprintln(w, "  agentlink brain selftest [--json]")

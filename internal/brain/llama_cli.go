@@ -70,7 +70,7 @@ func (b LlamaCLIBackend) Available(ctx context.Context) BrainAvailability {
 	}
 	out.BrainPackAvailable = out.ModelExists && out.ModelSHA256OK && out.RuntimeExecutable
 	if !out.BrainPackAvailable {
-		out.FetchCommands = []string{"./bin/agentlink brain fetch", "./scripts/fetch_brain_assets.sh", "download Cactus-AgentLink-Rescue-v0.4.1-brain-gemma4-e4b-q4km.zip for offline Brain use"}
+		out.FetchCommands = []string{"./bin/agentlink brain fetch", "./scripts/fetch_brain_assets.sh", "download Cactus-AgentLink-Rescue-v0.4.2-brain-gemma4-e4b-q4km.zip for offline Brain use"}
 	}
 	return out
 }

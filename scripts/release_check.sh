@@ -29,12 +29,12 @@ scripts/package.sh
 
 PKG="$ROOT/dist/Cactus-AgentLink-Rescue"
 BIN="$PKG/bin/agentlink"
-CORE_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.1-core.zip"
-BRAIN_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.1-brain-gemma4-e4b-q4km.zip"
-CORE_GUI_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.1-core-gui.zip"
-BRAIN_GUI_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.1-brain-gui-gemma4-e4b-q4km.zip"
+CORE_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.2-core.zip"
+BRAIN_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.2-brain-gemma4-e4b-q4km.zip"
+CORE_GUI_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.2-core-gui.zip"
+BRAIN_GUI_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.2-brain-gui-gemma4-e4b-q4km.zip"
 
-"$BIN" version | grep '0.4.1'
+"$BIN" version | grep '0.4.2'
 "$BIN" selftest
 "$BIN" doctor --json > /tmp/agentlink-release-doctor.json
 /usr/bin/python3 -m json.tool /tmp/agentlink-release-doctor.json >/dev/null
@@ -53,6 +53,7 @@ fi
 scripts/dogfood_temp_home.sh
 scripts/dogfood_proxy_config.sh
 scripts/dogfood_runtime_core.sh
+scripts/dogfood_guided_rescue.sh
 scripts/dogfood_gui_core.sh
 scripts/dogfood_gui_screenshots.sh
 
@@ -91,6 +92,12 @@ if unzip -l "$CORE_GUI_ZIP" | grep -E '__MACOSX|\.DS_Store|/\._'; then
 fi
 if [ -f "$BRAIN_GUI_ZIP" ] && unzip -l "$BRAIN_GUI_ZIP" | grep -E '__MACOSX|\.DS_Store|/\._'; then
   echo "brain GUI zip contains Finder metadata" >&2
+  exit 1
+fi
+
+if ! git diff --quiet -- assets/manifests/manifest.lock.json; then
+  echo "manifest.lock.json changed during package/dogfood; package scripts must not churn source lockfile" >&2
+  git diff -- assets/manifests/manifest.lock.json >&2
   exit 1
 fi
 

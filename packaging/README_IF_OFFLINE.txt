@@ -1,4 +1,4 @@
-Cactus AgentLink Rescue 0.4.1
+Cactus AgentLink Rescue 0.4.2
 
 1. Put this folder anywhere, for example Downloads.
 2. Double-click agentlink.command.
@@ -15,6 +15,13 @@ Cactus AgentLink Rescue 0.4.1
    sudo ./bin/agentlink rollback --id <restore-point-id>
    If the binary does not work:
    sudo /bin/bash "/path/to/rescue.sh" rollback "/Library/Application Support/Cactus AgentLink Rescue/restore-points/<restore-point-id>"
+
+Guided Rescue:
+- Analyze only:
+  ./bin/agentlink guided rescue --target auto --dry-run
+- Reversible user-level repair only:
+  ./bin/agentlink guided rescue --target auto --yes
+- Guided Rescue does not run sudo or network standard/deep rescue automatically.
 
 Manual restore structure:
 - Backed-up files are under restore-point/files/<original absolute path>.
@@ -50,7 +57,7 @@ GUI mode is a shell:
 - Network rescue safe/standard/deep commands are shown for Terminal copy/paste.
 - The GUI does not implement its own repair engine.
 
-v0.4.1 also includes offline recipe and Brain docs:
+v0.4.2 also includes offline recipe and Brain docs:
 - docs/offline/AGENTLINK_CONSTITUTION.md
 - docs/offline/RECIPE_AUTHORING.md
 - docs/offline/PLANNER_CONTRACT.md

@@ -62,22 +62,25 @@ enum GUISelftest {
         let version = runner.runSync(executable: client.binaryURL, args: ["version"], timeout: 10)
         let doctor = runner.runSync(executable: client.binaryURL, args: ["doctor", "--json"], timeout: 30)
         let brain = runner.runSync(executable: client.binaryURL, args: ["brain", "doctor", "--json"], timeout: 30)
+        let guided = runner.runSync(executable: client.binaryURL, args: ["guided", "rescue", "--target", "auto", "--dry-run", "--json"], timeout: 120)
         let summary: [String: Any] = [
-            "ok": version.succeeded && doctor.succeeded && brain.succeeded,
+            "ok": version.succeeded && doctor.succeeded && brain.succeeded && guided.succeeded,
             "packageRoot": client.packageRoot.path,
             "binaryPath": client.binaryURL.path,
             "versionExitCode": version.exitCode,
             "doctorExitCode": doctor.exitCode,
             "brainDoctorExitCode": brain.exitCode,
+            "guidedExitCode": guided.exitCode,
             "durationMs": Int(Date().timeIntervalSince(start) * 1000),
             "version": version.stdout.trimmingCharacters(in: .whitespacesAndNewlines),
-            "brainDoctor": jsonObject(brain.stdout) ?? brain.stdout
+            "brainDoctor": jsonObject(brain.stdout) ?? brain.stdout,
+            "guidedRescue": jsonObject(guided.stdout) ?? guided.stdout
         ]
         let data = try? JSONSerialization.data(withJSONObject: summary, options: [.prettyPrinted, .sortedKeys])
         if let data, let text = String(data: data, encoding: .utf8) {
             print(redact(text))
         }
-        return (version.succeeded && doctor.succeeded && brain.succeeded) ? 0 : 1
+        return (version.succeeded && doctor.succeeded && brain.succeeded && guided.succeeded) ? 0 : 1
     }
 
     private static func jsonObject(_ text: String) -> Any? {

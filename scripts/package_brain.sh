@@ -48,33 +48,10 @@ if [ -n "$LOCK_SHA" ] && [ "$LOCK_SHA" != "$MODEL_SHA" ]; then
   echo "actual:   $MODEL_SHA" >&2
   exit 1
 fi
-mkdir -p assets/manifests
-cat > assets/manifests/manifest.lock.json <<JSON
-{
-  "schemaVersion": 3,
-  "createdAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "defaultBrainProfile": "gemma-4-e4b-it-q4km",
-  "model": {
-    "profile": "gemma-4-e4b-it-q4km",
-    "path": "$MODEL",
-    "filename": "$(basename "$MODEL")",
-    "sha256": "$MODEL_SHA",
-    "sizeBytes": $MODEL_SIZE
-  },
-  "runtime": {
-    "backend": "llama.cpp",
-    "path": "$RUNTIME",
-    "binary": "llama-cli",
-    "sha256": "$RUNTIME_SHA",
-    "arch": "$ARCH"
-  }
-}
-JSON
-
 scripts/build.sh
 
 OUT="$ROOT/dist/Cactus-AgentLink-Rescue"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.1-brain-gemma4-e4b-q4km.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.2-brain-gemma4-e4b-q4km.zip"
 mkdir -p "$ROOT/dist"
 rm -rf "$OUT"
 rm -f "$ZIP"
@@ -89,6 +66,27 @@ cp packaging/agentlink.command "$OUT/agentlink.command"
 cp packaging/rescue.sh "$OUT/rescue.sh"
 cp packaging/README_IF_OFFLINE.txt "$OUT/README_IF_OFFLINE.txt"
 cp assets/manifests/*.json "$OUT/assets/manifests/"
+cat > "$OUT/assets/manifests/manifest.lock.json" <<JSON
+{
+  "schemaVersion": 3,
+  "createdAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "defaultBrainProfile": "gemma-4-e4b-it-q4km",
+  "model": {
+    "profile": "gemma-4-e4b-it-q4km",
+    "path": "assets/models/$(/usr/bin/basename "$MODEL")",
+    "filename": "$(/usr/bin/basename "$MODEL")",
+    "sha256": "$MODEL_SHA",
+    "sizeBytes": $MODEL_SIZE
+  },
+  "runtime": {
+    "backend": "llama.cpp",
+    "path": "assets/runtimes/llama.cpp/$ARCH/llama-cli",
+    "binary": "llama-cli",
+    "sha256": "$RUNTIME_SHA",
+    "arch": "$ARCH"
+  }
+}
+JSON
 cp "$MODEL" "$OUT/assets/models/"
 cp "$RUNTIME_DIR/llama-cli" "$OUT/assets/runtimes/llama.cpp/$ARCH/"
 if [ -f "$RUNTIME_DIR/llama-completion" ]; then

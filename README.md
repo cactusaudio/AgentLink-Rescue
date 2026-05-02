@@ -2,7 +2,7 @@
 
 Cactus AgentLink Rescue is an offline, portable, reversible macOS rescue tool for restoring the broken path between a Mac and AI agents such as Codex, Claude, GitHub, and API endpoints.
 
-v0.4.1 hardens the native macOS GUI shell with screenshot-driven dogfood fixes and migrates the local Brain model to Gemma 4 E4B-it Q4_K_M. The GUI does not reimplement rescue logic: it displays status, runs package-local `agentlink` CLI commands through argv arrays, and shows reports, dry-runs, rollback state, and copyable sudo commands. Gemma remains a bounded planner only: facts go to Gemma, Gemma returns PlannerDecision JSON, the validator checks it, and the deterministic recipe runner executes only registered rollback-capable recipes. There is still no telemetry, daemon, privileged helper, SMAppService, RAG, queue, remote mutation, or arbitrary shell execution.
+v0.4.2 adds Guided Rescue as a CLI-kernel workflow and keeps the native macOS GUI as a thin shell. The main GUI path now starts `agentlink guided rescue`, which handles detect -> plan -> dry-run -> snapshot -> execute -> verify -> rollback/report inside the CLI. Gemma 4 E4B-it Q4_K_M remains a bounded planner only: facts go to Gemma, Gemma returns PlannerDecision JSON, the validator checks it, and the deterministic recipe runner executes only registered rollback-capable recipes. There is still no telemetry, daemon, privileged helper, SMAppService, RAG, queue, remote mutation, sudo execution in the GUI, or arbitrary shell execution.
 
 ## Product Thesis
 
@@ -25,6 +25,7 @@ This is not a generic network reset tool and not a cleanup app.
 - Runs bounded JSON recipes with snapshot-first mutation and verifier-driven repair.
 - Runs optional local Gemma 4 E4B planning through `llama-cli`.
 - Validates Brain planner JSON before dry-run or execution.
+- Runs Guided Rescue as a bounded CLI workflow for non-developer users.
 - Provides a native macOS GUI rescue console as a thin wrapper around the CLI.
 
 ## What It Does Not Do
@@ -73,6 +74,7 @@ agentlink brain selftest [--json]
 agentlink brain prompt --text "..." [--json]
 agentlink brain plan --target path|proxy|codex|keys|network [--json]
 agentlink repair --auto --brain --target path|proxy|codex|keys|network [--dry-run] [--yes] [--online] [--json]
+agentlink guided rescue [--target auto|path|proxy|codex|keys|network] [--dry-run] [--yes] [--json]
 agentlink planner validate <decision.json>
 agentlink report --for-human --latest
 agentlink report --for-codex --latest
@@ -89,6 +91,8 @@ Examples:
 ```bash
 ./bin/agentlink diagnose --json
 ./bin/agentlink rescue --level safe --dry-run
+./bin/agentlink guided rescue --target auto --dry-run --json
+./bin/agentlink guided rescue --target path --yes --json
 sudo ./bin/agentlink rescue --level standard
 sudo ./bin/agentlink rescue --level deep --yes
 sudo ./bin/agentlink rollback --last
@@ -147,7 +151,7 @@ The output folder is:
 
 ```text
 dist/Cactus-AgentLink-Rescue/
-dist/Cactus-AgentLink-Rescue-v0.4.1-core.zip
+dist/Cactus-AgentLink-Rescue-v0.4.2-core.zip
 ```
 
 It can be copied to Downloads and launched with `agentlink.command`.
@@ -162,7 +166,7 @@ To build the optional Brain package after fetching the model/runtime:
 Brain package output:
 
 ```text
-dist/Cactus-AgentLink-Rescue-v0.4.1-brain-gemma4-e4b-q4km.zip
+dist/Cactus-AgentLink-Rescue-v0.4.2-brain-gemma4-e4b-q4km.zip
 ```
 
 Native GUI packages:
@@ -175,8 +179,8 @@ Native GUI packages:
 GUI package outputs:
 
 ```text
-dist/Cactus-AgentLink-Rescue-v0.4.1-core-gui.zip
-dist/Cactus-AgentLink-Rescue-v0.4.1-brain-gui-gemma4-e4b-q4km.zip
+dist/Cactus-AgentLink-Rescue-v0.4.2-core-gui.zip
+dist/Cactus-AgentLink-Rescue-v0.4.2-brain-gui-gemma4-e4b-q4km.zip
 ```
 
 The GUI app embeds the CLI package under:

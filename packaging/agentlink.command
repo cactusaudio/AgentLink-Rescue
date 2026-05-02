@@ -6,7 +6,7 @@ BIN="$ROOT/bin/agentlink"
 FALLBACK="$ROOT/rescue.sh"
 
 clear
-echo "Cactus AgentLink Rescue 0.4.1"
+echo "Cactus AgentLink Rescue 0.4.2"
 echo
 
 xattr -cr "$ROOT" 2>/dev/null || true
@@ -49,50 +49,55 @@ echo
 
 while true; do
   echo "Choose an action:"
-  echo "  1. Doctor"
-  echo "  2. Brain Doctor"
-  echo "  3. Brain Selftest"
-  echo "  4. Brain Plan"
-  echo "  5. Brain Auto Repair Dry-Run"
-  echo "  6. Network Rescue Safe"
-  echo "  7. Network Rescue Standard"
-  echo "  8. Repair PATH"
-  echo "  9. Proxy Detect"
-  echo "  10. Codex Config Doctor"
-  echo "  11. Rollback Last"
-  echo "  12. Exit"
+  echo "  1. Guided Rescue Analyze"
+  echo "  2. Doctor"
+  echo "  3. Brain Doctor"
+  echo "  4. Brain Selftest"
+  echo "  5. Brain Plan"
+  echo "  6. Brain Auto Repair Dry-Run"
+  echo "  7. Network Rescue Safe"
+  echo "  8. Network Rescue Standard"
+  echo "  9. Repair PATH"
+  echo "  10. Proxy Detect"
+  echo "  11. Codex Config Doctor"
+  echo "  12. Rollback Last"
+  echo "  13. Exit"
   printf "> "
   read -r choice
   case "$choice" in
     1)
-      "$BIN" doctor
+      "$BIN" guided rescue --target auto --dry-run
       break
       ;;
     2)
-      "$BIN" brain doctor
+      "$BIN" doctor
       break
       ;;
     3)
-      "$BIN" brain selftest
+      "$BIN" brain doctor
       break
       ;;
     4)
-      "$BIN" brain plan --target path
+      "$BIN" brain selftest
       break
       ;;
     5)
-      "$BIN" repair --auto --brain --target path --dry-run
+      "$BIN" brain plan --target path
       break
       ;;
     6)
-      sudo "$BIN" rescue --level safe
+      "$BIN" repair --auto --brain --target path --dry-run
       break
       ;;
     7)
-      sudo "$BIN" rescue --level standard
+      sudo "$BIN" rescue --level safe
       break
       ;;
     8)
+      sudo "$BIN" rescue --level standard
+      break
+      ;;
+    9)
       echo "PATH repair writes a managed block to ~/.zshrc and creates a rollback snapshot."
       read -r -p "Type YES to continue: " confirm
       if [ "$confirm" = "YES" ]; then
@@ -102,19 +107,19 @@ while true; do
       fi
       break
       ;;
-    9)
+    10)
       "$BIN" proxy detect
       break
       ;;
-    10)
+    11)
       "$BIN" config doctor
       break
       ;;
-    11)
+    12)
       "$BIN" restore last || sudo "$BIN" rollback --last
       break
       ;;
-    12)
+    13)
       exit 0
       ;;
     *)

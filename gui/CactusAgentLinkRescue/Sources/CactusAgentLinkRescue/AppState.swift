@@ -35,6 +35,15 @@ final class AppState: ObservableObject {
     @Published var reportLoadError: String?
     @Published var latestResult: CommandResult?
     @Published var logLines: [String] = []
+    @Published var rollbackAvailable = false
+    @Published var guidedStatus = "Not run"
+    @Published var guidedSummary = "Run a guided rescue to detect local issues, choose bounded recipes, dry-run changes, and verify outcomes."
+    @Published var guidedSteps: [GuidedStep] = []
+    @Published var guidedCanApply = false
+    @Published var guidedLastTarget: String?
+    @Published var guidedLastRecipe: String?
+    @Published var guidedResult: CommandResult?
+    @Published var guidedReport: GuidedRescueReport?
 
     let client = AgentlinkClient()
 
@@ -151,6 +160,40 @@ final class AppState: ObservableObject {
         }
     }
 
+    func runGuidedRescue(allowRepair: Bool) async {
+        await runGuarded(mutating: allowRepair) {
+            guidedStatus = "Running"
+            guidedSummary = allowRepair ? "AgentLink CLI is running the guided kernel with reversible repairs allowed." : "AgentLink CLI is analyzing and dry-running only. No files will be changed."
+            guidedSteps = [GuidedStep(title: "Start", detail: allowRepair ? "Mode: reversible repairs allowed. No sudo or network rescue will be run by the GUI." : "Mode: analyze-only. No mutation is allowed.", status: "running")]
+            guidedCanApply = false
+            guidedLastTarget = nil
+            guidedLastRecipe = nil
+            guidedResult = nil
+            guidedReport = nil
+
+            var args = ["guided", "rescue", "--target", "auto", "--json"]
+            if allowRepair {
+                args.append("--yes")
+            } else {
+                args.append("--dry-run")
+            }
+            let (result, decoded) = await client.runJSON(GuidedRescueReport.self, args: args, timeout: allowRepair ? 600 : 240)
+            latestResult = result
+            guidedResult = result
+            guidedReport = decoded
+            appendLog(result)
+
+            if let decoded {
+                applyGuidedReport(decoded)
+            } else {
+                guidedStatus = result.succeeded ? "Unknown" : "Failed"
+                guidedSummary = result.stderrOrFallback
+                guidedSteps = [GuidedStep(title: "Result", detail: result.stderrOrFallback, status: result.succeeded ? "warn" : "failed")]
+            }
+            await loadReports()
+        }
+    }
+
     func rollbackLast() async {
         await runGuarded(mutating: true) {
             let result = await client.run(["restore", "last", "--json"], timeout: 120)
@@ -172,9 +215,11 @@ final class AppState: ObservableObject {
         let codex = await client.run(["report", "--for-codex", "--latest"], timeout: 20)
         if codex.succeeded {
             codexDispatch = codex.stdout
+            rollbackAvailable = parseRollbackAvailable(codex.stdout)
             reportLoadError = nil
         } else if reportLoadError == nil {
             codexDispatch = ""
+            rollbackAvailable = false
             reportLoadError = codex.combinedOutput.isEmpty ? "No latest Codex dispatch found." : codex.combinedOutput
         }
         reportsLoadedAt = Date()
@@ -193,6 +238,85 @@ final class AppState: ObservableObject {
         if logLines.count > 100 {
             logLines.removeLast(logLines.count - 100)
         }
+    }
+
+    private func addGuidedStep(_ title: String, _ detail: String, _ status: String) {
+        guidedSteps.append(GuidedStep(title: title, detail: detail, status: status))
+    }
+
+    private func applyGuidedReport(_ report: GuidedRescueReport) {
+        guidedStatus = guidedStatusLabel(report.status)
+        guidedSummary = report.finalSummary ?? "Guided rescue completed."
+        guidedLastTarget = report.target
+        guidedLastRecipe = report.selectedRecipe
+        rollbackAvailable = report.rollbackAvailable == true
+        guidedCanApply = report.status == "dry_run_complete" && report.mode == "dry-run" && report.selectedRecipe != nil
+        guidedSteps = []
+        for cycle in report.cycles ?? [] {
+            let result = cycle.result ?? "completed"
+            let transitions = cycle.stateTransitions ?? []
+            let title = "Cycle \(cycle.index ?? guidedSteps.count + 1)"
+            var detailParts: [String] = []
+            if !transitions.isEmpty {
+                detailParts.append(transitions.joined(separator: " -> "))
+            }
+            if let recipe = report.selectedRecipe ?? cycle.candidateRecipes?.first {
+                detailParts.append("Recipe: \(recipe)")
+            }
+            if let classes = cycle.failureClasses, !classes.isEmpty {
+                detailParts.append("Classes: \(classes.joined(separator: ", "))")
+            }
+            guidedSteps.append(GuidedStep(title: title, detail: detailParts.joined(separator: "\n"), status: guidedStepStatus(result)))
+        }
+        if guidedSteps.isEmpty {
+            guidedSteps = [GuidedStep(title: "Result", detail: guidedSummary, status: guidedStepStatus(report.status ?? ""))]
+        }
+    }
+
+    private func guidedStatusLabel(_ status: String?) -> String {
+        switch status {
+        case "healthy": return "Healthy"
+        case "dry_run_complete": return "Dry-run complete"
+        case "repaired": return "Repaired"
+        case "no_safe_action": return "No safe action"
+        case "manual_action_required": return "Manual action required"
+        case "rolled_back": return "Rolled back"
+        case "failed": return "Failed"
+        default: return status ?? "Unknown"
+        }
+    }
+
+    private func guidedStepStatus(_ result: String) -> String {
+        switch result {
+        case "healthy", "repaired", "dry_run_complete":
+            return "ok"
+        case "manual_action_required", "no_safe_action", "verifier_failed":
+            return "warn"
+        case "failed", "rolled_back":
+            return result == "rolled_back" ? "warn" : "failed"
+        default:
+            return "ok"
+        }
+    }
+
+    private func parseRollbackAvailable(_ text: String) -> Bool {
+        guard let data = text.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else {
+            return false
+        }
+        return object["rollbackAvailable"] as? Bool ?? false
+    }
+
+    private func doctorResultAppend(_ result: CommandResult) {
+        doctorResult = result
+        appendLog(result)
+    }
+
+    private func doctorLooksHealthy(_ report: DoctorReport?) -> Bool {
+        guard let report else { return false }
+        let rec = recommendationDisplay(for: report.recommendedRepairLevel, classifications: report.classifications).label
+        return rec == "None" && (report.classifications?.contains("OK") == true || report.classifications?.isEmpty != false)
     }
 
     func sudoRescueCommand(level: String) -> String {

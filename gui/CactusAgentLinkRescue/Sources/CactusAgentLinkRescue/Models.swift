@@ -15,6 +15,11 @@ struct CommandResult: Identifiable, Codable {
     var combinedOutput: String {
         [stdout, stderr].filter { !$0.isEmpty }.joined(separator: "\n")
     }
+    var stderrOrFallback: String {
+        if !stderr.isEmpty { return stderr }
+        if !combinedOutput.isEmpty { return combinedOutput }
+        return "command failed"
+    }
 }
 
 struct DoctorReport: Codable {
@@ -156,7 +161,54 @@ struct RepairReport: Codable {
 struct RecipeRunResult: Codable {
     var recipeId: String?
     var status: String?
+    var dryRun: Bool?
+    var snapshotId: String?
+    var snapshotPath: String?
+    var changedFiles: [String]?
     var plannedActions: [PlannedAction]?
+    var verifierResults: [VerifierResult]?
+    var warnings: [String]?
+    var error: String?
+}
+
+struct GuidedRescueReport: Codable {
+    var schemaVersion: Int?
+    var toolVersion: String?
+    var target: String?
+    var mode: String?
+    var status: String?
+    var cycles: [GuidedCycle]?
+    var finalSummary: String?
+    var selectedRecipe: String?
+    var plannerUsed: Bool?
+    var brainModel: String?
+    var snapshotID: String?
+    var rollbackAvailable: Bool?
+    var rollbackCommand: String?
+    var humanReportPath: String?
+    var codexDispatchPath: String?
+    var warnings: [String]?
+    var nextSafeCommand: String?
+}
+
+struct GuidedCycle: Codable {
+    var index: Int?
+    var stateTransitions: [String]?
+    var failureClasses: [String]?
+    var candidateRecipes: [String]?
+    var dryRun: RecipeRunResult?
+    var execution: RecipeRunResult?
+    var verifiers: [VerifierResult]?
+    var result: String?
+}
+
+struct VerifierResult: Codable, Identifiable {
+    var id: String
+    var type: String?
+    var status: String?
+    var evidence: String?
+    var durationMs: Int?
+    var error: String?
 }
 
 struct PlannedAction: Codable, Identifiable {
@@ -183,6 +235,7 @@ struct SessionSummary: Codable {
 
 enum RescuePage: String, CaseIterable, Identifiable {
     case dashboard = "Dashboard"
+    case guided = "Guided Rescue"
     case doctor = "Doctor"
     case brain = "Brain"
     case plan = "Plan"
@@ -193,4 +246,11 @@ enum RescuePage: String, CaseIterable, Identifiable {
     case settings = "Settings"
 
     var id: String { rawValue }
+}
+
+struct GuidedStep: Identifiable {
+    let id = UUID()
+    var title: String
+    var detail: String
+    var status: String
 }

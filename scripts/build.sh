@@ -4,6 +4,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+if ! command -v go >/dev/null 2>&1 && [ -x /tmp/agentlink-go-current/go/bin/go ]; then
+  export PATH="/tmp/agentlink-go-current/go/bin:$PATH"
+fi
+
 if ! command -v go >/dev/null 2>&1; then
   echo "go is required to build agentlink" >&2
   exit 1
@@ -39,4 +43,3 @@ fi
 
 chmod +x bin/agentlink
 echo "built $ROOT/bin/agentlink"
-
