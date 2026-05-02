@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP="$ROOT/dist/Cactus AgentLink Rescue.app"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.3-core-gui.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.4-core-gui.zip"
 INFO="$ROOT/gui/CactusAgentLinkRescue/Sources/CactusAgentLinkRescue/Resources/Info.plist"
 
 cd "$ROOT"

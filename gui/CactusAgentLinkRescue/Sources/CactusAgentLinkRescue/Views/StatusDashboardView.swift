@@ -76,6 +76,10 @@ struct StatusDashboardView: View {
                     state.page = .installer
                 }
                 .buttonStyle(.borderless)
+                Button("Readiness Center") {
+                    state.page = .readiness
+                }
+                .buttonStyle(.borderless)
             }
         }
         .padding(18)

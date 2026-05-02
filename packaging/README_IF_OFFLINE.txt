@@ -1,4 +1,4 @@
-Cactus AgentLink Rescue 0.4.3
+Cactus AgentLink Rescue 0.4.4
 
 1. Put this folder anywhere, for example Downloads.
 2. Double-click agentlink.command.
@@ -60,6 +60,14 @@ Installer Center:
 - Clash Verge Rev can be opened from a cached DMG when using a ProxyKit package.
 - AgentLink does not enable proxy/TUN automatically and does not collect passwords.
 
+Offline Readiness / Last-Good / Support Bundle:
+  ./bin/agentlink readiness doctor
+  ./bin/agentlink dev doctor
+  ./bin/agentlink last-good save
+  ./bin/agentlink support bundle
+- These are limited to AgentLink rescue readiness, known-good AI-tool config, and redacted handoff evidence.
+- They do not index repos, manage project dependency caches, run tests, or generate patches.
+
 Brain Chat Sandbox:
 - Hidden/advanced local Gemma chat for explanations only.
 - It cannot run commands, change settings, or repair the machine.
@@ -71,7 +79,7 @@ GUI mode is a shell:
 - Network rescue safe/standard/deep commands are shown for Terminal copy/paste.
 - The GUI does not implement its own repair engine.
 
-v0.4.3 also includes offline recipe and Brain docs:
+v0.4.4 also includes offline recipe and Brain docs:
 - docs/offline/AGENTLINK_CONSTITUTION.md
 - docs/offline/RECIPE_AUTHORING.md
 - docs/offline/PLANNER_CONTRACT.md
@@ -82,3 +90,6 @@ v0.4.3 also includes offline recipe and Brain docs:
 - docs/offline/INSTALLER_CENTER.md
 - docs/offline/PROXY_RECOVERY_KIT.md
 - docs/offline/BRAIN_CHAT_SANDBOX.md
+- docs/offline/OFFLINE_READINESS_CENTER.md
+- docs/offline/LAST_GOOD_PROFILES.md
+- docs/offline/SUPPORT_BUNDLE.md

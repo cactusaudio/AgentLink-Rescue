@@ -15,17 +15,21 @@ import (
 	"cactus-agentlink-rescue/internal/brain"
 	"cactus-agentlink-rescue/internal/classify"
 	"cactus-agentlink-rescue/internal/command"
+	"cactus-agentlink-rescue/internal/devdoctor"
 	"cactus-agentlink-rescue/internal/diagnose"
 	"cactus-agentlink-rescue/internal/facts"
 	"cactus-agentlink-rescue/internal/guided"
 	"cactus-agentlink-rescue/internal/installer"
+	"cactus-agentlink-rescue/internal/lastgood"
 	"cactus-agentlink-rescue/internal/planner"
+	"cactus-agentlink-rescue/internal/readiness"
 	"cactus-agentlink-rescue/internal/recipe"
 	"cactus-agentlink-rescue/internal/repair"
 	"cactus-agentlink-rescue/internal/report"
 	"cactus-agentlink-rescue/internal/rollback"
 	"cactus-agentlink-rescue/internal/session"
 	"cactus-agentlink-rescue/internal/snapshot"
+	"cactus-agentlink-rescue/internal/supportbundle"
 	"cactus-agentlink-rescue/internal/system"
 	"cactus-agentlink-rescue/internal/verifier"
 	"cactus-agentlink-rescue/internal/verify"
@@ -45,6 +49,14 @@ func Main(args []string, stdout io.Writer, stderr io.Writer) int {
 	runner := command.NewExecRunner()
 	rulesDir := findRulesDir()
 	switch cmd {
+	case "readiness":
+		return runReadiness(ctx, runner, args[1:], stdout, stderr)
+	case "last-good":
+		return runLastGood(ctx, runner, args[1:], stdout, stderr)
+	case "support":
+		return runSupport(ctx, runner, args[1:], stdout, stderr)
+	case "dev":
+		return runDev(ctx, runner, args[1:], stdout, stderr)
 	case "guided":
 		return runGuided(ctx, runner, args[1:], stdout, stderr)
 	case "doctor":
@@ -112,6 +124,199 @@ func runDoctor(ctx context.Context, runner command.Runner, args []string, stdout
 	fmt.Fprintf(stdout, "Likely failures: %s\n", strings.Join(f.LikelyFailures, ", "))
 	fmt.Fprintf(stdout, "Codex config: %s\n", existsText(f.ConfigPaths["codex"].Exists))
 	fmt.Fprintf(stdout, "Proxy env vars: %d\n", len(f.ProxyEnv))
+	return 0
+}
+
+func runReadiness(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 || args[0] != "doctor" {
+		fmt.Fprintln(stderr, "readiness requires doctor")
+		return 50
+	}
+	fs := flag.NewFlagSet("readiness doctor", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	jsonOut := fs.Bool("json", false, "print JSON")
+	if err := fs.Parse(args[1:]); err != nil {
+		return 50
+	}
+	catalog, err := installer.LoadCatalog(installer.FindCatalogPath())
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 30
+	}
+	rep := readiness.Run(ctx, runner, currentHome(ctx, runner), catalog)
+	if *jsonOut {
+		data, _ := json.MarshalIndent(rep, "", "  ")
+		fmt.Fprintln(stdout, string(data))
+		return 0
+	}
+	fmt.Fprintf(stdout, "Cactus AgentLink Rescue %s Offline Readiness\n\n", system.Version)
+	fmt.Fprintf(stdout, "Status: %s\n", rep.Status)
+	for _, c := range rep.Checks {
+		fmt.Fprintf(stdout, "- %s: %s (%s)\n", c.Title, c.Status, c.Evidence)
+	}
+	if len(rep.NextActions) > 0 {
+		fmt.Fprintln(stdout, "\nNext actions:")
+		for _, a := range rep.NextActions {
+			fmt.Fprintf(stdout, "- %s\n", a)
+		}
+	}
+	return 0
+}
+
+func runDev(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 || args[0] != "doctor" {
+		fmt.Fprintln(stderr, "dev requires doctor")
+		return 50
+	}
+	fs := flag.NewFlagSet("dev doctor", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	jsonOut := fs.Bool("json", false, "print JSON")
+	if err := fs.Parse(args[1:]); err != nil {
+		return 50
+	}
+	rep := devdoctor.Run(ctx, runner, system.Version)
+	if *jsonOut {
+		data, _ := json.MarshalIndent(rep, "", "  ")
+		fmt.Fprintln(stdout, string(data))
+		return 0
+	}
+	fmt.Fprintf(stdout, "Cactus AgentLink Rescue %s Dev Essentials Doctor\n\n", system.Version)
+	fmt.Fprintf(stdout, "Status: %s\n", rep.Status)
+	for _, tool := range rep.Tools {
+		fmt.Fprintf(stdout, "- %s: %s\n", tool.Name, tool.Status)
+	}
+	return 0
+}
+
+func runLastGood(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		fmt.Fprintln(stderr, "last-good requires save, list, inspect, or restore")
+		return 50
+	}
+	home := currentHome(ctx, runner)
+	switch args[0] {
+	case "save":
+		fs := flag.NewFlagSet("last-good save", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		name := fs.String("name", "", "profile name")
+		jsonOut := fs.Bool("json", false, "print JSON")
+		if err := fs.Parse(args[1:]); err != nil {
+			return 50
+		}
+		rep := lastgood.Save(ctx, runner, lastgood.Options{Home: home, Version: system.Version, Name: *name})
+		return printLastGood(rep, *jsonOut, stdout, stderr)
+	case "list":
+		fs := flag.NewFlagSet("last-good list", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		jsonOut := fs.Bool("json", false, "print JSON")
+		if err := fs.Parse(args[1:]); err != nil {
+			return 50
+		}
+		rep := lastgood.List(home, system.Version)
+		return printLastGood(rep, *jsonOut, stdout, stderr)
+	case "inspect":
+		fs := flag.NewFlagSet("last-good inspect", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		jsonOut := fs.Bool("json", false, "print JSON")
+		parseArgs := args[1:]
+		id := ""
+		if len(parseArgs) > 0 && !strings.HasPrefix(parseArgs[0], "-") {
+			id = parseArgs[0]
+			parseArgs = parseArgs[1:]
+		}
+		if err := fs.Parse(parseArgs); err != nil {
+			return 50
+		}
+		if id == "" && fs.NArg() == 1 {
+			id = fs.Arg(0)
+		}
+		if id == "" {
+			fmt.Fprintln(stderr, "last-good inspect requires id")
+			return 50
+		}
+		rep := lastgood.Inspect(home, id, system.Version)
+		return printLastGood(rep, *jsonOut, stdout, stderr)
+	case "restore":
+		fs := flag.NewFlagSet("last-good restore", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		jsonOut := fs.Bool("json", false, "print JSON")
+		yes := fs.Bool("yes", false, "restore saved config files")
+		last := fs.Bool("last", false, "restore latest profile")
+		idFlag := fs.String("id", "", "profile id")
+		if err := fs.Parse(args[1:]); err != nil {
+			return 50
+		}
+		rep := lastgood.Restore(ctx, runner, lastgood.Options{Home: home, Version: system.Version, ID: *idFlag, Last: *last, Yes: *yes})
+		return printLastGood(rep, *jsonOut, stdout, stderr)
+	default:
+		fmt.Fprintln(stderr, "unknown last-good subcommand")
+		return 50
+	}
+}
+
+func printLastGood(rep lastgood.Report, jsonOut bool, stdout, stderr io.Writer) int {
+	if jsonOut {
+		data, _ := json.MarshalIndent(rep, "", "  ")
+		fmt.Fprintln(stdout, string(data))
+	} else {
+		fmt.Fprintf(stdout, "Last-good %s: %s\n", rep.Action, rep.Status)
+		if rep.ProfileID != "" {
+			fmt.Fprintf(stdout, "Profile: %s\n", rep.ProfileID)
+		}
+		if rep.ProfilePath != "" {
+			fmt.Fprintf(stdout, "Path: %s\n", rep.ProfilePath)
+		}
+		for _, item := range rep.SavedItems {
+			if item.OriginalPath != "" {
+				fmt.Fprintf(stdout, "- %s %s\n", item.ID, item.OriginalPath)
+			}
+		}
+		if rep.SnapshotID != "" {
+			fmt.Fprintf(stdout, "Rollback: agentlink restore last\n")
+		}
+		if rep.NextAction != "" {
+			fmt.Fprintf(stdout, "Next: %s\n", rep.NextAction)
+		}
+	}
+	if rep.Status == "failed" {
+		for _, w := range rep.Warnings {
+			fmt.Fprintln(stderr, w)
+		}
+		return 30
+	}
+	return 0
+}
+
+func runSupport(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 || args[0] != "bundle" {
+		fmt.Fprintln(stderr, "support requires bundle")
+		return 50
+	}
+	fs := flag.NewFlagSet("support bundle", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	jsonOut := fs.Bool("json", false, "print JSON")
+	output := fs.String("output", "", "bundle zip path")
+	if err := fs.Parse(args[1:]); err != nil {
+		return 50
+	}
+	catalog, err := installer.LoadCatalog(installer.FindCatalogPath())
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 30
+	}
+	rep := supportbundle.Create(ctx, runner, currentHome(ctx, runner), *output, catalog)
+	if *jsonOut {
+		data, _ := json.MarshalIndent(rep, "", "  ")
+		fmt.Fprintln(stdout, string(data))
+	} else {
+		fmt.Fprintf(stdout, "Support bundle: %s\nStatus: %s\n", rep.BundlePath, rep.Status)
+		for _, f := range rep.Files {
+			fmt.Fprintf(stdout, "- %s\n", f)
+		}
+	}
+	if rep.Status == "failed" {
+		return 30
+	}
 	return 0
 }
 
@@ -1215,6 +1420,11 @@ func findScript(name string) string {
 func usage(w io.Writer) {
 	fmt.Fprintln(w, "Usage:")
 	fmt.Fprintln(w, "  agentlink doctor [--json]")
+	fmt.Fprintln(w, "  agentlink readiness doctor [--json]")
+	fmt.Fprintln(w, "  agentlink last-good save [--name NAME] [--json]")
+	fmt.Fprintln(w, "  agentlink last-good list|inspect|restore [--id ID] [--last] [--yes] [--json]")
+	fmt.Fprintln(w, "  agentlink support bundle [--output PATH] [--json]")
+	fmt.Fprintln(w, "  agentlink dev doctor [--json]")
 	fmt.Fprintln(w, "  agentlink snapshot")
 	fmt.Fprintln(w, "  agentlink diff [--snapshot ID]")
 	fmt.Fprintln(w, "  agentlink restore last")

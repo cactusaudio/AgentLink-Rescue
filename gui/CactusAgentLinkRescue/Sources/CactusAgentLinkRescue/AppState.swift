@@ -47,6 +47,14 @@ final class AppState: ObservableObject {
     @Published var installerDoctor: InstallerDoctorReport?
     @Published var installerResult: CommandResult?
     @Published var installerActionReport: InstallerReport?
+    @Published var readiness: ReadinessReport?
+    @Published var readinessResult: CommandResult?
+    @Published var devEssentials: DevEssentialsReport?
+    @Published var devEssentialsResult: CommandResult?
+    @Published var lastGood: LastGoodReport?
+    @Published var lastGoodResult: CommandResult?
+    @Published var supportBundle: SupportBundleReport?
+    @Published var supportBundleResult: CommandResult?
     @Published var brainSandboxPresented = false
     @Published var brainChatPrompt = ""
     @Published var brainChatReport: BrainChatReport?
@@ -83,6 +91,7 @@ final class AppState: ObservableObject {
         await runDoctor()
         await runBrainDoctor()
         await runInstallerDoctor()
+        await runReadiness()
         await loadReports()
     }
 
@@ -218,6 +227,68 @@ final class AppState: ObservableObject {
             latestResult = result
             installerResult = result
             installerDoctor = decoded
+            appendLog(result)
+        }
+    }
+
+    func runReadiness() async {
+        await runGuarded(mutating: false) {
+            let (result, decoded) = await client.runJSON(ReadinessReport.self, args: ["readiness", "doctor", "--json"], timeout: 90)
+            latestResult = result
+            readinessResult = result
+            readiness = decoded
+            appendLog(result)
+        }
+    }
+
+    func runDevEssentials() async {
+        await runGuarded(mutating: false) {
+            let (result, decoded) = await client.runJSON(DevEssentialsReport.self, args: ["dev", "doctor", "--json"], timeout: 30)
+            latestResult = result
+            devEssentialsResult = result
+            devEssentials = decoded
+            appendLog(result)
+        }
+    }
+
+    func saveLastGood() async {
+        await runGuarded(mutating: false) {
+            let (result, decoded) = await client.runJSON(LastGoodReport.self, args: ["last-good", "save", "--json"], timeout: 30)
+            latestResult = result
+            lastGoodResult = result
+            lastGood = decoded
+            appendLog(result)
+        }
+    }
+
+    func listLastGood() async {
+        await runGuarded(mutating: false) {
+            let (result, decoded) = await client.runJSON(LastGoodReport.self, args: ["last-good", "list", "--json"], timeout: 20)
+            latestResult = result
+            lastGoodResult = result
+            lastGood = decoded
+            appendLog(result)
+        }
+    }
+
+    func restoreLastGood() async {
+        await runGuarded(mutating: true) {
+            let (result, decoded) = await client.runJSON(LastGoodReport.self, args: ["last-good", "restore", "--last", "--yes", "--json"], timeout: 90)
+            latestResult = result
+            lastGoodResult = result
+            lastGood = decoded
+            rollbackAvailable = decoded?.rollbackAvailable == true
+            appendLog(result)
+            await loadReports()
+        }
+    }
+
+    func createSupportBundle() async {
+        await runGuarded(mutating: false) {
+            let (result, decoded) = await client.runJSON(SupportBundleReport.self, args: ["support", "bundle", "--json"], timeout: 120)
+            latestResult = result
+            supportBundleResult = result
+            supportBundle = decoded
             appendLog(result)
         }
     }

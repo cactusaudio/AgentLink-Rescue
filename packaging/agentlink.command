@@ -6,7 +6,7 @@ BIN="$ROOT/bin/agentlink"
 FALLBACK="$ROOT/rescue.sh"
 
 clear
-echo "Cactus AgentLink Rescue 0.4.3"
+echo "Cactus AgentLink Rescue 0.4.4"
 echo
 
 xattr -cr "$ROOT" 2>/dev/null || true
@@ -50,20 +50,23 @@ echo
 while true; do
   echo "Choose an action:"
   echo "  1. Guided Rescue Analyze"
-  echo "  2. Doctor"
-  echo "  3. Brain Doctor"
-  echo "  4. Brain Selftest"
-  echo "  5. Brain Plan"
-  echo "  6. Brain Auto Repair Dry-Run"
-  echo "  7. Installer Center Doctor"
-  echo "  8. Brain Chat Sandbox"
-  echo "  9. Network Rescue Safe"
-  echo "  10. Network Rescue Standard"
-  echo "  11. Repair PATH"
-  echo "  12. Proxy Detect"
-  echo "  13. Codex Config Doctor"
-  echo "  14. Rollback Last"
-  echo "  15. Exit"
+  echo "  2. Readiness Center"
+  echo "  3. Save Last-Good Profile"
+  echo "  4. Create Support Bundle"
+  echo "  5. Doctor"
+  echo "  6. Brain Doctor"
+  echo "  7. Brain Selftest"
+  echo "  8. Brain Plan"
+  echo "  9. Brain Auto Repair Dry-Run"
+  echo "  10. Installer Center Doctor"
+  echo "  11. Brain Chat Sandbox"
+  echo "  12. Network Rescue Safe"
+  echo "  13. Network Rescue Standard"
+  echo "  14. Repair PATH"
+  echo "  15. Proxy Detect"
+  echo "  16. Codex Config Doctor"
+  echo "  17. Rollback Last"
+  echo "  18. Exit"
   printf "> "
   read -r choice
   case "$choice" in
@@ -72,43 +75,55 @@ while true; do
       break
       ;;
     2)
-      "$BIN" doctor
+      "$BIN" readiness doctor
       break
       ;;
     3)
-      "$BIN" brain doctor
+      "$BIN" last-good save
       break
       ;;
     4)
-      "$BIN" brain selftest
+      "$BIN" support bundle
       break
       ;;
     5)
-      "$BIN" brain plan --target path
+      "$BIN" doctor
       break
       ;;
     6)
-      "$BIN" repair --auto --brain --target path --dry-run
+      "$BIN" brain doctor
       break
       ;;
     7)
-      "$BIN" installer doctor
+      "$BIN" brain selftest
       break
       ;;
     8)
+      "$BIN" brain plan --target path
+      break
+      ;;
+    9)
+      "$BIN" repair --auto --brain --target path --dry-run
+      break
+      ;;
+    10)
+      "$BIN" installer doctor
+      break
+      ;;
+    11)
       read -r -p "Brain prompt: " prompt
       "$BIN" brain chat --prompt "$prompt"
       break
       ;;
-    9)
+    12)
       sudo "$BIN" rescue --level safe
       break
       ;;
-    10)
+    13)
       sudo "$BIN" rescue --level standard
       break
       ;;
-    11)
+    14)
       echo "PATH repair writes a managed block to ~/.zshrc and creates a rollback snapshot."
       read -r -p "Type YES to continue: " confirm
       if [ "$confirm" = "YES" ]; then
@@ -118,19 +133,19 @@ while true; do
       fi
       break
       ;;
-    12)
+    15)
       "$BIN" proxy detect
       break
       ;;
-    13)
+    16)
       "$BIN" config doctor
       break
       ;;
-    14)
+    17)
       "$BIN" restore last || sudo "$BIN" rollback --last
       break
       ;;
-    15)
+    18)
       exit 0
       ;;
     *)

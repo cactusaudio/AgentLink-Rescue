@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.3-core.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.4-core.zip"
 
 if [ ! -f "$ZIP" ]; then
   "$ROOT/scripts/package.sh"

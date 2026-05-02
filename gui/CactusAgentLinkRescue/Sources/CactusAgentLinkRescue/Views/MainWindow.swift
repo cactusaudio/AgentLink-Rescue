@@ -12,6 +12,7 @@ struct MainWindow: View {
                 case .dashboard: StatusDashboardView()
                 case .guided: GuidedRescueView()
                 case .installer: InstallerCenterView()
+                case .readiness: ReadinessCenterView()
                 case .doctor: DoctorView()
                 case .brain: BrainView()
                 case .plan: PlanView()
@@ -34,7 +35,7 @@ struct MainWindow: View {
 
 struct SidebarView: View {
     @EnvironmentObject var state: AppState
-    private let mainPages: [RescuePage] = [.dashboard, .guided, .installer, .reports, .settings]
+    private let mainPages: [RescuePage] = [.dashboard, .guided, .readiness, .installer, .reports, .settings]
     private let advancedPages: [RescuePage] = [.doctor, .brain, .plan, .dryRun, .rescue, .rollback]
 
     var body: some View {
@@ -60,6 +61,7 @@ struct SidebarView: View {
         case .dashboard: return "gauge.with.dots.needle.50percent"
         case .guided: return "sparkles.rectangle.stack"
         case .installer: return "square.and.arrow.down.on.square"
+        case .readiness: return "checklist.checked"
         case .doctor: return "stethoscope"
         case .brain: return "brain.head.profile"
         case .plan: return "list.bullet.clipboard"

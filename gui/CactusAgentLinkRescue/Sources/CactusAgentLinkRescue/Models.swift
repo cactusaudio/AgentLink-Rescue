@@ -287,10 +287,99 @@ struct InstallerVerifyResult: Codable, Identifiable {
     var error: String?
 }
 
+struct ReadinessReport: Codable {
+    var schemaVersion: Int?
+    var toolVersion: String?
+    var status: String?
+    var checks: [ReadinessCheck]?
+    var warnings: [String]?
+    var nextActions: [String]?
+}
+
+struct ReadinessCheck: Codable, Identifiable {
+    var id: String
+    var title: String?
+    var status: String?
+    var evidence: String?
+    var action: String?
+}
+
+struct DevEssentialsReport: Codable {
+    var schemaVersion: Int?
+    var toolVersion: String?
+    var status: String?
+    var tools: [DevToolCheck]?
+    var warnings: [String]?
+    var nextActions: [String]?
+}
+
+struct DevToolCheck: Codable, Identifiable {
+    var id: String
+    var name: String?
+    var required: Bool?
+    var installed: Bool?
+    var path: String?
+    var version: String?
+    var status: String?
+}
+
+struct LastGoodReport: Codable {
+    var schemaVersion: Int?
+    var toolVersion: String?
+    var action: String?
+    var status: String?
+    var profileID: String?
+    var profilePath: String?
+    var savedItems: [LastGoodItem]?
+    var profiles: [LastGoodProfile]?
+    var snapshotID: String?
+    var snapshotPath: String?
+    var rollbackAvailable: Bool?
+    var warnings: [String]?
+    var nextAction: String?
+}
+
+struct LastGoodProfile: Codable, Identifiable {
+    var id: String { profileID }
+    var profileID: String
+    var name: String?
+    var createdAt: String?
+    var home: String?
+    var items: [LastGoodItem]?
+
+    enum CodingKeys: String, CodingKey {
+        case profileID = "id"
+        case name
+        case createdAt
+        case home
+        case items
+    }
+}
+
+struct LastGoodItem: Codable, Identifiable {
+    var id: String
+    var kind: String?
+    var originalPath: String?
+    var storedPath: String?
+    var exists: Bool?
+    var sha256: String?
+    var restorable: Bool?
+}
+
+struct SupportBundleReport: Codable {
+    var schemaVersion: Int?
+    var toolVersion: String?
+    var status: String?
+    var bundlePath: String?
+    var files: [String]?
+    var warnings: [String]?
+}
+
 enum RescuePage: String, CaseIterable, Identifiable {
     case dashboard = "Dashboard"
     case guided = "Guided Rescue"
     case installer = "Installer Center"
+    case readiness = "Readiness Center"
     case doctor = "Doctor"
     case brain = "Brain"
     case plan = "Plan"

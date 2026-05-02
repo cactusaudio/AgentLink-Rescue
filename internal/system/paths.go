@@ -34,6 +34,14 @@ func UserRestorePointsDir(home string) string {
 	return filepath.Join(home, "Library", "Application Support", AppName, "restore-points")
 }
 
+func UserLastGoodDir(home string) string {
+	return filepath.Join(home, "Library", "Application Support", AppName, "last-good")
+}
+
+func UserSupportBundleDir(home string) string {
+	return filepath.Join(home, "Library", "Application Support", AppName, "support-bundles")
+}
+
 func SystemBaseDir() string {
 	return filepath.Join(string(os.PathSeparator), "Library", "Application Support", AppName)
 }
