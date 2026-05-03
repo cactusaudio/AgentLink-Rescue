@@ -36,11 +36,13 @@ func Run(ctx context.Context, runner command.Runner, catalog Catalog, opts Optio
 	if !ok {
 		return Report{}, fmt.Errorf("unknown installer: %s", opts.ID)
 	}
-	method, ok := in.Method(opts.Method)
+	methodStatuses := methodStatuses(in)
+	method, ok := selectMethod(in, opts.Method, methodStatuses)
 	if !ok {
 		return Report{}, fmt.Errorf("installer %s method not found: %s", opts.ID, opts.Method)
 	}
 	rep := baseReport(in, method, opts.Version)
+	rep.MethodStatuses = methodStatuses
 	rep.AssetPath = assetPathFor(in.ID)
 	rep.OfficialURL = officialURLFor(method, in)
 	if in.ID == "clash-verge-rev" && rep.AssetPath == "" {
@@ -53,12 +55,15 @@ func Run(ctx context.Context, runner command.Runner, catalog Catalog, opts Optio
 		if installed {
 			rep.Status = "installed"
 			rep.NextAction = "No install needed."
-		} else if missingRequiredDependency(in) {
+		} else if in.ID == "codex-app" {
+			rep.Status = "manual_action_required"
+			rep.NextAction = "Open the official Codex App page and complete install manually."
+		} else if !anyMethodAvailable(methodStatuses) {
 			rep.Status = "missing_dependency"
-			rep.NextAction = dependencyHelp(in)
+			rep.NextAction = methodDependencyHelp(methodStatuses)
 		} else {
 			rep.Status = "available"
-			rep.NextAction = "Run installer dry-run before installing."
+			rep.NextAction = "Run installer dry-run before installing. Selected method: " + method.ID
 		}
 	case ActionDryRun:
 		rep.Status = "dry_run"
@@ -171,6 +176,12 @@ func runInstall(ctx context.Context, runner command.Runner, in Installer, m Meth
 		rep.NextAction = "No deterministic install command is available."
 		return rep, nil
 	}
+	status := methodStatusByID(rep.MethodStatuses, m.ID)
+	if !status.Available {
+		rep.Status = "missing_dependency"
+		rep.NextAction = "Selected method missing dependencies: " + strings.Join(status.MissingDependencies, ", ")
+		return rep, fmt.Errorf("selected method missing dependencies: %s", strings.Join(status.MissingDependencies, ", "))
+	}
 	path, args := resolveCommand(m.Command)
 	if path == "" {
 		rep.Status = "missing_dependency"
@@ -245,7 +256,13 @@ func resolveCommand(cmd []string) (string, []string) {
 	return path, append([]string(nil), cmd[1:]...)
 }
 
+var commandPathLookup = defaultCommandPath
+
 func commandPath(name string) string {
+	return commandPathLookup(name)
+}
+
+func defaultCommandPath(name string) string {
 	if name == "" {
 		return ""
 	}
@@ -266,28 +283,6 @@ func commandPath(name string) string {
 	return ""
 }
 
-func missingRequiredDependency(in Installer) bool {
-	for _, d := range in.Dependencies {
-		if d.Required && commandPath(d.Command) == "" {
-			return true
-		}
-	}
-	return false
-}
-
-func dependencyHelp(in Installer) string {
-	var missing []string
-	for _, d := range in.Dependencies {
-		if d.Required && commandPath(d.Command) == "" {
-			missing = append(missing, d.Command)
-		}
-	}
-	if len(missing) == 0 {
-		return ""
-	}
-	return "Missing required dependency: " + strings.Join(missing, ", ")
-}
-
 func anyVerificationPass(results []VerifyResult) bool {
 	for _, r := range results {
 		if r.Status == "pass" {
@@ -295,6 +290,93 @@ func anyVerificationPass(results []VerifyResult) bool {
 		}
 	}
 	return false
+}
+
+func selectMethod(in Installer, requested string, statuses []MethodStatus) (Method, bool) {
+	if requested != "" {
+		return in.Method(requested)
+	}
+	if in.DefaultMethod != "" && methodStatusByID(statuses, in.DefaultMethod).Available {
+		return in.Method(in.DefaultMethod)
+	}
+	for _, status := range statuses {
+		if status.Available {
+			return in.Method(status.ID)
+		}
+	}
+	return in.Method(in.DefaultMethod)
+}
+
+func methodStatuses(in Installer) []MethodStatus {
+	var out []MethodStatus
+	for _, m := range in.Methods {
+		st := MethodStatus{ID: m.ID, Type: m.Type, Available: true}
+		if len(m.Command) > 0 {
+			path, args := resolveCommand(m.Command)
+			st.Command = CommandPlan{Display: command.Render(path, args...), Path: path, Args: args, Mutates: mutates(m.Type)}
+		}
+		for _, dep := range methodDependencies(in, m) {
+			if commandPath(dep) == "" {
+				st.Available = false
+				st.MissingDependencies = append(st.MissingDependencies, dep)
+			}
+		}
+		out = append(out, st)
+	}
+	return out
+}
+
+func methodDependencies(in Installer, m Method) []string {
+	deps := []string{}
+	switch m.Type {
+	case "npm":
+		deps = append(deps, "node", "npm")
+	case "homebrew":
+		deps = append(deps, "brew")
+	case "official_url":
+		deps = append(deps, "/usr/bin/open")
+	case "embedded_dmg":
+		deps = append(deps, "/usr/bin/open")
+	}
+	for _, dep := range in.Dependencies {
+		if dep.Required && !containsExact(deps, dep.Command) {
+			if m.Type == "npm" || len(in.Methods) == 1 {
+				deps = append(deps, dep.Command)
+			}
+		}
+	}
+	return deps
+}
+
+func anyMethodAvailable(statuses []MethodStatus) bool {
+	for _, st := range statuses {
+		if st.Available {
+			return true
+		}
+	}
+	return false
+}
+
+func methodStatusByID(statuses []MethodStatus, id string) MethodStatus {
+	for _, st := range statuses {
+		if st.ID == id {
+			return st
+		}
+	}
+	return MethodStatus{ID: id}
+}
+
+func methodDependencyHelp(statuses []MethodStatus) string {
+	var parts []string
+	for _, st := range statuses {
+		if !st.Available {
+			parts = append(parts, st.ID+" missing "+strings.Join(st.MissingDependencies, ", "))
+		}
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return "No supported install method is currently available: " + strings.Join(parts, "; ")
 }
 
 func dryRunNextAction(in Installer, m Method) string {

@@ -53,6 +53,7 @@ type SavedItem struct {
 	StoredPath   string `json:"storedPath,omitempty"`
 	Exists       bool   `json:"exists"`
 	SHA256       string `json:"sha256,omitempty"`
+	Mode         string `json:"mode,omitempty"`
 	Restorable   bool   `json:"restorable"`
 }
 
@@ -183,7 +184,8 @@ func Restore(ctx context.Context, runner command.Runner, opts Options) Report {
 		rep.NextAction = "Run last-good restore --id " + m.ID + " --yes to restore saved config files."
 		return rep
 	}
-	targets := originalPaths(m)
+	profileRoot := filepath.Join(system.UserLastGoodDir(home), filepath.Base(id))
+	targets := originalPaths(home, profileRoot, m)
 	rp, err := snapshot.NewRestorePointWithPolicy(system.UserRestorePointsDir(home), version, system.MutationOptions{RealUserHome: home, ExtraAllowedPaths: targets})
 	if err != nil {
 		rep.Status = "failed"
@@ -192,6 +194,10 @@ func Restore(ctx context.Context, runner command.Runner, opts Options) Report {
 	}
 	for _, item := range m.Items {
 		if !item.Restorable || item.OriginalPath == "" || item.StoredPath == "" || !system.Exists(item.StoredPath) {
+			continue
+		}
+		if err := validateRestoreItem(home, profileRoot, item); err != nil {
+			rep.Warnings = append(rep.Warnings, "skipping "+item.ID+": "+safety.RedactSensitive(err.Error()))
 			continue
 		}
 		if system.Exists(item.OriginalPath) {
@@ -212,11 +218,18 @@ func Restore(ctx context.Context, runner command.Runner, opts Options) Report {
 			rep.Warnings = append(rep.Warnings, err.Error())
 			continue
 		}
-		if err := os.WriteFile(item.OriginalPath, data, 0644); err != nil {
+		mode := restoreMode(item)
+		if err := os.WriteFile(item.OriginalPath, data, mode); err != nil {
 			rep.Warnings = append(rep.Warnings, err.Error())
 			continue
 		}
+		_ = os.Chmod(item.OriginalPath, mode)
 		rep.SavedItems = append(rep.SavedItems, item)
+	}
+	if len(rep.SavedItems) == 0 {
+		rep.Status = "failed"
+		rep.Warnings = append(rep.Warnings, "no valid last-good entries restored")
+		return rep
 	}
 	rep.Status = "restored"
 	rep.SnapshotID = rp.Manifest.ID
@@ -262,6 +275,7 @@ func saveItem(root string, spec itemSpec) SavedItem {
 		item.Restorable = false
 		return item
 	}
+	item.Mode = fmt.Sprintf("%04o", uint32(info.Mode().Perm()))
 	stored := filepath.Join(root, "files", strings.TrimPrefix(filepath.Clean(spec.path), string(os.PathSeparator)))
 	if err := os.MkdirAll(filepath.Dir(stored), 0755); err != nil {
 		item.Restorable = false
@@ -304,12 +318,70 @@ func restorableItems(m Manifest) []SavedItem {
 	return out
 }
 
-func originalPaths(m Manifest) []string {
+func originalPaths(home, profileRoot string, m Manifest) []string {
 	var out []string
 	for _, item := range m.Items {
-		if item.Restorable && item.OriginalPath != "" {
+		if item.Restorable && item.OriginalPath != "" && validateRestoreItem(home, profileRoot, item) == nil {
 			out = append(out, item.OriginalPath)
 		}
 	}
 	return out
+}
+
+func validateRestoreItem(home, profileRoot string, item SavedItem) error {
+	allowed, err := allowedConfigPaths(home)
+	if err != nil {
+		return err
+	}
+	original := filepath.Clean(item.OriginalPath)
+	if original != item.OriginalPath || !filepath.IsAbs(original) {
+		return fmt.Errorf("refusing ambiguous restore path: %s", item.OriginalPath)
+	}
+	if !allowed[original] {
+		return fmt.Errorf("restore path outside AI config allowlist: %s", original)
+	}
+	stored := filepath.Clean(item.StoredPath)
+	if stored != item.StoredPath || !filepath.IsAbs(stored) {
+		return fmt.Errorf("refusing ambiguous stored path: %s", item.StoredPath)
+	}
+	root := filepath.Clean(profileRoot)
+	rel, err := filepath.Rel(root, stored)
+	if err != nil || rel == "." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) || rel == ".." || filepath.IsAbs(rel) {
+		return fmt.Errorf("stored path outside selected profile: %s", stored)
+	}
+	return nil
+}
+
+func allowedConfigPaths(home string) (map[string]bool, error) {
+	if home == "" {
+		return nil, fmt.Errorf("home is required")
+	}
+	cleanHome := filepath.Clean(home)
+	if !filepath.IsAbs(cleanHome) {
+		return nil, fmt.Errorf("home must be absolute")
+	}
+	out := map[string]bool{}
+	for _, spec := range itemSpecs(cleanHome) {
+		clean := filepath.Clean(spec.path)
+		rel, err := filepath.Rel(cleanHome, clean)
+		if err != nil || rel == "." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) || rel == ".." || filepath.IsAbs(rel) {
+			return nil, fmt.Errorf("configured path outside home: %s", clean)
+		}
+		out[clean] = true
+	}
+	return out, nil
+}
+
+func restoreMode(item SavedItem) os.FileMode {
+	if item.Mode == "" {
+		return 0600
+	}
+	var mode uint32
+	if _, err := fmt.Sscanf(item.Mode, "%o", &mode); err != nil {
+		return 0600
+	}
+	if mode == 0 {
+		return 0600
+	}
+	return os.FileMode(mode) & 0777
 }

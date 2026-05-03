@@ -1,6 +1,6 @@
 # GUI Dogfood
 
-v0.4.4 focuses on native GUI dogfood hardening.
+v0.4.5 focuses on native GUI dogfood hardening.
 
 Recommended checks:
 
@@ -17,7 +17,7 @@ Recommended checks:
 11. Confirm Network Rescue Advanced only presents copyable sudo commands.
 12. Confirm Settings shows package-local paths and redaction enabled.
 
-Screenshot evidence for v0.4.4 lives under:
+Screenshot evidence for v0.4.5 lives under:
 
-- `docs/gui-dogfood/v0.4.4/before/`
-- `docs/gui-dogfood/v0.4.4/after/`
+- `docs/gui-dogfood/v0.4.5/before/`
+- `docs/gui-dogfood/v0.4.5/after/`

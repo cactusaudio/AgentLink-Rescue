@@ -28,7 +28,18 @@ type Report struct {
 	Status        string   `json:"status"`
 	BundlePath    string   `json:"bundlePath"`
 	Files         []string `json:"files"`
+	Categories    []string `json:"categories"`
 	Warnings      []string `json:"warnings,omitempty"`
+}
+
+type Manifest struct {
+	SchemaVersion int      `json:"schemaVersion"`
+	ToolVersion   string   `json:"toolVersion"`
+	CreatedAt     string   `json:"createdAt"`
+	Categories    []string `json:"categories"`
+	Files         []string `json:"files"`
+	Disclosure    string   `json:"disclosure"`
+	Excluded      []string `json:"excluded"`
 }
 
 func Create(ctx context.Context, runner command.Runner, home, output string, catalog installer.Catalog) Report {
@@ -39,7 +50,22 @@ func Create(ctx context.Context, runner command.Runner, home, output string, cat
 		name := "agentlink-support-bundle-" + time.Now().Format("20060102-150405") + ".zip"
 		output = filepath.Join(system.UserSupportBundleDir(home), name)
 	}
-	rep := Report{SchemaVersion: 1, ToolVersion: system.Version, CreatedAt: time.Now().Format(time.RFC3339), Status: "created", BundlePath: output}
+	rep := Report{
+		SchemaVersion: 1,
+		ToolVersion:   system.Version,
+		CreatedAt:     time.Now().Format(time.RFC3339),
+		Status:        "created",
+		BundlePath:    output,
+		Categories: []string{
+			"tool presence",
+			"local paths",
+			"network/proxy status",
+			"readiness reports",
+			"brain/runtime status",
+			"installer status",
+			"latest session metadata",
+		},
+	}
 	if err := os.MkdirAll(filepath.Dir(output), 0755); err != nil {
 		rep.Status = "failed"
 		rep.Warnings = append(rep.Warnings, err.Error())
@@ -65,7 +91,17 @@ func Create(ctx context.Context, runner command.Runner, home, output string, cat
 	} else {
 		rep.Warnings = append(rep.Warnings, "latest session unavailable: "+safety.RedactSensitive(err.Error()))
 	}
-	writeText(&rep, tmp, "README.txt", "Cactus AgentLink Rescue support bundle\nAll files are redacted before writing. No private keys, browser cookies, shell history, or Wi-Fi passwords are collected.\n")
+	manifest := Manifest{
+		SchemaVersion: 1,
+		ToolVersion:   system.Version,
+		CreatedAt:     rep.CreatedAt,
+		Categories:    rep.Categories,
+		Files:         append([]string(nil), rep.Files...),
+		Disclosure:    Disclosure,
+		Excluded:      []string{"private keys", "browser cookies", "shell history", "Wi-Fi passwords", "full API keys"},
+	}
+	writeJSON(&rep, tmp, "support-bundle-manifest.json", manifest)
+	writeText(&rep, tmp, "README.txt", "Cactus AgentLink Rescue support bundle\n"+Disclosure+"\n")
 	if err := zipDir(tmp, output); err != nil {
 		rep.Status = "failed"
 		rep.Warnings = append(rep.Warnings, err.Error())
@@ -73,6 +109,8 @@ func Create(ctx context.Context, runner command.Runner, home, output string, cat
 	}
 	return rep
 }
+
+const Disclosure = "This support bundle contains redacted local diagnostics, including tool presence, local paths, network/proxy status, readiness reports, and latest session metadata. It does not include private keys, browser cookies, shell history, Wi-Fi passwords, or full API keys."
 
 func writeJSON(rep *Report, dir, name string, v any) {
 	data, err := json.MarshalIndent(v, "", "  ")

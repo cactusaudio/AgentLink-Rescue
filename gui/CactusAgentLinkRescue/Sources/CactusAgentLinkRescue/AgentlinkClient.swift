@@ -52,6 +52,12 @@ final class AgentlinkClient {
     func fallbackRescueCommand(level: String) -> String {
         "cd \(shellQuote(packageRoot.path))\nsudo /bin/bash ./rescue.sh \(level)"
     }
+
+    func fieldMode() -> FieldMode? {
+        let url = packageRoot.appendingPathComponent("field-mode.json")
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode(FieldMode.self, from: data)
+    }
 }
 
 enum GUISelftest {
@@ -92,5 +98,37 @@ enum GUISelftest {
     private static func jsonObject(_ text: String) -> Any? {
         guard let data = text.data(using: .utf8) else { return nil }
         return try? JSONSerialization.jsonObject(with: data)
+    }
+
+	static func runLongOutput() -> Int32 {
+		let runner = CommandRunner()
+		let generator = URL(fileURLWithPath: FileManager.default.fileExists(atPath: "/usr/bin/python3") ? "/usr/bin/python3" : "/usr/bin/perl")
+		let marker = "GUI_LONG_OUTPUT_MARKER"
+		let args: [String]
+		if generator.path.hasSuffix("python3") {
+			args = ["-c", "import sys; sys.stdout.write('sk-test-GUI_LONG_OUTPUT_MARKER-' + 'A'*1200000)"]
+		} else {
+			args = ["-e", "print 'sk-test-GUI_LONG_OUTPUT_MARKER-' . ('A' x 1200000)"]
+		}
+		let long = runner.runSync(executable: generator, args: args, timeout: 20)
+		let timeout = runner.runSync(executable: URL(fileURLWithPath: "/bin/sleep"), args: ["2"], timeout: 0.2)
+		let ok = long.succeeded &&
+			long.stdout.contains("[output truncated]") &&
+			!long.stdout.contains(marker) &&
+			timeout.timedOut
+        let summary: [String: Any] = [
+            "ok": ok,
+			"longOutputExitCode": long.exitCode,
+			"longOutputLength": long.stdout.count,
+			"longOutputTruncated": long.stdout.contains("[output truncated]"),
+			"redactionClean": !long.stdout.contains(marker),
+			"timeoutTimedOut": timeout.timedOut,
+			"timeoutExitCode": timeout.exitCode
+		]
+        let data = try? JSONSerialization.data(withJSONObject: summary, options: [.prettyPrinted, .sortedKeys])
+        if let data, let text = String(data: data, encoding: .utf8) {
+            print(redact(text))
+        }
+        return ok ? 0 : 1
     }
 }

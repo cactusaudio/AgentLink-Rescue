@@ -29,12 +29,13 @@ scripts/package.sh
 
 PKG="$ROOT/dist/Cactus-AgentLink-Rescue"
 BIN="$PKG/bin/agentlink"
-CORE_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.4-core.zip"
-BRAIN_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.4-brain-gemma4-e4b-q4km.zip"
-CORE_GUI_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.4-core-gui.zip"
-BRAIN_GUI_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.4-brain-gui-gemma4-e4b-q4km.zip"
+CORE_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.5-core.zip"
+BRAIN_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.5-brain-gemma4-e4b-q4km.zip"
+CORE_GUI_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.5-core-gui.zip"
+BRAIN_GUI_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.5-brain-gui-gemma4-e4b-q4km.zip"
+FIELD_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.5-macbook-field-gui-proxykit.zip"
 
-"$BIN" version | grep '0.4.4'
+"$BIN" version | grep '0.4.5'
 "$BIN" selftest
 "$BIN" doctor --json > /tmp/agentlink-release-doctor.json
 /usr/bin/python3 -m json.tool /tmp/agentlink-release-doctor.json >/dev/null
@@ -46,6 +47,8 @@ BRAIN_GUI_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.4-brain-gui-gemma4-e4b-q4
 /usr/bin/python3 -m json.tool /tmp/agentlink-release-support-bundle.json >/dev/null
 "$BIN" brain doctor --json > /tmp/agentlink-release-brain-doctor.json
 /usr/bin/python3 -m json.tool /tmp/agentlink-release-brain-doctor.json >/dev/null
+"$BIN" field macbook-network-rescue --json > /tmp/agentlink-release-field.json
+/usr/bin/python3 -m json.tool /tmp/agentlink-release-field.json >/dev/null
 "$BIN" recipe list
 "$BIN" recipe inspect codex-deepseek-provider-config
 "$BIN" recipe run codex-deepseek-provider-config --dry-run
@@ -64,6 +67,7 @@ scripts/dogfood_readiness.sh
 scripts/dogfood_installer_center.sh
 scripts/dogfood_gui_core.sh
 scripts/dogfood_gui_screenshots.sh
+# dogfood_gui_core.sh and dogfood_gui_brain.sh include --selftest-gui-long-output.
 
 SOURCE_MODEL="$ROOT/assets/models/gemma-4-E4B-it-Q4_K_M.gguf"
 case "$(uname -m)" in
@@ -78,6 +82,8 @@ if [ -f "$SOURCE_MODEL" ] && [ -x "$SOURCE_LLAMA" ]; then
   scripts/dogfood_runtime_brain.sh
   scripts/dogfood_brain_chat.sh
   scripts/dogfood_gui_brain.sh
+  scripts/package_macbook_field_rescue.sh
+  scripts/dogfood_macbook_field_rescue.sh
   scripts/dogfood_gui_screenshots.sh
 else
   echo "brain assets missing; run scripts/fetch_brain_assets.sh or scripts/package_brain.sh DOWNLOAD=1"
@@ -101,6 +107,10 @@ if unzip -l "$CORE_GUI_ZIP" | grep -E '__MACOSX|\.DS_Store|/\._'; then
 fi
 if [ -f "$BRAIN_GUI_ZIP" ] && unzip -l "$BRAIN_GUI_ZIP" | grep -E '__MACOSX|\.DS_Store|/\._'; then
   echo "brain GUI zip contains Finder metadata" >&2
+  exit 1
+fi
+if [ -f "$FIELD_ZIP" ] && unzip -l "$FIELD_ZIP" | grep -E '__MACOSX|\.DS_Store|/\._'; then
+  echo "MacBook field rescue zip contains Finder metadata" >&2
   exit 1
 fi
 

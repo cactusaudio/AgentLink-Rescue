@@ -216,6 +216,37 @@ struct GuidedCycle: Codable {
     var result: String?
 }
 
+struct FieldMode: Codable {
+    var schemaVersion: Int?
+    var mode: String?
+    var startupView: String?
+    var target: String?
+    var headline: String?
+    var showClashTunShortcut: Bool?
+    var showNetworkRescueCommands: Bool?
+    var showInstallerCenter: Bool?
+    var showBrainStatus: Bool?
+}
+
+struct FieldRescueReport: Codable {
+    var schemaVersion: Int?
+    var toolVersion: String?
+    var fieldMode: String?
+    var diagnosis: FieldDiagnosis?
+    var recommendedAction: String?
+    var commands: [String: String]?
+    var warnings: [String]?
+}
+
+struct FieldDiagnosis: Codable {
+    var classes: [String]?
+    var proxyDirty: Bool?
+    var clashResidueDetected: Bool?
+    var networkExtensionSuspected: Bool?
+    var defaultRouteOK: Bool?
+    var dnsOK: Bool?
+}
+
 struct VerifierResult: Codable, Identifiable {
     var id: String
     var type: String?
@@ -264,11 +295,20 @@ struct InstallerReport: Codable, Identifiable {
     var requiresNetwork: Bool?
     var requiresAdmin: Bool?
     var commands: [InstallerCommandPlan]?
+    var methodStatuses: [InstallerMethodStatus]?
     var verification: [InstallerVerifyResult]?
     var warnings: [String]?
     var assetPath: String?
     var officialURL: String?
     var nextAction: String?
+}
+
+struct InstallerMethodStatus: Codable, Identifiable {
+    var id: String
+    var type: String?
+    var available: Bool?
+    var missingDependencies: [String]?
+    var command: InstallerCommandPlan?
 }
 
 struct InstallerCommandPlan: Codable, Identifiable {
@@ -372,6 +412,7 @@ struct SupportBundleReport: Codable {
     var status: String?
     var bundlePath: String?
     var files: [String]?
+    var categories: [String]?
     var warnings: [String]?
 }
 

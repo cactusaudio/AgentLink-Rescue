@@ -3,6 +3,7 @@ import SwiftUI
 struct ReadinessCenterView: View {
     @EnvironmentObject var state: AppState
     @State private var confirmRestoreLastGood = false
+    @State private var confirmSupportBundle = false
 
     var body: some View {
         ScrollView {
@@ -21,7 +22,7 @@ struct ReadinessCenterView: View {
                     }
                     .disabled(state.isRunning)
                     Button("Support Bundle") {
-                        Task { await state.createSupportBundle() }
+                        confirmSupportBundle = true
                     }
                     .disabled(state.isRunning)
                 }
@@ -47,6 +48,14 @@ struct ReadinessCenterView: View {
             }
         } message: {
             Text("AgentLink will restore saved AI-tool config files only. It creates a user snapshot first and does not run sudo.")
+        }
+        .alert("Export support bundle?", isPresented: $confirmSupportBundle) {
+            Button("Cancel", role: .cancel) {}
+            Button("Export") {
+                Task { await state.createSupportBundle() }
+            }
+        } message: {
+            Text("This support bundle contains redacted local diagnostics, including tool presence, local paths, network/proxy status, readiness reports, and latest session metadata. It does not include private keys, browser cookies, shell history, Wi-Fi passwords, or full API keys.")
         }
     }
 
@@ -117,7 +126,7 @@ struct ReadinessCenterView: View {
             InfoRow(label: "Status", value: state.supportBundle?.status ?? "Not created")
             InfoRow(label: "Path", value: state.supportBundle?.bundlePath ?? "None", monospaced: true)
             Button("Create Support Bundle") {
-                Task { await state.createSupportBundle() }
+                confirmSupportBundle = true
             }
             .disabled(state.isRunning)
         }

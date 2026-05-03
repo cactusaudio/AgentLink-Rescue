@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "mode": "macbook-network-rescue",
+  "startupView": "guided-rescue",
+  "target": "network",
+  "headline": "Fix Clash / TUN Network Breakage",
+  "showClashTunShortcut": true,
+  "showNetworkRescueCommands": true,
+  "showInstallerCenter": true,
+  "showBrainStatus": true
+}

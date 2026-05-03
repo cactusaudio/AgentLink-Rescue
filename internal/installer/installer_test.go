@@ -90,6 +90,51 @@ func TestCodexAppOfficialURLOnly(t *testing.T) {
 	}
 }
 
+func TestInstallerPerMethodDependencySelection(t *testing.T) {
+	tests := []struct {
+		name       string
+		id         string
+		available  map[string]string
+		wantStatus string
+		wantMethod string
+	}{
+		{"codex npm unavailable brew available", "codex-cli", map[string]string{"brew": "/tmp/brew", "codex": "/tmp/codex"}, "available", "homebrew"},
+		{"codex brew unavailable npm available", "codex-cli", map[string]string{"node": "/tmp/node", "npm": "/tmp/npm", "codex": "/tmp/codex"}, "available", "npm"},
+		{"gemini npm unavailable brew available", "gemini-cli", map[string]string{"brew": "/tmp/brew", "gemini": "/tmp/gemini"}, "available", "homebrew"},
+		{"gemini brew unavailable npm available", "gemini-cli", map[string]string{"node": "/tmp/node", "npm": "/tmp/npm", "gemini": "/tmp/gemini"}, "available", "npm"},
+		{"claude npm unavailable", "claude-code-cli", map[string]string{}, "missing_dependency", "npm"},
+	}
+	cat, err := LoadCatalog(filepath.Join("..", "..", "assets", "installers", "catalog.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			old := commandPathLookup
+			commandPathLookup = func(name string) string {
+				if path, ok := tt.available[name]; ok {
+					return path
+				}
+				return ""
+			}
+			defer func() { commandPathLookup = old }()
+			rep, err := Run(context.Background(), &command.MockRunner{}, cat, Options{Action: ActionDoctor, ID: tt.id, Version: "test"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if rep.Status != tt.wantStatus {
+				t.Fatalf("status = %s, want %s; report=%+v", rep.Status, tt.wantStatus, rep)
+			}
+			if rep.Method != tt.wantMethod {
+				t.Fatalf("method = %s, want %s", rep.Method, tt.wantMethod)
+			}
+			if len(rep.MethodStatuses) == 0 {
+				t.Fatal("method statuses missing")
+			}
+		})
+	}
+}
+
 func TestClashArchSelection(t *testing.T) {
 	arch := RuntimeArch()
 	if arch != "arm64" && arch != "amd64" {

@@ -12,6 +12,7 @@ Installer Center restores missing local agent tools from fixed official sources.
 - No silent sudo.
 - No password collection.
 - GUI install buttons call the package-local `bin/agentlink`.
+- Dependency availability is evaluated per method. If npm is missing but Homebrew is available, Codex CLI and Gemini CLI can still be available through the Homebrew method. If Homebrew is missing but npm is available, npm-backed methods can still be available.
 
 ## Supported Installers
 
@@ -33,3 +34,10 @@ Installer Center restores missing local agent tools from fixed official sources.
 ```
 
 Installer Center verifies after install where possible. If verification cannot prove success, the status is `manual_action_required` or `failed`.
+
+Installer status semantics:
+
+- `installed`: verifier already found the tool/app.
+- `available`: at least one official install method is available.
+- `missing_dependency`: no supported method is currently available.
+- `manual_action_required`: a vendor app/download flow requires user action.

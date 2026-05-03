@@ -1,4 +1,4 @@
-Cactus AgentLink Rescue 0.4.4
+Cactus AgentLink Rescue 0.4.5
 
 1. Put this folder anywhere, for example Downloads.
 2. Double-click agentlink.command.
@@ -40,6 +40,14 @@ Core vs Brain package:
   ./scripts/fetch_brain_assets.sh
 - If the Mac is already offline, Core cannot download the model. Use the Brain package instead.
 
+MacBook Field Rescue package:
+- Use Cactus-AgentLink-Rescue-v0.4.5-macbook-field-gui-proxykit.zip when copying to a MacBook whose internet breaks after Clash Verge TUN mode.
+- Unzip it, then double-click RUN-FIRST.command.
+- The app opens in MacBook Network Rescue mode and shows Analyze Network plus copyable Safe/Standard/Deep Terminal commands.
+- The GUI does not run sudo and does not enable Clash proxy/TUN automatically.
+- If the app is blocked, run:
+  xattr -cr "Cactus MacBook Network Rescue"
+
 Brain package offline checks:
   ./bin/agentlink brain doctor
   ./bin/agentlink brain selftest --json
@@ -67,6 +75,8 @@ Offline Readiness / Last-Good / Support Bundle:
   ./bin/agentlink support bundle
 - These are limited to AgentLink rescue readiness, known-good AI-tool config, and redacted handoff evidence.
 - They do not index repos, manage project dependency caches, run tests, or generate patches.
+- Last-Good restore only writes known AI config paths and preserves original permissions when known, defaulting to 0600.
+- Support Bundle is redacted but may include local paths, tool presence, network/proxy status, readiness reports, and latest session metadata.
 
 Brain Chat Sandbox:
 - Hidden/advanced local Gemma chat for explanations only.
@@ -79,7 +89,7 @@ GUI mode is a shell:
 - Network rescue safe/standard/deep commands are shown for Terminal copy/paste.
 - The GUI does not implement its own repair engine.
 
-v0.4.4 also includes offline recipe and Brain docs:
+v0.4.5 also includes offline recipe and Brain docs:
 - docs/offline/AGENTLINK_CONSTITUTION.md
 - docs/offline/RECIPE_AUTHORING.md
 - docs/offline/PLANNER_CONTRACT.md
@@ -93,3 +103,4 @@ v0.4.4 also includes offline recipe and Brain docs:
 - docs/offline/OFFLINE_READINESS_CENTER.md
 - docs/offline/LAST_GOOD_PROFILES.md
 - docs/offline/SUPPORT_BUNDLE.md
+- docs/offline/MACBOOK_FIELD_RESCUE.md

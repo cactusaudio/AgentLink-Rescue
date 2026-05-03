@@ -114,8 +114,11 @@ func TestCodexConfigParseRepairDoesNotWriteRealKey(t *testing.T) {
 	if strings.Contains(string(repaired), "sk-test-secret-value") {
 		t.Fatal("real key written to config")
 	}
-	if !strings.Contains(string(repaired), "model") {
-		t.Fatalf("minimal template not written: %s", repaired)
+	if strings.Contains(string(repaired), "gpt-5.5") || strings.Contains(string(repaired), "model =") {
+		t.Fatalf("parse repair should not write operational model config: %s", repaired)
+	}
+	if !strings.Contains(string(repaired), "Minimal TOML template only") {
+		t.Fatalf("minimal template not written clearly: %s", repaired)
 	}
 }
 

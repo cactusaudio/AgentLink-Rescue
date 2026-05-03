@@ -18,6 +18,7 @@ import (
 	"cactus-agentlink-rescue/internal/devdoctor"
 	"cactus-agentlink-rescue/internal/diagnose"
 	"cactus-agentlink-rescue/internal/facts"
+	"cactus-agentlink-rescue/internal/field"
 	"cactus-agentlink-rescue/internal/guided"
 	"cactus-agentlink-rescue/internal/installer"
 	"cactus-agentlink-rescue/internal/lastgood"
@@ -59,6 +60,8 @@ func Main(args []string, stdout io.Writer, stderr io.Writer) int {
 		return runDev(ctx, runner, args[1:], stdout, stderr)
 	case "guided":
 		return runGuided(ctx, runner, args[1:], stdout, stderr)
+	case "field":
+		return runField(ctx, runner, rulesDir, args[1:], stdout, stderr)
 	case "doctor":
 		return runDoctor(ctx, runner, args[1:], stdout, stderr)
 	case "snapshot":
@@ -585,6 +588,45 @@ func runGuided(ctx context.Context, runner command.Runner, args []string, stdout
 	}
 	if rep.Status == guided.StatusFailed {
 		return 30
+	}
+	return 0
+}
+
+func runField(ctx context.Context, runner command.Runner, rulesDir string, args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 || args[0] != "macbook-network-rescue" {
+		fmt.Fprintln(stderr, "field requires: field macbook-network-rescue")
+		return 50
+	}
+	fs := flag.NewFlagSet("field macbook-network-rescue", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	jsonOut := fs.Bool("json", false, "print JSON")
+	if err := fs.Parse(args[1:]); err != nil {
+		return 50
+	}
+	diag := diagnose.NewEngine(runner, diagnose.Options{RulesDir: rulesDir}).Run(ctx)
+	classify.Apply(&diag)
+	rep := field.MacBookNetworkRescue(system.Version, diag)
+	if *jsonOut {
+		data, _ := json.MarshalIndent(rep, "", "  ")
+		fmt.Fprintln(stdout, string(data))
+		return 0
+	}
+	fmt.Fprintf(stdout, "Cactus AgentLink Rescue %s MacBook Network Rescue\n\n", system.Version)
+	fmt.Fprintf(stdout, "Recommended action: %s\n", rep.RecommendedAction)
+	fmt.Fprintf(stdout, "Classes: %s\n", strings.Join(rep.Diagnosis.Classes, ", "))
+	fmt.Fprintf(stdout, "System proxy dirty: %v\n", rep.Diagnosis.ProxyDirty)
+	fmt.Fprintf(stdout, "Clash/Verge/Mihomo residue: %v\n", rep.Diagnosis.ClashResidueDetected)
+	fmt.Fprintf(stdout, "Network Extension/TUN suspected: %v\n", rep.Diagnosis.NetworkExtensionSuspected)
+	fmt.Fprintf(stdout, "Default route OK: %v\n", rep.Diagnosis.DefaultRouteOK)
+	fmt.Fprintf(stdout, "DNS OK: %v\n\n", rep.Diagnosis.DNSOK)
+	fmt.Fprintln(stdout, "Copyable commands:")
+	for _, key := range []string{"safe", "standard", "deep", "supportBundle"} {
+		if cmd := rep.Commands[key]; cmd != "" {
+			fmt.Fprintf(stdout, "- %s: %s\n", key, cmd)
+		}
+	}
+	for _, warning := range rep.Warnings {
+		fmt.Fprintf(stdout, "Warning: %s\n", warning)
 	}
 	return 0
 }
@@ -1437,6 +1479,7 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "  agentlink keys doctor [--json]")
 	fmt.Fprintln(w, "  agentlink planner validate <decision.json>")
 	fmt.Fprintln(w, "  agentlink guided rescue [--target auto|path|proxy|codex|keys|network] [--dry-run] [--yes] [--json]")
+	fmt.Fprintln(w, "  agentlink field macbook-network-rescue [--json]")
 	fmt.Fprintln(w, "  agentlink brain doctor [--json]")
 	fmt.Fprintln(w, "  agentlink brain fetch [--model gemma-4-e4b-it-q4km] [--runtime llama.cpp]")
 	fmt.Fprintln(w, "  agentlink brain selftest [--json]")

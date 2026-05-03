@@ -8,6 +8,10 @@ struct CactusAgentLinkRescueLauncher {
             let code = GUISelftest.run()
             Foundation.exit(code)
         }
+        if CommandLine.arguments.contains("--selftest-gui-long-output") {
+            let code = GUISelftest.runLongOutput()
+            Foundation.exit(code)
+        }
         let app = NSApplication.shared
         let delegate = CactusAgentLinkRescueDelegate()
         CactusAgentLinkRescueDelegate.retained = delegate

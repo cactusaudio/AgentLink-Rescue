@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.4-core-gui.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.5-core-gui.zip"
 
 scripts/package_gui_core.sh
 
@@ -41,7 +41,7 @@ if find "$PKG/assets/runtimes" -type f -name 'llama-cli' -print | grep .; then
   exit 1
 fi
 
-"$BIN" version | grep '0.4.4'
+"$BIN" version | grep '0.4.5'
 "$BIN" doctor --json > "$TMP/doctor.json"
 /usr/bin/python3 -m json.tool "$TMP/doctor.json" >/dev/null
 AGENTLINK_BRAIN_HOME="$EMPTY_BRAIN_HOME" PATH="/usr/bin:/bin:/usr/sbin:/sbin" "$BIN" brain doctor --json > "$TMP/brain-doctor.json"
@@ -59,8 +59,18 @@ AGENTLINK_BRAIN_HOME="$EMPTY_BRAIN_HOME" PATH="/usr/bin:/bin:/usr/sbin:/sbin" "$
 import json, sys
 res=json.load(open(sys.argv[1]))
 assert res["ok"] is True, res
-assert res["version"].strip() == "agentlink 0.4.4", res
+assert res["version"].strip() == "agentlink 0.4.5", res
 assert res["brainDoctor"]["brainPackAvailable"] is False, res
+PY
+
+"$GUIBIN" --selftest-gui-long-output > "$TMP/gui-long-output-selftest.json"
+/usr/bin/python3 - "$TMP/gui-long-output-selftest.json" <<'PY'
+import json, sys
+res=json.load(open(sys.argv[1]))
+assert res["ok"] is True, res
+assert res["longOutputTruncated"] is True, res
+assert res["redactionClean"] is True, res
+assert res["timeoutTimedOut"] is True, res
 PY
 
 if unzip -l "$ZIP" | grep -E '__MACOSX|\.DS_Store|/\._'; then

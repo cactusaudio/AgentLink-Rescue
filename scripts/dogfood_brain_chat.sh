@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.4-brain-gemma4-e4b-q4km.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.5-brain-gemma4-e4b-q4km.zip"
 
 if [ ! -f "$ZIP" ]; then
   "$ROOT/scripts/package_brain.sh"

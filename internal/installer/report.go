@@ -12,12 +12,21 @@ type Report struct {
 	RequiresNetwork bool             `json:"requiresNetwork"`
 	RequiresAdmin   bool             `json:"requiresAdmin"`
 	Commands        []CommandPlan    `json:"commands"`
+	MethodStatuses  []MethodStatus   `json:"methodStatuses,omitempty"`
 	Verification    []VerifyResult   `json:"verification"`
 	Warnings        []string         `json:"warnings,omitempty"`
 	AssetPath       string           `json:"assetPath,omitempty"`
 	OfficialURL     string           `json:"officialURL,omitempty"`
 	NextAction      string           `json:"nextAction,omitempty"`
 	RawCommands     []command.Result `json:"rawCommands,omitempty"`
+}
+
+type MethodStatus struct {
+	ID                  string      `json:"id"`
+	Type                string      `json:"type"`
+	Available           bool        `json:"available"`
+	MissingDependencies []string    `json:"missingDependencies,omitempty"`
+	Command             CommandPlan `json:"command,omitempty"`
 }
 
 type CommandPlan struct {

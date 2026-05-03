@@ -59,8 +59,24 @@ final class AppState: ObservableObject {
     @Published var brainChatPrompt = ""
     @Published var brainChatReport: BrainChatReport?
     @Published var brainChatResult: CommandResult?
+    @Published var fieldMode: FieldMode?
+    @Published var fieldReport: FieldRescueReport?
+    @Published var fieldResult: CommandResult?
 
-    let client = AgentlinkClient()
+    let client: AgentlinkClient
+
+    init(client: AgentlinkClient = AgentlinkClient()) {
+        self.client = client
+        self.fieldMode = client.fieldMode()
+        if let fieldMode = self.fieldMode {
+            target = fieldMode.target ?? "network"
+            if fieldMode.startupView == "guided-rescue" {
+                page = .guided
+                guidedStatus = "Field mode"
+                guidedSummary = "MacBook Network Rescue mode is active. Analyze the network first; sudo repair commands stay copy-only."
+            }
+        }
+    }
 
     var packageType: String {
         brainDoctor?.brainPackAvailable == true ? "Brain" : "Core"
@@ -91,6 +107,9 @@ final class AppState: ObservableObject {
         await runDoctor()
         await runBrainDoctor()
         await runInstallerDoctor()
+        if fieldMode != nil {
+            await runFieldNetworkSummary()
+        }
         await runReadiness()
         await loadReports()
     }
@@ -177,8 +196,9 @@ final class AppState: ObservableObject {
         }
     }
 
-    func runGuidedRescue(allowRepair: Bool) async {
+    func runGuidedRescue(allowRepair: Bool, target overrideTarget: String? = nil) async {
         await runGuarded(mutating: allowRepair) {
+            let rescueTarget = overrideTarget ?? "auto"
             guidedStatus = "Running"
             guidedSummary = allowRepair ? "AgentLink CLI is running the guided kernel with reversible repairs allowed." : "AgentLink CLI is analyzing and dry-running only. No files will be changed."
             guidedSteps = [GuidedStep(title: "Start", detail: allowRepair ? "Mode: reversible repairs allowed. No sudo or network rescue will be run by the GUI." : "Mode: analyze-only. No mutation is allowed.", status: "running")]
@@ -188,7 +208,7 @@ final class AppState: ObservableObject {
             guidedResult = nil
             guidedReport = nil
 
-            var args = ["guided", "rescue", "--target", "auto", "--json"]
+            var args = ["guided", "rescue", "--target", rescueTarget, "--json"]
             if allowRepair {
                 args.append("--yes")
             } else {
@@ -209,6 +229,21 @@ final class AppState: ObservableObject {
             }
             await loadReports()
         }
+    }
+
+    func runFieldNetworkSummary() async {
+        await runGuarded(mutating: false) {
+            let (result, decoded) = await client.runJSON(FieldRescueReport.self, args: ["field", "macbook-network-rescue", "--json"], timeout: 90)
+            latestResult = result
+            fieldResult = result
+            fieldReport = decoded
+            appendLog(result)
+        }
+    }
+
+    func analyzeFieldNetwork() async {
+        await runFieldNetworkSummary()
+        await runGuidedRescue(allowRepair: false, target: "network")
     }
 
     func rollbackLast() async {
@@ -469,6 +504,14 @@ final class AppState: ObservableObject {
 
     func sudoDeepCommand() -> String {
         client.copyableTerminalCommand(["rescue", "--level", "deep", "--yes"], sudo: true)
+    }
+
+    func fieldRescueCommand(level: String) -> String {
+        var args = ["rescue", "--level", level]
+        if level == "standard" || level == "deep" {
+            args.append("--yes")
+        }
+        return client.copyableTerminalCommand(args, sudo: true)
     }
 
     private func riskAllowedInGUI(_ risk: String?) -> Bool {

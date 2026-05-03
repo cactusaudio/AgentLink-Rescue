@@ -1,6 +1,6 @@
 # Brain Runtime Policy
 
-v0.4.4 Brain mode is bounded:
+v0.4.5 Brain mode is bounded:
 
 - Gemma is controller/planner, not executor.
 - Gemma outputs only `PlannerDecision` JSON.

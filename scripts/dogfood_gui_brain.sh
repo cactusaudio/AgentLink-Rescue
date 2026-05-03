@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.4-brain-gui-gemma4-e4b-q4km.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.5-brain-gui-gemma4-e4b-q4km.zip"
 
 scripts/package_gui_brain.sh
 
@@ -42,7 +42,7 @@ find "$PKG/assets/runtimes" -type f -name 'llama-cli' -print | grep .
 
 ACTUAL_MODEL_SHA="$(/usr/bin/shasum -a 256 "$MODEL" | awk '{print $1}')"
 
-HOME="$TMPHOME" "$BIN" version | grep '0.4.4'
+HOME="$TMPHOME" "$BIN" version | grep '0.4.5'
 HOME="$TMPHOME" "$BIN" brain doctor --json > "$TMP/brain-doctor.json"
 /usr/bin/python3 - "$TMP/brain-doctor.json" <<'PY'
 import json, sys
@@ -77,6 +77,16 @@ res=json.load(open(sys.argv[1]))
 assert res["ok"] is True, res
 assert res["brainDoctor"]["brainPackAvailable"] is True, res
 assert res["brainDoctor"].get("modelFamily") == "gemma", res
+PY
+
+HOME="$TMPHOME" "$GUIBIN" --selftest-gui-long-output > "$TMP/gui-long-output-selftest.json"
+/usr/bin/python3 - "$TMP/gui-long-output-selftest.json" <<'PY'
+import json, sys
+res=json.load(open(sys.argv[1]))
+assert res["ok"] is True, res
+assert res["longOutputTruncated"] is True, res
+assert res["redactionClean"] is True, res
+assert res["timeoutTimedOut"] is True, res
 PY
 
 if grep -R 'THIS_SHOULD_NOT_LEAK' "$TMP" 2>/dev/null; then

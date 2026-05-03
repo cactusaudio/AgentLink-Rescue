@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BIN="$ROOT/dist/Cactus-AgentLink-Rescue/bin/agentlink"
-VERSION="0.4.4"
+VERSION="0.4.5"
 if [ ! -x "$BIN" ]; then
   "$ROOT/scripts/package.sh" >/dev/null
 fi
@@ -38,6 +38,8 @@ print(json.load(open('/tmp/agentlink-support-bundle.json')).get('bundlePath','')
 PY
 )"
 test -f "$BUNDLE"
-unzip -l "$BUNDLE" | grep -q 'offline-readiness.json'
+unzip -Z1 "$BUNDLE" >/tmp/agentlink-support-bundle-files.txt
+grep -q '^offline-readiness.json$' /tmp/agentlink-support-bundle-files.txt
+grep -q '^support-bundle-manifest.json$' /tmp/agentlink-support-bundle-files.txt
 
 echo "readiness/last-good/support dogfood OK"

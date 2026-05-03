@@ -11,7 +11,7 @@ fi
 "$ROOT/scripts/build.sh"
 
 OUT="$ROOT/dist/Cactus-AgentLink-Rescue"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.4-core.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.5-core.zip"
 mkdir -p "$ROOT/dist"
 rm -rf "$OUT"
 rm -f "$ZIP"

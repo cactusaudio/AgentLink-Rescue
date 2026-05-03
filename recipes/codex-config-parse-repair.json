@@ -19,7 +19,7 @@
       "type": "write_file_from_template_with_backup",
       "path": "~/.codex/config.toml",
       "onlyIfTomlMalformed": true,
-      "template": "# Recreated by Cactus AgentLink Rescue.\nmodel = \"gpt-5.5\"\n"
+      "template": "# Recreated by Cactus AgentLink Rescue.\n# Minimal TOML template only. Provider/model compatibility is not proven by parse repair.\n"
     }
   ],
   "verify": [
@@ -32,4 +32,3 @@
   ],
   "docs": ["docs/offline/RECIPE_AUTHORING.md"]
 }
-

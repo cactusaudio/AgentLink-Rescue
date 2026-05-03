@@ -2,7 +2,7 @@
 
 Cactus AgentLink Rescue is an offline, portable, reversible macOS rescue tool for restoring the broken path between a Mac and AI agents such as Codex, Claude, GitHub, and API endpoints.
 
-v0.4.4 adds Offline Readiness Center, Last-Good Profiles, Support Bundle, and Dev Essentials Doctor. These stay inside AgentLink's recovery boundary: restore the AI path, preserve known-good AI-tool state, and export redacted evidence. Gemma 4 E4B-it Q4_K_M remains a bounded planner/controller only: facts go to Gemma, Gemma returns PlannerDecision JSON for repair planning, the validator checks it, and the deterministic recipe runner executes only registered rollback-capable recipes. There is still no telemetry, daemon, privileged helper, SMAppService, RAG, queue, remote mutation, sudo execution in the GUI, or arbitrary shell execution.
+v0.4.5 adds Offline Readiness Center, Last-Good Profiles, Support Bundle, and Dev Essentials Doctor. These stay inside AgentLink's recovery boundary: restore the AI path, preserve known-good AI-tool state, and export redacted evidence. Gemma 4 E4B-it Q4_K_M remains a bounded planner/controller only: facts go to Gemma, Gemma returns PlannerDecision JSON for repair planning, the validator checks it, and the deterministic recipe runner executes only registered rollback-capable recipes. There is still no telemetry, daemon, privileged helper, SMAppService, RAG, queue, remote mutation, sudo execution in the GUI, or arbitrary shell execution.
 
 ## Product Thesis
 
@@ -34,6 +34,7 @@ This is not a generic network reset tool and not a cleanup app.
 - Saves and restores Last-Good AI-tool profiles with a user snapshot.
 - Exports a redacted Support Bundle for Codex or a human helper.
 - Checks Dev Essentials needed by AI CLI installers without managing project dependencies.
+- Produces a MacBook Field Rescue package for copy-to-another-Mac Clash/TUN recovery.
 
 ## What It Does Not Do
 
@@ -177,7 +178,7 @@ The output folder is:
 
 ```text
 dist/Cactus-AgentLink-Rescue/
-dist/Cactus-AgentLink-Rescue-v0.4.4-core.zip
+dist/Cactus-AgentLink-Rescue-v0.4.5-core.zip
 ```
 
 It can be copied to Downloads and launched with `agentlink.command`.
@@ -192,7 +193,7 @@ To build the optional Brain package after fetching the model/runtime:
 Brain package output:
 
 ```text
-dist/Cactus-AgentLink-Rescue-v0.4.4-brain-gemma4-e4b-q4km.zip
+dist/Cactus-AgentLink-Rescue-v0.4.5-brain-gemma4-e4b-q4km.zip
 ```
 
 Native GUI packages:
@@ -205,15 +206,29 @@ Native GUI packages:
 GUI package outputs:
 
 ```text
-dist/Cactus-AgentLink-Rescue-v0.4.4-core-gui.zip
-dist/Cactus-AgentLink-Rescue-v0.4.4-brain-gui-gemma4-e4b-q4km.zip
+dist/Cactus-AgentLink-Rescue-v0.4.5-core-gui.zip
+dist/Cactus-AgentLink-Rescue-v0.4.5-brain-gui-gemma4-e4b-q4km.zip
 ```
 
 If a Clash Verge Rev DMG has been fetched, `scripts/package_gui_brain.sh` also emits:
 
 ```text
-dist/Cactus-AgentLink-Rescue-v0.4.4-brain-gui-gemma4-e4b-q4km-proxykit.zip
+dist/Cactus-AgentLink-Rescue-v0.4.5-brain-gui-gemma4-e4b-q4km-proxykit.zip
 ```
+
+For a copy-to-another-Mac Clash/TUN recovery build:
+
+```bash
+./scripts/package_macbook_field_rescue.sh
+```
+
+Field package output:
+
+```text
+dist/Cactus-AgentLink-Rescue-v0.4.5-macbook-field-gui-proxykit.zip
+```
+
+It unzips to `Cactus MacBook Network Rescue/` with `RUN-FIRST.command`, a short field README, emergency Terminal commands, and a GUI app that starts in MacBook Network Rescue mode. The GUI still does not run sudo, collect passwords, or enable Clash proxy/TUN automatically.
 
 The GUI app embeds the CLI package under:
 
@@ -277,6 +292,8 @@ Installer Center is available from the GUI and CLI:
 
 Installer Center uses fixed official package names only: `@openai/codex`, `@anthropic-ai/claude-code`, `@google/gemini-cli`, Homebrew `codex`, and Homebrew `gemini-cli`. Codex App opens the official OpenAI page only. Clash Verge Rev uses the upstream GitHub releases cache when present.
 
+Installer dependency checks are per method. If npm is missing but Homebrew is available, Codex CLI and Gemini CLI can still be available through Homebrew. If Homebrew is missing but npm is available, npm-backed methods can still be available. `missing_dependency` means no supported method is currently available.
+
 AgentLink does not pipe curl into shell, use random mirrors, collect passwords, run sudo from the GUI, enable system proxy/TUN, or import proxy profiles automatically.
 
 Fetch the optional Clash Verge Rev cache:
@@ -288,6 +305,16 @@ Fetch the optional Clash Verge Rev cache:
 ### Brain Chat Sandbox
 
 The Brain Chat Sandbox is a hidden/advanced local Gemma chat surface for explanation and report summarization. It is available from Settings or by triple-clicking the Dashboard title. It cannot execute commands, read files unless text is pasted, or change system settings. For repair, use Guided Rescue or Expert Console.
+
+### Offline Readiness, Last-Good, And Support Bundle
+
+`readiness doctor` checks only AgentLink rescue readiness: network/proxy state, Brain assets, recovery installers, API key presence, and Dev Essentials for AI CLI installers. It does not index repositories, manage dependency caches, run tests, or generate patches.
+
+Last-Good Profiles only restore known AI config paths. Restored permissions preserve the original file mode when available and default to `0600` otherwise.
+
+Support Bundle export is redacted but still includes local diagnostics such as tool presence, local paths, network/proxy status, readiness reports, and latest session metadata. It does not include private keys, browser cookies, shell history, Wi-Fi passwords, or full API keys.
+
+`codex-config-parse-repair` is syntax recovery only. It writes a minimal valid TOML template when needed and does not prove provider/model online compatibility.
 
 ## Reports And Restore Points
 

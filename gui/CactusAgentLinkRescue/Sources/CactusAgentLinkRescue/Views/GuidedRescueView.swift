@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct GuidedRescueView: View {
@@ -7,6 +8,9 @@ struct GuidedRescueView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
+                if state.fieldMode?.mode == "macbook-network-rescue" {
+                    fieldLanding
+                }
                 hero
                 stepTimeline
                 if state.guidedCanApply || state.executeEnabled {
@@ -21,6 +25,58 @@ struct GuidedRescueView: View {
             }
             .padding()
         }
+    }
+
+    private var fieldLanding: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Clash/TUN 网络恢复")
+                        .font(.title2.weight(.semibold))
+                    Text("Use this if Wi-Fi/Ethernet connects but the internet breaks after Clash Verge TUN mode.")
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                StatusBadge(text: state.fieldReport?.recommendedAction ?? "field mode", kind: fieldKind(state.fieldReport?.recommendedAction))
+            }
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 190), spacing: 10)], spacing: 10) {
+                fieldStatus("Proxy", state.fieldReport?.diagnosis?.proxyDirty == true ? "Dirty" : "Clean/unknown", state.fieldReport?.diagnosis?.proxyDirty == true ? .warn : .ok)
+                fieldStatus("Clash residue", state.fieldReport?.diagnosis?.clashResidueDetected == true ? "Detected" : "Not detected", state.fieldReport?.diagnosis?.clashResidueDetected == true ? .warn : .neutral)
+                fieldStatus("TUN/Extension", state.fieldReport?.diagnosis?.networkExtensionSuspected == true ? "Suspected" : "Not suspected", state.fieldReport?.diagnosis?.networkExtensionSuspected == true ? .warn : .neutral)
+                fieldStatus("Brain", state.brainDoctor?.brainPackAvailable == true ? "Available" : "Missing", state.brainDoctor?.brainPackAvailable == true ? .ok : .warn)
+            }
+            HStack(spacing: 10) {
+                Button {
+                    Task { await state.analyzeFieldNetwork() }
+                } label: {
+                    Label("Analyze Network", systemImage: "network")
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(state.isRunning)
+                Button("Copy Safe Repair Command") {
+                    copy(state.fieldRescueCommand(level: "safe"))
+                }
+                Button("Copy Standard Repair Command") {
+                    copy(state.fieldRescueCommand(level: "standard"))
+                }
+                Button("Open Clash Verge Rev Installer") {
+                    Task { await state.runInstallerOpen("clash-verge-rev") }
+                }
+                .disabled(state.isRunning)
+            }
+            DisclosureGroup("Advanced field commands") {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("GUI mode does not run sudo or collect passwords. Copy these commands into Terminal.")
+                        .foregroundStyle(.secondary)
+                    CommandPreview(title: "Safe Repair", command: state.fieldRescueCommand(level: "safe"))
+                    CommandPreview(title: "Standard Repair", command: state.fieldRescueCommand(level: "standard"))
+                    CommandPreview(title: "Deep Repair", command: state.fieldRescueCommand(level: "deep"))
+                    CommandPreview(title: "Support Bundle", command: "cd \(shellQuote(state.client.packageRoot.path))\n./bin/agentlink support bundle")
+                }
+                .padding(.top, 8)
+            }
+        }
+        .card()
     }
 
     private var hero: some View {
@@ -150,5 +206,33 @@ struct GuidedRescueView: View {
         case .fail: return .red
         case .neutral: return .secondary
         }
+    }
+
+    private func fieldStatus(_ title: String, _ value: String, _ kind: StatusBadge.Kind) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(.caption).foregroundStyle(.secondary)
+            StatusBadge(text: value, kind: kind)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func fieldKind(_ action: String?) -> StatusBadge.Kind {
+        switch action {
+        case "safe", "standard":
+            return .warn
+        case "deep":
+            return .fail
+        case "manual":
+            return .neutral
+        default:
+            return .neutral
+        }
+    }
+
+    private func copy(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
     }
 }
