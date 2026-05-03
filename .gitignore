@@ -8,6 +8,8 @@ bin/
 dist/
 gui/build/
 gui/CactusAgentLinkRescue/.build/
+*.zip
+AgentLink.zip
 assets/models/*.gguf
 assets/runtimes/llama.cpp/
 assets/installers/clash-verge-rev/**/*.dmg

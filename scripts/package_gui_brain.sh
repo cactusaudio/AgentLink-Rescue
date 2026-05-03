@@ -6,6 +6,7 @@ APP="$ROOT/dist/Cactus AgentLink Rescue.app"
 ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.5-brain-gui-gemma4-e4b-q4km.zip"
 PROXYKIT_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.5-brain-gui-gemma4-e4b-q4km-proxykit.zip"
 INFO="$ROOT/gui/CactusAgentLinkRescue/Sources/CactusAgentLinkRescue/Resources/Info.plist"
+. "$ROOT/scripts/lib/asset_cache.sh"
 
 cd "$ROOT"
 scripts/package_brain.sh
@@ -53,14 +54,18 @@ case "$(uname -m)" in
   x86_64) INSTALLER_ARCH="macos-amd64" ;;
   *) INSTALLER_ARCH="" ;;
 esac
-if [ -n "$INSTALLER_ARCH" ] && find "$ROOT/assets/installers/clash-verge-rev/$INSTALLER_ARCH" -maxdepth 1 -name '*.dmg' -print -quit 2>/dev/null | grep . >/dev/null; then
+CLASH_DMG_DIR=""
+if [ -n "$INSTALLER_ARCH" ]; then
+  CLASH_DMG_DIR="$(resolve_clash_dmg_dir "$INSTALLER_ARCH" 2>/dev/null || true)"
+fi
+if [ -n "$CLASH_DMG_DIR" ]; then
   STAGE="$ROOT/dist/proxykit-staging"
   mkdir -p "$STAGE"
   cp -R "$APP" "$STAGE/Cactus AgentLink Rescue.app"
   mkdir -p "$STAGE/Cactus AgentLink Rescue.app/Contents/Resources/agentlink/assets/installers/clash-verge-rev/$INSTALLER_ARCH"
-  cp "$ROOT/assets/installers/clash-verge-rev/$INSTALLER_ARCH"/*.dmg "$STAGE/Cactus AgentLink Rescue.app/Contents/Resources/agentlink/assets/installers/clash-verge-rev/$INSTALLER_ARCH/"
-  if [ -f "$ROOT/assets/installers/clash-verge-rev/manifest.lock.json" ]; then
-    cp "$ROOT/assets/installers/clash-verge-rev/manifest.lock.json" "$STAGE/Cactus AgentLink Rescue.app/Contents/Resources/agentlink/assets/installers/clash-verge-rev/"
+  cp "$CLASH_DMG_DIR"/*.dmg "$STAGE/Cactus AgentLink Rescue.app/Contents/Resources/agentlink/assets/installers/clash-verge-rev/$INSTALLER_ARCH/"
+  if [ -f "$(dirname "$CLASH_DMG_DIR")/manifest.lock.json" ]; then
+    cp "$(dirname "$CLASH_DMG_DIR")/manifest.lock.json" "$STAGE/Cactus AgentLink Rescue.app/Contents/Resources/agentlink/assets/installers/clash-verge-rev/"
   fi
   find "$STAGE" -depth \( -name .DS_Store -o -name __MACOSX -o -name '._*' -o -name .AppleDouble -o -name AppleDouble \) -exec rm -rf {} +
   (

@@ -39,6 +39,10 @@ Core vs Brain package:
   or from a source checkout:
   ./scripts/fetch_brain_assets.sh
 - If the Mac is already offline, Core cannot download the model. Use the Brain package instead.
+- Source checkouts keep large assets out of git. Rebuilds can use:
+  ~/CactusLocalAgent/.asset-cache/AgentLink-Rescue
+  or:
+  AGENTLINK_ASSET_CACHE=/path/to/cache ./scripts/package_brain.sh
 
 MacBook Field Rescue package:
 - Use Cactus-AgentLink-Rescue-v0.4.5-macbook-field-gui-proxykit.zip when copying to a MacBook whose internet breaks after Clash Verge TUN mode.

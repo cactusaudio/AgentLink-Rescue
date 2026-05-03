@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+. "$ROOT/scripts/lib/asset_cache.sh"
 
 if ! command -v go >/dev/null 2>&1 && [ -x /tmp/agentlink-go-current/go/bin/go ]; then
   export PATH="/tmp/agentlink-go-current/go/bin:$PATH"
@@ -69,14 +70,15 @@ scripts/dogfood_gui_core.sh
 scripts/dogfood_gui_screenshots.sh
 # dogfood_gui_core.sh and dogfood_gui_brain.sh include --selftest-gui-long-output.
 
-SOURCE_MODEL="$ROOT/assets/models/gemma-4-E4B-it-Q4_K_M.gguf"
 case "$(uname -m)" in
   arm64) SOURCE_ARCH="arm64" ;;
   x86_64) SOURCE_ARCH="amd64" ;;
   *) echo "unsupported macOS arch: $(uname -m)" >&2; exit 1 ;;
 esac
-SOURCE_LLAMA="$ROOT/assets/runtimes/llama.cpp/$SOURCE_ARCH/llama-cli"
-if [ -f "$SOURCE_MODEL" ] && [ -x "$SOURCE_LLAMA" ]; then
+SOURCE_MODEL="$(resolve_model_path 2>/dev/null || true)"
+SOURCE_RUNTIME_DIR="$(resolve_llama_runtime_dir "$SOURCE_ARCH" 2>/dev/null || true)"
+SOURCE_LLAMA="$SOURCE_RUNTIME_DIR/llama-cli"
+if [ -n "$SOURCE_MODEL" ] && [ -n "$SOURCE_RUNTIME_DIR" ] && [ -f "$SOURCE_MODEL" ] && [ -x "$SOURCE_LLAMA" ]; then
   scripts/dogfood_runtime_assets.sh
   scripts/package_brain.sh
   scripts/dogfood_runtime_brain.sh
@@ -86,7 +88,7 @@ if [ -f "$SOURCE_MODEL" ] && [ -x "$SOURCE_LLAMA" ]; then
   scripts/dogfood_macbook_field_rescue.sh
   scripts/dogfood_gui_screenshots.sh
 else
-  echo "brain assets missing; run scripts/fetch_brain_assets.sh or scripts/package_brain.sh DOWNLOAD=1"
+  echo "brain assets missing; set AGENTLINK_ASSET_CACHE, run scripts/fetch_brain_assets.sh, or run scripts/package_brain.sh DOWNLOAD=1"
 fi
 
 if find "$PKG" \( -name '.DS_Store' -o -name '._*' -o -name '__MACOSX' \) -print | grep .; then

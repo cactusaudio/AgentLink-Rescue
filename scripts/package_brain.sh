@@ -3,26 +3,30 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+. "$ROOT/scripts/lib/asset_cache.sh"
 
 if ! command -v go >/dev/null 2>&1 && [ -x /tmp/agentlink-go-current/go/bin/go ]; then
   export PATH="/tmp/agentlink-go-current/go/bin:$PATH"
 fi
 
-MODEL="assets/models/gemma-4-E4B-it-Q4_K_M.gguf"
 HOST_ARCH="$(uname -m)"
 case "$HOST_ARCH" in
   arm64) ARCH="arm64" ;;
   x86_64) ARCH="amd64" ;;
   *) echo "unsupported macOS arch: $HOST_ARCH" >&2; exit 1 ;;
 esac
-RUNTIME_DIR="assets/runtimes/llama.cpp/$ARCH"
+MODEL="$(resolve_model_path 2>/dev/null || true)"
+RUNTIME_DIR="$(resolve_llama_runtime_dir "$ARCH" 2>/dev/null || true)"
 RUNTIME="$RUNTIME_DIR/llama-cli"
 
-if [ ! -f "$MODEL" ] || [ ! -x "$RUNTIME" ]; then
+if [ -z "$MODEL" ] || [ -z "$RUNTIME_DIR" ] || [ ! -f "$MODEL" ] || [ ! -x "$RUNTIME" ]; then
   if [ "${DOWNLOAD:-0}" = "1" ]; then
     scripts/fetch_brain_assets.sh
+    MODEL="$(resolve_model_path 2>/dev/null || true)"
+    RUNTIME_DIR="$(resolve_llama_runtime_dir "$ARCH" 2>/dev/null || true)"
+    RUNTIME="$RUNTIME_DIR/llama-cli"
   else
-    echo "brain assets missing; run DOWNLOAD=1 scripts/package_brain.sh or scripts/fetch_brain_assets.sh" >&2
+    echo "brain assets missing; set AGENTLINK_ASSET_CACHE, run DOWNLOAD=1 scripts/package_brain.sh, or run scripts/fetch_brain_assets.sh" >&2
     exit 1
   fi
 fi
@@ -87,17 +91,13 @@ cat > "$OUT/assets/manifests/manifest.lock.json" <<JSON
   }
 }
 JSON
-cp "$MODEL" "$OUT/assets/models/"
-cp "$RUNTIME_DIR/llama-cli" "$OUT/assets/runtimes/llama.cpp/$ARCH/"
-if [ -f "$RUNTIME_DIR/llama-completion" ]; then
-  cp "$RUNTIME_DIR/llama-completion" "$OUT/assets/runtimes/llama.cpp/$ARCH/"
-fi
-cp "$RUNTIME_DIR"/*.dylib "$OUT/assets/runtimes/llama.cpp/$ARCH/" 2>/dev/null || true
-if [ -f "$RUNTIME_DIR/LICENSE" ]; then
-  cp "$RUNTIME_DIR/LICENSE" "$OUT/assets/runtimes/llama.cpp/$ARCH/"
-fi
+copy_model_to_staging "$OUT/assets/models"
+copy_runtime_to_staging "$OUT/assets/runtimes/llama.cpp/$ARCH" "$ARCH"
 cp -R assets/licenses/* "$OUT/assets/licenses/"
 cp -R assets/installers/* "$OUT/assets/installers/"
+if [ -d "$ASSET_CACHE/installers" ]; then
+  rsync -a --exclude='*.dmg' "$ASSET_CACHE/installers/" "$OUT/assets/installers/"
+fi
 cp assets/README.md "$OUT/assets/README.md"
 find "$OUT/assets/installers" -name '*.dmg' -delete
 cp scripts/fetch_gemma_model.sh scripts/fetch_llamacpp_runtime.sh scripts/fetch_brain_assets.sh scripts/fetch_clash_verge_rev.sh "$OUT/scripts/"

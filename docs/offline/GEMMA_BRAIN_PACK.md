@@ -54,6 +54,29 @@ Source checkout users can run:
 ./scripts/fetch_brain_assets.sh
 ```
 
+Source checkouts also support an external asset cache so the git repo stays
+small:
+
+```text
+~/CactusLocalAgent/.asset-cache/AgentLink-Rescue
+```
+
+Override it with:
+
+```sh
+export AGENTLINK_ASSET_CACHE="/path/to/AgentLink-Rescue-asset-cache"
+```
+
+Expected cache layout:
+
+```text
+models/gemma-4-E4B-it-Q4_K_M.gguf
+runtimes/llama.cpp/arm64/llama-cli
+installers/clash-verge-rev/macos-arm64/*.dmg
+releases/v0.4.5/*.zip
+ASSET_MANIFEST_SHA256.txt
+```
+
 Create packages:
 
 ```sh

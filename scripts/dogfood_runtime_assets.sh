@@ -3,16 +3,18 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+. "$ROOT/scripts/lib/asset_cache.sh"
 
-MODEL="assets/models/gemma-4-E4B-it-Q4_K_M.gguf"
 case "$(uname -m)" in
   arm64) ARCH="arm64" ;;
   x86_64) ARCH="amd64" ;;
   *) echo "unsupported macOS arch: $(uname -m)" >&2; exit 1 ;;
 esac
-RUNTIME="assets/runtimes/llama.cpp/$ARCH/llama-cli"
+MODEL="$(resolve_model_path 2>/dev/null || true)"
+RUNTIME_DIR="$(resolve_llama_runtime_dir "$ARCH" 2>/dev/null || true)"
+RUNTIME="$RUNTIME_DIR/llama-cli"
 
-if [ ! -f "$MODEL" ]; then
+if [ -z "$MODEL" ] || [ ! -f "$MODEL" ]; then
   echo "missing model: $MODEL" >&2
   exit 1
 fi
@@ -29,7 +31,7 @@ if [ -n "$LOCK_SHA" ] && [ "$LOCK_SHA" != "$ACTUAL_MODEL_SHA" ]; then
   echo "model checksum mismatch against manifest.lock.json" >&2
   exit 1
 fi
-if [ ! -x "$RUNTIME" ]; then
+if [ -z "$RUNTIME_DIR" ] || [ ! -x "$RUNTIME" ]; then
   echo "missing executable runtime: $RUNTIME" >&2
   exit 1
 fi
@@ -39,7 +41,7 @@ if [ ! -x bin/agentlink ]; then
 fi
 
 ./bin/agentlink version | grep '0.4.5'
-./bin/agentlink brain doctor --json > /tmp/agentlink-runtime-assets-brain-doctor.json
+AGENTLINK_MODEL_PATH="$MODEL" AGENTLINK_LLAMA_CLI="$RUNTIME" ./bin/agentlink brain doctor --json > /tmp/agentlink-runtime-assets-brain-doctor.json
 /usr/bin/python3 - /tmp/agentlink-runtime-assets-brain-doctor.json <<'PY'
 import json, sys
 doc=json.load(open(sys.argv[1]))
@@ -49,7 +51,7 @@ assert doc["runtimeExecutable"] is True, doc
 assert doc.get("modelFamily") == "gemma", doc
 assert doc.get("modelID") == "gemma-4-e4b-it-q4km", doc
 PY
-./bin/agentlink brain selftest --json > /tmp/agentlink-runtime-assets-brain-selftest.json
+AGENTLINK_MODEL_PATH="$MODEL" AGENTLINK_LLAMA_CLI="$RUNTIME" ./bin/agentlink brain selftest --json > /tmp/agentlink-runtime-assets-brain-selftest.json
 /usr/bin/python3 - /tmp/agentlink-runtime-assets-brain-selftest.json <<'PY'
 import json, sys
 res=json.load(open(sys.argv[1]))

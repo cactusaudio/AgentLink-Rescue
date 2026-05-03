@@ -266,6 +266,25 @@ Core can fetch Brain assets only when the Mac has network access:
 ./bin/agentlink brain fetch
 ```
 
+Source checkouts intentionally do not keep large Brain assets in git. For
+reproducible local builds, put the GGUF model, llama.cpp runtime, and optional
+Clash Verge Rev DMG cache under:
+
+```text
+~/CactusLocalAgent/.asset-cache/AgentLink-Rescue
+```
+
+or set:
+
+```bash
+export AGENTLINK_ASSET_CACHE="/path/to/AgentLink-Rescue-asset-cache"
+```
+
+Brain and ProxyKit package scripts search repo-local assets first, then this
+external cache. The ignored payloads are `assets/models/*.gguf`,
+`assets/runtimes/llama.cpp/`, `assets/installers/clash-verge-rev/**/*.dmg`,
+`bin/`, `dist/`, GUI build outputs, and temporary zip files.
+
 Gemma is not the executor. It returns PlannerDecision JSON only. The validator rejects unknown recipes, low-confidence repairs, privileged/destructive actions, and invalid JSON. The deterministic runner executes only bundled recipes, and writable repairs still require snapshot and rollback.
 
 GUI dogfood:
