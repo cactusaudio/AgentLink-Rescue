@@ -200,15 +200,15 @@ final class AppState: ObservableObject {
         await runGuarded(mutating: allowRepair) {
             let rescueTarget = overrideTarget ?? "auto"
             guidedStatus = "Running"
-            guidedSummary = allowRepair ? "AgentLink CLI is running the guided kernel with reversible repairs allowed." : "AgentLink CLI is analyzing and dry-running only. No files will be changed."
-            guidedSteps = [GuidedStep(title: "Start", detail: allowRepair ? "Mode: reversible repairs allowed. No sudo or network rescue will be run by the GUI." : "Mode: analyze-only. No mutation is allowed.", status: "running")]
+            guidedSummary = allowRepair ? "AgentLink CLI is running the Rescue Orchestrator. Privileged repairs are converted into Terminal tickets; the GUI will not ask for a password." : "AgentLink CLI is analyzing and dry-running only. No files will be changed."
+            guidedSteps = [GuidedStep(title: "Start", detail: allowRepair ? "Mode: orchestrated repair. Sudo work uses a Terminal repair ticket." : "Mode: analyze-only. No mutation is allowed.", status: "running")]
             guidedCanApply = false
             guidedLastTarget = nil
             guidedLastRecipe = nil
             guidedResult = nil
             guidedReport = nil
 
-            var args = ["guided", "rescue", "--target", rescueTarget, "--json"]
+            var args = ["orchestrator", "rescue", "--target", rescueTarget == "network" ? "clash-tun" : rescueTarget, "--json"]
             if allowRepair {
                 args.append("--yes")
             } else {
@@ -405,9 +405,13 @@ final class AppState: ObservableObject {
     }
 
     func runGuarded(mutating: Bool, operation: () async -> Void) async {
-        if isRunning { return }
-        isRunning = true
-        defer { isRunning = false }
+        if mutating {
+            if isRunning { return }
+            isRunning = true
+            defer { isRunning = false }
+            await operation()
+            return
+        }
         await operation()
     }
 
@@ -425,7 +429,7 @@ final class AppState: ObservableObject {
 
     private func applyGuidedReport(_ report: GuidedRescueReport) {
         guidedStatus = guidedStatusLabel(report.status)
-        guidedSummary = report.finalSummary ?? "Guided rescue completed."
+        guidedSummary = report.humanSummary ?? report.finalSummary ?? "Guided rescue completed."
         guidedLastTarget = report.target
         guidedLastRecipe = report.selectedRecipe
         rollbackAvailable = report.rollbackAvailable == true
@@ -441,6 +445,9 @@ final class AppState: ObservableObject {
             }
             if let recipe = report.selectedRecipe ?? cycle.candidateRecipes?.first {
                 detailParts.append("Recipe: \(recipe)")
+            }
+            if let state = cycle.state {
+                detailParts.append("State: \(state)")
             }
             if let classes = cycle.failureClasses, !classes.isEmpty {
                 detailParts.append("Classes: \(classes.joined(separator: ", "))")
@@ -460,6 +467,9 @@ final class AppState: ObservableObject {
         case "no_safe_action": return "No safe action"
         case "manual_action_required": return "Manual action required"
         case "rolled_back": return "Rolled back"
+        case "ticket_created": return "Terminal ticket ready"
+        case "restart_required": return "Restart required"
+        case "rolled_back_after_worsening": return "Rolled back after worsening"
         case "failed": return "Failed"
         default: return status ?? "Unknown"
         }
@@ -469,7 +479,7 @@ final class AppState: ObservableObject {
         switch result {
         case "healthy", "repaired", "dry_run_complete":
             return "ok"
-        case "manual_action_required", "no_safe_action", "verifier_failed":
+        case "manual_action_required", "no_safe_action", "verifier_failed", "ticket_created", "restart_required", "rolled_back_after_worsening":
             return "warn"
         case "failed", "rolled_back":
             return result == "rolled_back" ? "warn" : "failed"
@@ -508,7 +518,11 @@ final class AppState: ObservableObject {
 
     func fieldRescueCommand(level: String) -> String {
         var args = ["rescue", "--level", level]
-        if level == "standard" || level == "deep" {
+        if level == "tun" {
+            args.append("--yes")
+            return client.copyableTerminalCommand(args, sudo: true)
+        }
+        if level == "standard" || level == "standard-system-reset" || level == "deep" {
             args.append("--yes")
         }
         return client.copyableTerminalCommand(args, sudo: true)

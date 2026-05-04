@@ -28,12 +28,12 @@ struct StatusDashboardView: View {
     private var guidedHero: some View {
         HStack(alignment: .center, spacing: 18) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Restore Agent Link")
+                Text(state.fieldMode?.mode == "macbook-network-rescue" ? "Fix Clash / TUN Network" : "Fix My Connection")
                     .font(.title2.weight(.semibold))
                     .onTapGesture(count: 3) {
                         state.brainSandboxPresented = true
                     }
-                Text("Detect -> plan -> dry-run -> verify. Optional reversible repair with confirmation.")
+                Text("Detect -> Gemma supervise -> safe plan -> Terminal ticket when admin permission is needed -> verify -> rollback or restart gate.")
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 8) {
@@ -56,7 +56,7 @@ struct StatusDashboardView: View {
                         Task { await state.runGuidedRescue(allowRepair: false) }
                     }
                 } label: {
-                    Label("Restore Agent Link", systemImage: "sparkles.rectangle.stack")
+                    Label(state.fieldMode?.mode == "macbook-network-rescue" ? "Fix Clash / TUN Network" : "Fix My Connection", systemImage: "sparkles.rectangle.stack")
                         .font(.headline)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
@@ -98,7 +98,7 @@ struct StatusDashboardView: View {
 
     private var restoreCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Restore Agent Link").font(.headline)
+            Text(state.fieldMode?.mode == "macbook-network-rescue" ? "Clash/TUN Rescue" : "Connection Rescue").font(.headline)
             Text(state.versionText).foregroundStyle(.secondary)
             StatusBadge(text: state.selftestStatus, kind: state.selftestStatus == "OK" ? .ok : .warn)
             InfoRow(label: "Package", value: state.packageType)

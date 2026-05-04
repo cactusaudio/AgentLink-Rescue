@@ -30,13 +30,13 @@ scripts/package.sh
 
 PKG="$ROOT/dist/Cactus-AgentLink-Rescue"
 BIN="$PKG/bin/agentlink"
-CORE_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.5-core.zip"
-BRAIN_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.5-brain-gemma4-e4b-q4km.zip"
-CORE_GUI_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.5-core-gui.zip"
-BRAIN_GUI_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.5-brain-gui-gemma4-e4b-q4km.zip"
-FIELD_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.5-macbook-field-gui-proxykit.zip"
+CORE_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.0-core.zip"
+BRAIN_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.0-brain-gemma4-e4b-q4km.zip"
+CORE_GUI_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.0-core-gui.zip"
+BRAIN_GUI_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.0-brain-gui-gemma4-e4b-q4km.zip"
+FIELD_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.0-macbook-field-gui-proxykit.zip"
 
-"$BIN" version | grep '0.4.5'
+"$BIN" version | grep '0.5.0'
 "$BIN" selftest
 "$BIN" doctor --json > /tmp/agentlink-release-doctor.json
 /usr/bin/python3 -m json.tool /tmp/agentlink-release-doctor.json >/dev/null
@@ -50,6 +50,8 @@ FIELD_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.5-macbook-field-gui-proxykit.
 /usr/bin/python3 -m json.tool /tmp/agentlink-release-brain-doctor.json >/dev/null
 "$BIN" field macbook-network-rescue --json > /tmp/agentlink-release-field.json
 /usr/bin/python3 -m json.tool /tmp/agentlink-release-field.json >/dev/null
+"$BIN" proxyapp clean-reinstall clash-verge-rev --dry-run --json > /tmp/agentlink-release-proxyapp.json
+/usr/bin/python3 -m json.tool /tmp/agentlink-release-proxyapp.json >/dev/null
 "$BIN" recipe list
 "$BIN" recipe inspect codex-deepseek-provider-config
 "$BIN" recipe run codex-deepseek-provider-config --dry-run
@@ -66,6 +68,12 @@ scripts/dogfood_runtime_core.sh
 scripts/dogfood_guided_rescue.sh
 scripts/dogfood_readiness.sh
 scripts/dogfood_installer_center.sh
+scripts/dogfood_tun_detection.sh
+scripts/dogfood_tun_repair_dryrun.sh
+scripts/dogfood_autorollback.sh
+scripts/dogfood_restart_gate.sh
+scripts/dogfood_terminal_ticket.sh
+scripts/dogfood_opencode_bridge.sh
 scripts/dogfood_gui_core.sh
 scripts/dogfood_gui_screenshots.sh
 # dogfood_gui_core.sh and dogfood_gui_brain.sh include --selftest-gui-long-output.

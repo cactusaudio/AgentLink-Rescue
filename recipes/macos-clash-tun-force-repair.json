@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "id": "macos-clash-tun-force-repair",
+  "title": "macOS Clash/Mihomo TUN Runtime Repair",
+  "description": "Targeted terminal-assisted repair for stale Clash Verge, ClashX, or Mihomo TUN/NetworkExtension state. Execution is implemented by agentlink rescue --level tun, not by raw shell in the recipe file.",
+  "supportedOS": ["darwin"],
+  "failureClasses": [
+    "CLASH_TUN_ACTIVE_OR_STALE",
+    "NETWORK_EXTENSION_SESSION_STALE",
+    "TUN_ROUTE_OWNERSHIP_SUSPECTED",
+    "AIRDROP_DISCOVERY_DEGRADED"
+  ],
+  "risk": "privileged_action",
+  "requiresRoot": true,
+  "autoAllowed": false,
+  "preconditions": [
+    {"type": "os_is", "value": "darwin"},
+    {"type": "command_exists", "command": "/sbin/ifconfig"},
+    {"type": "command_exists", "command": "/bin/launchctl"},
+    {"type": "command_exists", "command": "/usr/sbin/networksetup"}
+  ],
+  "probes": [
+    {
+      "id": "tun-diagnose",
+      "type": "managed_section_present",
+      "args": {"command": "agentlink diagnose tun --json"}
+    }
+  ],
+  "patches": [],
+  "verify": [
+    {"id": "default_route_present", "type": "managed_section_present"},
+    {"id": "raw_ip_ping_ok", "type": "managed_section_present"},
+    {"id": "dns_lookup_ok", "type": "managed_section_present"},
+    {"id": "https_baidu_ok", "type": "managed_section_present"},
+    {"id": "stale_tun_absent_or_down", "type": "managed_section_present"},
+    {"id": "awdl0_up", "type": "managed_section_present"}
+  ],
+  "rollback": [
+    {"type": "restore_snapshot"}
+  ],
+  "docs": [
+    "docs/offline/CLASH_TUN_RESCUE.md",
+    "docs/offline/TERMINAL_REPAIR_TICKETS.md",
+    "docs/offline/RESTART_GATE.md"
+  ]
+}

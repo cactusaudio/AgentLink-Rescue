@@ -11,12 +11,12 @@ fi
 "$ROOT/scripts/build.sh"
 
 OUT="$ROOT/dist/Cactus-AgentLink-Rescue"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.5-core.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.0-core.zip"
 mkdir -p "$ROOT/dist"
 rm -rf "$OUT"
 rm -f "$ZIP"
 find "$ROOT/dist" -maxdepth 1 \( -name .DS_Store -o -name .AppleDouble -o -name AppleDouble \) -exec rm -rf {} +
-mkdir -p "$OUT/bin" "$OUT/rules" "$OUT/recipes" "$OUT/docs/offline" "$OUT/assets/manifests" "$OUT/assets/licenses" "$OUT/assets/models" "$OUT/assets/runtimes" "$OUT/assets/installers" "$OUT/scripts"
+mkdir -p "$OUT/bin" "$OUT/rules" "$OUT/recipes" "$OUT/docs/offline" "$OUT/assets/manifests" "$OUT/assets/licenses" "$OUT/assets/models" "$OUT/assets/runtimes" "$OUT/assets/installers" "$OUT/scripts" "$OUT/opencode"
 
 cp bin/agentlink "$OUT/bin/agentlink"
 cp README.md LICENSE "$OUT/"
@@ -30,6 +30,7 @@ cp assets/manifests/*.json "$OUT/assets/manifests/"
 cp -R assets/licenses/* "$OUT/assets/licenses/"
 cp -R assets/installers/* "$OUT/assets/installers/"
 cp assets/README.md "$OUT/assets/README.md"
+cp -R opencode/agentlink-plugin "$OUT/opencode/agentlink-plugin"
 cp assets/models/.gitkeep "$OUT/assets/models/.gitkeep"
 cp assets/runtimes/.gitkeep "$OUT/assets/runtimes/.gitkeep"
 find "$OUT/assets/installers" -name '*.dmg' -delete

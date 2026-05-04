@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BIN="$ROOT/dist/Cactus-AgentLink-Rescue/bin/agentlink"
-VERSION="0.4.5"
+VERSION="0.5.0"
 if [ ! -x "$BIN" ]; then
   "$ROOT/scripts/package.sh" >/dev/null
 fi

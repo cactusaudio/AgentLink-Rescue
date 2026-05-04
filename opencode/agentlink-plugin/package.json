@@ -1,0 +1,8 @@
+{
+  "name": "@cactus/agentlink-opencode-plugin",
+  "version": "0.5.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "description": "Safe AgentLink Rescue read-only tools for OpenCode."
+}

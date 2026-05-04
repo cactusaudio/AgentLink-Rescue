@@ -1,4 +1,4 @@
-Cactus AgentLink Rescue 0.4.5
+Cactus AgentLink Rescue 0.5.0
 
 1. Put this folder anywhere, for example Downloads.
 2. Double-click agentlink.command.
@@ -18,10 +18,14 @@ Cactus AgentLink Rescue 0.4.5
 
 Guided Rescue:
 - Analyze only:
-  ./bin/agentlink guided rescue --target auto --dry-run
-- Reversible user-level repair only:
-  ./bin/agentlink guided rescue --target auto --yes
-- Guided Rescue does not run sudo or network standard/deep rescue automatically.
+  ./bin/agentlink orchestrator rescue --target auto --dry-run --json
+- Clash/TUN repair ticket:
+  ./bin/agentlink ticket create --type clash-tun-fix --json
+- Targeted Clash/TUN Terminal repair:
+  sudo ./bin/agentlink rescue --level tun --yes
+- Verify after repair or restart:
+  ./bin/agentlink verify network --json
+- The GUI does not run sudo. Privileged repair uses Terminal tickets.
 
 Manual restore structure:
 - Backed-up files are under restore-point/files/<original absolute path>.
@@ -45,9 +49,9 @@ Core vs Brain package:
   AGENTLINK_ASSET_CACHE=/path/to/cache ./scripts/package_brain.sh
 
 MacBook Field Rescue package:
-- Use Cactus-AgentLink-Rescue-v0.4.5-macbook-field-gui-proxykit.zip when copying to a MacBook whose internet breaks after Clash Verge TUN mode.
+- Use Cactus-AgentLink-Rescue-v0.5.0-macbook-field-gui-proxykit.zip when copying to a MacBook whose internet breaks after Clash Verge TUN mode.
 - Unzip it, then double-click RUN-FIRST.command.
-- The app opens in MacBook Network Rescue mode and shows Analyze Network plus copyable Safe/Standard/Deep Terminal commands.
+- The app opens in MacBook Network Rescue mode and shows Analyze Network plus targeted Clash/TUN repair tickets.
 - The GUI does not run sudo and does not enable Clash proxy/TUN automatically.
 - If the app is blocked, run:
   xattr -cr "Cactus MacBook Network Rescue"
@@ -62,6 +66,7 @@ Brain mode is planner-only:
 - Gemma outputs PlannerDecision JSON.
 - The deterministic runner executes only local recipes.
 - Gemma never executes arbitrary shell.
+- For Network/TUN rescue, Gemma supervises plan selection, but AgentLink validates the plan and executes only approved deterministic actions.
 
 Installer Center:
 - Installer Center uses official sources only.
@@ -71,6 +76,7 @@ Installer Center:
 - Codex App opens the official OpenAI page.
 - Clash Verge Rev can be opened from a cached DMG when using a ProxyKit package.
 - AgentLink does not enable proxy/TUN automatically and does not collect passwords.
+- OpenCode is optional local coding/report-analysis harness. It is not the system rescue executor.
 
 Offline Readiness / Last-Good / Support Bundle:
   ./bin/agentlink readiness doctor
@@ -93,7 +99,7 @@ GUI mode is a shell:
 - Network rescue safe/standard/deep commands are shown for Terminal copy/paste.
 - The GUI does not implement its own repair engine.
 
-v0.4.5 also includes offline recipe and Brain docs:
+v0.5.0 also includes offline recipe and Brain docs:
 - docs/offline/AGENTLINK_CONSTITUTION.md
 - docs/offline/RECIPE_AUTHORING.md
 - docs/offline/PLANNER_CONTRACT.md
@@ -108,3 +114,8 @@ v0.4.5 also includes offline recipe and Brain docs:
 - docs/offline/LAST_GOOD_PROFILES.md
 - docs/offline/SUPPORT_BUNDLE.md
 - docs/offline/MACBOOK_FIELD_RESCUE.md
+- docs/offline/CLASH_TUN_RESCUE.md
+- docs/offline/TERMINAL_REPAIR_TICKETS.md
+- docs/offline/RESTART_GATE.md
+- docs/offline/RESCUE_ORCHESTRATOR.md
+- docs/offline/OPENCODE_BRIDGE.md

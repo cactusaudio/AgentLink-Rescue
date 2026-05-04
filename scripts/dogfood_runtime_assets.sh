@@ -40,7 +40,7 @@ if [ ! -x bin/agentlink ]; then
   scripts/build.sh
 fi
 
-./bin/agentlink version | grep '0.4.5'
+./bin/agentlink version | grep '0.5.0'
 AGENTLINK_MODEL_PATH="$MODEL" AGENTLINK_LLAMA_CLI="$RUNTIME" ./bin/agentlink brain doctor --json > /tmp/agentlink-runtime-assets-brain-doctor.json
 /usr/bin/python3 - /tmp/agentlink-runtime-assets-brain-doctor.json <<'PY'
 import json, sys

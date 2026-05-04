@@ -99,8 +99,11 @@ struct BrainDoctorReport: Codable {
     var modelSha256OK: Bool?
     var modelSizeBytes: Int64?
     var runtimePath: String?
+    var serverPath: String?
     var runtimeExists: Bool?
     var runtimeExecutable: Bool?
+    var serverExists: Bool?
+    var serverExecutable: Bool?
     var runtimeArch: String?
     var packageLocalAssets: Bool?
     var userCacheAssets: Bool?
@@ -193,7 +196,10 @@ struct GuidedRescueReport: Codable {
     var status: String?
     var cycles: [GuidedCycle]?
     var finalSummary: String?
+    var humanSummary: String?
     var selectedRecipe: String?
+    var requiresAdmin: Bool?
+    var terminalTicketPath: String?
     var plannerUsed: Bool?
     var brainModel: String?
     var snapshotID: String?
@@ -207,6 +213,7 @@ struct GuidedRescueReport: Codable {
 
 struct GuidedCycle: Codable {
     var index: Int?
+    var state: String?
     var stateTransitions: [String]?
     var failureClasses: [String]?
     var candidateRecipes: [String]?
@@ -243,6 +250,7 @@ struct FieldDiagnosis: Codable {
     var proxyDirty: Bool?
     var clashResidueDetected: Bool?
     var networkExtensionSuspected: Bool?
+    var clashTunDetected: Bool?
     var defaultRouteOK: Bool?
     var dnsOK: Bool?
 }

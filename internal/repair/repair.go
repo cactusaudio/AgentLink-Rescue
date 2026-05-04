@@ -21,9 +21,11 @@ import (
 )
 
 const (
-	LevelSafe     = "safe"
-	LevelStandard = "standard"
-	LevelDeep     = "deep"
+	LevelSafe                = "safe"
+	LevelStandard            = "standard"
+	LevelDeep                = "deep"
+	LevelTun                 = "tun"
+	LevelStandardSystemReset = "standard-system-reset"
 )
 
 type Options struct {
@@ -89,13 +91,19 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 	if !validLevel(opts.Level) {
 		result.ExitCode = 50
 		result.Status = "invalid rescue level"
-		result.Error = "level must be safe, standard, or deep"
+		result.Error = "level must be safe, tun, standard, standard-system-reset, or deep"
 		return result
 	}
 	if opts.Level == LevelDeep && !opts.Yes {
 		result.ExitCode = 50
 		result.Status = "deep rescue refused"
 		result.Error = "deep rescue requires --yes"
+		return result
+	}
+	if opts.Level == LevelTun && !opts.DryRun && !opts.Yes {
+		result.ExitCode = 50
+		result.Status = "tun rescue refused"
+		result.Error = "tun rescue requires --yes"
 		return result
 	}
 	if !opts.DryRun && !system.IsRoot() {
@@ -170,6 +178,21 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 	_, _ = rp.WriteJSON("postflight.json", post)
 	result.ReportPath = rp.Manifest.HumanReportPath
 	result.ExitCode, result.Status = compare(pre, post, failures)
+	if !opts.DryRun && criticalWorsened(pre, post) {
+		result.Warnings = append(result.Warnings, "postflight was worse than preflight; automatic rollback started")
+		rp.SetMutationPolicy(system.MutationOptions{RealUserHome: pre.Host.RealUserHome, IncludeNetworkExtensionPlists: true, ExtraAllowedPaths: manifestPaths(rp.Manifest)})
+		if err := rp.RestoreAllWithRunner(ctx, runner); err != nil {
+			result.ExitCode = 30
+			result.Status = "rollback_failed_after_worsening"
+			result.Error = "postflight worsened and rollback failed: " + err.Error()
+		} else {
+			result.ExitCode = 20
+			result.Status = "rolled_back_after_worsening"
+			rollbackDiag := engine.Run(ctx)
+			classify.Apply(&rollbackDiag)
+			_, _ = rp.WriteJSON("rollback-postflight.json", rollbackDiag)
+		}
+	}
 	if opts.Level == LevelDeep {
 		result.Warnings = append(result.Warnings, "reboot is recommended after deep rescue")
 	}
@@ -179,7 +202,7 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 }
 
 func validLevel(level string) bool {
-	return level == LevelSafe || level == LevelStandard || level == LevelDeep
+	return level == LevelSafe || level == LevelTun || level == LevelStandard || level == LevelStandardSystemReset || level == LevelDeep
 }
 
 func CurrentRollbackCommand(id string) string {
@@ -210,6 +233,9 @@ func shellQuote(s string) string {
 }
 
 func buildActions(level string, pre diagnose.DiagnosticReport) []action {
+	if level == LevelTun {
+		return buildTunActions(pre)
+	}
 	var actions []action
 	for _, svc := range pre.Network.Services {
 		if strings.TrimSpace(svc.Name) == "" || svc.Disabled {
@@ -243,6 +269,18 @@ func buildActions(level string, pre diagnose.DiagnosticReport) []action {
 	if level == LevelSafe {
 		return actions
 	}
+	if level == LevelStandard {
+		if !shouldUseSystemReset(pre) {
+			if wifiService := findWiFiService(pre); wifiService != "" {
+				actions = append(actions,
+					action{ID: "standard.wifi.off", Description: "Turn Wi-Fi off", Path: "/usr/sbin/networksetup", Args: []string{"-setairportpower", wifiService, "off"}, IgnoreFailure: true},
+					action{ID: "standard.wifi.sleep", Description: "Wait before turning Wi-Fi back on", Sleep: 2 * time.Second, IgnoreFailure: true},
+					action{ID: "standard.wifi.on", Description: "Turn Wi-Fi on", Path: "/usr/sbin/networksetup", Args: []string{"-setairportpower", wifiService, "on"}, IgnoreFailure: true},
+				)
+			}
+			return actions
+		}
+	}
 	ts := time.Now().Format("20060102-150405")
 	cleanLocation := "AgentLink-Clean-" + ts
 	actions = append(actions,
@@ -265,6 +303,55 @@ func buildActions(level string, pre diagnose.DiagnosticReport) []action {
 			action{ID: "standard.wifi.on", Description: "Turn Wi-Fi on", Path: "/usr/sbin/networksetup", Args: []string{"-setairportpower", wifiService, "on"}, IgnoreFailure: true},
 		)
 	}
+	return actions
+}
+
+func buildTunActions(pre diagnose.DiagnosticReport) []action {
+	var actions []action
+	for _, pattern := range []string{"Clash Verge", "clash-verge", "verge-mihomo", "mihomo", "clash-meta", "clash", "ClashX"} {
+		actions = append(actions, action{ID: "tun.stop." + sanitizeID(pattern), Description: "Force-stop Clash/Mihomo runtime matching " + pattern, Path: "/usr/bin/pkill", Args: []string{"-9", "-f", pattern}, IgnoreFailure: true})
+	}
+	for _, label := range []string{"system/com.apple.nesessionmanager", "system/com.apple.networkextensiond", "system/com.apple.nehelper"} {
+		actions = append(actions, action{ID: "tun.networkextension.kick." + sanitizeID(label), Description: "Kickstart " + label, Path: "/bin/launchctl", Args: []string{"kickstart", "-k", label}, IgnoreFailure: true})
+	}
+	for _, iface := range diagnose.DiagnoseTun(pre).UTunInterfaces {
+		if !iface.Suspicious {
+			continue
+		}
+		actions = append(actions, action{ID: "tun.ifconfig.down." + sanitizeID(iface.Name), Description: "Down stale TUN interface " + iface.Name, Path: "/sbin/ifconfig", Args: []string{iface.Name, "down"}, IgnoreFailure: true})
+	}
+	wifiService := findWiFiService(pre)
+	wifiDevice := findWiFiDevice(pre)
+	if wifiService != "" {
+		actions = append(actions,
+			action{ID: "tun.wifi.webproxy", Description: "Disable Wi-Fi web proxy", Path: "/usr/sbin/networksetup", Args: []string{"-setwebproxystate", wifiService, "off"}, IgnoreFailure: true},
+			action{ID: "tun.wifi.securewebproxy", Description: "Disable Wi-Fi secure web proxy", Path: "/usr/sbin/networksetup", Args: []string{"-setsecurewebproxystate", wifiService, "off"}, IgnoreFailure: true},
+			action{ID: "tun.wifi.socks", Description: "Disable Wi-Fi SOCKS proxy", Path: "/usr/sbin/networksetup", Args: []string{"-setsocksfirewallproxystate", wifiService, "off"}, IgnoreFailure: true},
+			action{ID: "tun.wifi.autoproxy", Description: "Disable Wi-Fi automatic proxy", Path: "/usr/sbin/networksetup", Args: []string{"-setautoproxystate", wifiService, "off"}, IgnoreFailure: true},
+			action{ID: "tun.wifi.dns", Description: "Set Wi-Fi DNS to reliable regional/public resolvers", Path: "/usr/sbin/networksetup", Args: []string{"-setdnsservers", wifiService, "223.5.5.5", "119.29.29.29", "8.8.8.8"}, RollbackAvailable: true},
+			action{ID: "tun.wifi.searchdomains", Description: "Clear Wi-Fi search domains", Path: "/usr/sbin/networksetup", Args: []string{"-setsearchdomains", wifiService, "empty"}, IgnoreFailure: true, RollbackAvailable: true},
+			action{ID: "tun.wifi.dhcp", Description: "Set Wi-Fi DHCP", Path: "/usr/sbin/networksetup", Args: []string{"-setdhcp", wifiService}, IgnoreFailure: true},
+			action{ID: "tun.wifi.ipv6", Description: "Set Wi-Fi IPv6 automatic", Path: "/usr/sbin/networksetup", Args: []string{"-setv6automatic", wifiService}, IgnoreFailure: true},
+			action{ID: "tun.wifi.off", Description: "Turn Wi-Fi off", Path: "/usr/sbin/networksetup", Args: []string{"-setairportpower", wifiService, "off"}, IgnoreFailure: true},
+			action{ID: "tun.wifi.sleep", Description: "Wait before turning Wi-Fi back on", Sleep: 2 * time.Second, IgnoreFailure: true},
+			action{ID: "tun.wifi.on", Description: "Turn Wi-Fi on", Path: "/usr/sbin/networksetup", Args: []string{"-setairportpower", wifiService, "on"}, IgnoreFailure: true},
+		)
+	}
+	if wifiDevice != "" {
+		actions = append(actions, action{ID: "tun.ipconfig.dhcp." + sanitizeID(wifiDevice), Description: "Renew DHCP on active Wi-Fi device " + wifiDevice, Path: "/usr/sbin/ipconfig", Args: []string{"set", wifiDevice, "DHCP"}, IgnoreFailure: true})
+	}
+	if pre.Network.DefaultRoute.Gateway != "" {
+		actions = append(actions,
+			action{ID: "tun.route.delete.default", Description: "Delete stale default route before rebuilding from DHCP gateway", Path: "/sbin/route", Args: []string{"delete", "default"}, IgnoreFailure: true},
+			action{ID: "tun.route.add.default", Description: "Add default route via DHCP gateway " + pre.Network.DefaultRoute.Gateway, Path: "/sbin/route", Args: []string{"add", "default", pre.Network.DefaultRoute.Gateway}, IgnoreFailure: true},
+		)
+	}
+	actions = append(actions,
+		action{ID: "tun.dns.flushcache", Description: "Flush DNS cache", Path: "/usr/bin/dscacheutil", Args: []string{"-flushcache"}, IgnoreFailure: true},
+		action{ID: "tun.dns.mdnsresponder", Description: "Signal mDNSResponder", Path: "/usr/bin/killall", Args: []string{"-HUP", "mDNSResponder"}, IgnoreFailure: true},
+		action{ID: "tun.awdl.up", Description: "Bring AWDL up for AirDrop discovery", Path: "/sbin/ifconfig", Args: []string{"awdl0", "up"}, IgnoreFailure: true},
+		action{ID: "tun.sharingd.restart", Description: "Restart sharingd for AirDrop receive discovery", Path: "/usr/bin/killall", Args: []string{"sharingd"}, IgnoreFailure: true},
+	)
 	return actions
 }
 
@@ -392,6 +479,18 @@ func buildDeepPlan(opts Options, _ *snapshot.RestorePoint) []ActionResult {
 	return out
 }
 
+func shouldUseSystemReset(pre diagnose.DiagnosticReport) bool {
+	if !pre.Network.DefaultRoute.Present {
+		return true
+	}
+	for _, class := range pre.Classifications {
+		if class == classify.NoActiveInterface || class == classify.NetworkLocationSuspected || class == classify.SysconfigSuspected {
+			return true
+		}
+	}
+	return false
+}
+
 func eligibleResidues(pre diagnose.DiagnosticReport) []diagnose.ResidueMatch {
 	var out []diagnose.ResidueMatch
 	add := func(items []diagnose.ResidueMatch) {
@@ -447,6 +546,19 @@ func findWiFiService(pre diagnose.DiagnosticReport) string {
 	return ""
 }
 
+func findWiFiDevice(pre diagnose.DiagnosticReport) string {
+	for _, hp := range pre.Network.HardwarePorts {
+		lower := strings.ToLower(hp.Port)
+		if hp.Device != "" && (strings.Contains(lower, "wi-fi") || strings.Contains(lower, "wifi") || strings.Contains(lower, "airport")) {
+			return hp.Device
+		}
+	}
+	if pre.Network.DefaultRoute.Interface != "" {
+		return pre.Network.DefaultRoute.Interface
+	}
+	return ""
+}
+
 func compare(pre, post diagnose.DiagnosticReport, failures int) (int, string) {
 	if failures > 0 {
 		return 30, "one or more actions failed"
@@ -463,6 +575,63 @@ func compare(pre, post diagnose.DiagnosticReport, failures int) (int, string) {
 		return 20, "connectivity worsened; rollback recommended"
 	}
 	return 10, "no improvement detected"
+}
+
+func criticalWorsened(pre, post diagnose.DiagnosticReport) bool {
+	if pre.Network.DefaultRoute.Present && !post.Network.DefaultRoute.Present {
+		return true
+	}
+	if anyProbeOK(pre.Reachability.RawIPs) && !anyProbeOK(post.Reachability.RawIPs) {
+		return true
+	}
+	if anyProbeOK(pre.Reachability.DNSNames) && !anyProbeOK(post.Reachability.DNSNames) {
+		return true
+	}
+	if anyProbeOK(pre.Reachability.HTTPSTargets) && !anyProbeOK(post.Reachability.HTTPSTargets) {
+		return true
+	}
+	if !pre.Network.ProxySummary.Dirty && post.Network.ProxySummary.Dirty {
+		return true
+	}
+	if !hasStaleTun(pre) && hasStaleTun(post) {
+		return true
+	}
+	if awdlUp(pre) && !awdlUp(post) {
+		return true
+	}
+	return false
+}
+
+func hasStaleTun(r diagnose.DiagnosticReport) bool {
+	return diagnose.DiagnoseTun(r).RecommendedRepair == "tun"
+}
+
+func awdlUp(r diagnose.DiagnosticReport) bool {
+	for _, iface := range r.Network.Interfaces {
+		if iface.Name == "awdl0" {
+			return strings.EqualFold(iface.Status, "active")
+		}
+	}
+	return false
+}
+
+func anyProbeOK(m map[string]diagnose.ProbeResult) bool {
+	for _, p := range m {
+		if p.OK {
+			return true
+		}
+	}
+	return false
+}
+
+func manifestPaths(m snapshot.Manifest) []string {
+	var out []string
+	for _, entry := range m.Entries {
+		if entry.OriginalPath != "" {
+			out = append(out, entry.OriginalPath)
+		}
+	}
+	return out
 }
 
 func criticalCount(classes []string) int {

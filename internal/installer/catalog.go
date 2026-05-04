@@ -130,6 +130,9 @@ func validateMethodCommand(id string, m Method) error {
 			return fmt.Errorf("%s method %s contains forbidden command surface: %s", id, m.ID, f)
 		}
 	}
+	if containsExact(m.Command, "|") && m.Type != "manual" {
+		return fmt.Errorf("%s method %s contains shell pipe token", id, m.ID)
+	}
 	switch id {
 	case "codex-cli":
 		if m.Type == "npm" && !containsExact(m.Command, "@openai/codex") {
@@ -152,6 +155,16 @@ func validateMethodCommand(id string, m Method) error {
 	case "codex-app":
 		if m.OfficialURL != "" && !strings.HasPrefix(m.OfficialURL, "https://developers.openai.com/") {
 			return fmt.Errorf("codex-app official URL must be on developers.openai.com")
+		}
+	case "opencode-cli":
+		if m.Type == "npm" && !containsExact(m.Command, "opencode-ai") {
+			return fmt.Errorf("opencode-cli npm method must use opencode-ai")
+		}
+		if m.Type == "homebrew" && !containsExact(m.Command, "anomalyco/tap/opencode") {
+			return fmt.Errorf("opencode-cli homebrew method must use anomalyco/tap/opencode")
+		}
+		if m.Type == "manual" && m.OfficialURL != "" && !strings.HasPrefix(m.OfficialURL, "https://opencode.ai/") {
+			return fmt.Errorf("opencode-cli official URL must be on opencode.ai")
 		}
 	}
 	return nil

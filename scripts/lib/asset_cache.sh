@@ -85,6 +85,9 @@ copy_runtime_to_staging() {
   if [ -f "$runtime_dir/llama-completion" ]; then
     cp "$runtime_dir/llama-completion" "$dest/"
   fi
+  if [ -f "$runtime_dir/llama-server" ]; then
+    cp "$runtime_dir/llama-server" "$dest/"
+  fi
   cp "$runtime_dir"/*.dylib "$dest/" 2>/dev/null || true
   if [ -f "$runtime_dir/LICENSE" ]; then
     cp "$runtime_dir/LICENSE" "$dest/"

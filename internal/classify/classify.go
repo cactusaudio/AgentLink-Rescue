@@ -23,6 +23,12 @@ const (
 	BrewProxyDirty                        = "BREW_PROXY_DIRTY"
 	KnownAgentResidue                     = "KNOWN_AGENT_RESIDUE"
 	NetworkExtensionSuspected             = "NETWORK_EXTENSION_SUSPECTED"
+	ClashTunActiveOrStale                 = "CLASH_TUN_ACTIVE_OR_STALE"
+	NetworkExtensionSessionStale          = "NETWORK_EXTENSION_SESSION_STALE"
+	TunRouteOwnershipSuspected            = "TUN_ROUTE_OWNERSHIP_SUSPECTED"
+	AirDropDiscoveryDegraded              = "AIRDROP_DISCOVERY_DEGRADED"
+	ClashCleanReinstallRequired           = "CLASH_CLEAN_REINSTALL_REQUIRED"
+	RestartGateRequired                   = "RESTART_GATE_REQUIRED"
 	NetworkLocationSuspected              = "NETWORK_LOCATION_SUSPECTED"
 	SysconfigSuspected                    = "SYSCONFIG_SUSPECTED"
 	MDMProfileSuspected                   = "MDM_PROFILE_SUSPECTED"
@@ -96,8 +102,18 @@ func Classify(r diagnose.DiagnosticReport) []string {
 	if hasAutoResidue(r.Residues) && internetBroken {
 		add(KnownAgentResidue)
 	}
+	tun := diagnose.DiagnoseTun(r)
+	if tun.RecommendedRepair == "tun" {
+		add(ClashTunActiveOrStale)
+	}
 	if proxyClean(r) && internetBroken && hasNetworkFilterResidue(r.Residues) {
 		add(NetworkExtensionSuspected)
+	}
+	if hasClassValue(out, ClashTunActiveOrStale) && (hasClassValue(out, RawIPUnreachable) || hasClassValue(out, HTTPSFail) || hasClassValue(out, GatewayUnreachable)) {
+		add(TunRouteOwnershipSuspected)
+	}
+	if awdlDegraded(r) && (hasClassValue(out, ClashTunActiveOrStale) || hasClassValue(out, NetworkExtensionSuspected)) {
+		add(AirDropDiscoveryDegraded)
 	}
 	if hasProfiles(r.Residues) {
 		add(MDMProfileSuspected)
@@ -123,6 +139,9 @@ func RecommendedRepairLevel(classes []string) string {
 	if has(GeneralInternetOKAgentEndpointBlocked) {
 		return "none"
 	}
+	if has(ClashTunActiveOrStale) || has(TunRouteOwnershipSuspected) {
+		return "tun"
+	}
 	if has(SysconfigSuspected) {
 		return "deep"
 	}
@@ -136,6 +155,15 @@ func RecommendedRepairLevel(classes []string) string {
 		return "none"
 	}
 	return "safe"
+}
+
+func hasClassValue(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }
 
 func interfaceState(r diagnose.DiagnosticReport) (activeWithIP bool, anyLinkLocal bool, anyDHCPNoLease bool) {
@@ -192,6 +220,15 @@ func isNoisyVirtualInterface(name string) bool {
 	for _, prefix := range []string{"utun", "awdl", "llw", "bridge", "stf", "gif", "ap"} {
 		if strings.HasPrefix(name, prefix) {
 			return true
+		}
+	}
+	return false
+}
+
+func awdlDegraded(r diagnose.DiagnosticReport) bool {
+	for _, iface := range r.Network.Interfaces {
+		if iface.Name == "awdl0" {
+			return !strings.EqualFold(iface.Status, "active")
 		}
 	}
 	return false

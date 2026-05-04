@@ -163,12 +163,17 @@ func runInstall(ctx context.Context, runner command.Runner, in Installer, m Meth
 	}
 	if in.ID == "codex-app" {
 		rep.Status = "manual_action_required"
-		rep.NextAction = "Codex App install is manual in v0.4.3. Use installer open codex-app."
+		rep.NextAction = "Codex App install is manual in v0.5.0. Use installer open codex-app."
 		return rep, nil
 	}
 	if in.ID == "clash-verge-rev" {
 		rep.Status = "manual_action_required"
-		rep.NextAction = "Clash Verge Rev is opened as a DMG in v0.4.3. Use installer open clash-verge-rev and drag the app to Applications."
+		rep.NextAction = "Clash Verge Rev is opened as a DMG. Use installer open clash-verge-rev and drag the app to Applications."
+		return rep, nil
+	}
+	if m.Type == "manual" {
+		rep.Status = "manual_action_required"
+		rep.NextAction = "Manual method is copy-only. AgentLink will not auto-run install scripts; copy the official command if you choose to proceed."
 		return rep, nil
 	}
 	if len(m.Command) == 0 {

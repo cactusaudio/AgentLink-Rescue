@@ -22,6 +22,7 @@ type DiagnosisSummary struct {
 	ProxyDirty                bool     `json:"proxyDirty"`
 	ClashResidueDetected      bool     `json:"clashResidueDetected"`
 	NetworkExtensionSuspected bool     `json:"networkExtensionSuspected"`
+	ClashTunDetected          bool     `json:"clashTunDetected"`
 	DefaultRouteOK            bool     `json:"defaultRouteOK"`
 	DNSOK                     bool     `json:"dnsOK"`
 }
@@ -38,6 +39,7 @@ func MacBookNetworkRescue(version string, report diagnose.DiagnosticReport) Repo
 		ProxyDirty:                report.Network.ProxySummary.Dirty,
 		ClashResidueDetected:      hasClashResidue(report.Residues),
 		NetworkExtensionSuspected: hasClass(classes, classify.NetworkExtensionSuspected) || hasNetworkExtensionResidue(report.Residues),
+		ClashTunDetected:          hasClass(classes, classify.ClashTunActiveOrStale) || diagnose.DiagnoseTun(report).RecommendedRepair == "tun",
 		DefaultRouteOK:            report.Network.DefaultRoute.Present,
 		DNSOK:                     dnsOK(report),
 	}
@@ -48,20 +50,27 @@ func MacBookNetworkRescue(version string, report diagnose.DiagnosticReport) Repo
 		Diagnosis:         diag,
 		RecommendedAction: recommendedAction(classes, diag),
 		Commands: map[string]string{
-			"safe":          "sudo ./bin/agentlink rescue --level safe",
-			"standard":      "sudo ./bin/agentlink rescue --level standard --yes",
-			"deep":          "sudo ./bin/agentlink rescue --level deep --yes",
-			"supportBundle": "./bin/agentlink support bundle",
+			"safe":                "sudo ./bin/agentlink rescue --level safe",
+			"tun":                 "sudo ./bin/agentlink rescue --level tun --yes",
+			"standard":            "sudo ./bin/agentlink rescue --level standard --yes",
+			"standardSystemReset": "sudo ./bin/agentlink rescue --level standard-system-reset --yes",
+			"deep":                "sudo ./bin/agentlink rescue --level deep --yes",
+			"verifyNetwork":       "./bin/agentlink verify network --json",
+			"ticket":              "./bin/agentlink ticket create --type clash-tun-fix --json",
+			"supportBundle":       "./bin/agentlink support bundle",
 		},
 		Warnings: []string{
 			"AgentLink will not enable Clash TUN automatically.",
-			"Run deep only if safe/standard fail.",
+			"Use standard-system-reset or deep only after targeted TUN repair and restart-gate verification fail.",
 			"GUI mode does not run sudo or collect passwords.",
 		},
 	}
 }
 
 func recommendedAction(classes []string, diag DiagnosisSummary) string {
+	if diag.ClashTunDetected || hasClass(classes, classify.ClashTunActiveOrStale) || hasClass(classes, classify.TunRouteOwnershipSuspected) {
+		return "tun"
+	}
 	if hasClass(classes, classify.OK) && !diag.ProxyDirty && !diag.NetworkExtensionSuspected {
 		return "manual"
 	}

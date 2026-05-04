@@ -19,8 +19,11 @@ type AssetLocations struct {
 	ModelExists        bool   `json:"modelExists"`
 	ModelSHA256OK      bool   `json:"modelSha256OK"`
 	RuntimePath        string `json:"runtimePath,omitempty"`
+	ServerPath         string `json:"serverPath,omitempty"`
 	RuntimeExists      bool   `json:"runtimeExists"`
 	RuntimeExecutable  bool   `json:"runtimeExecutable"`
+	ServerExists       bool   `json:"serverExists"`
+	ServerExecutable   bool   `json:"serverExecutable"`
 	PackageLocalAssets bool   `json:"packageLocalAssets"`
 	UserCacheAssets    bool   `json:"userCacheAssets"`
 }
@@ -43,6 +46,9 @@ func LocateAssets(home string, manifest ModelManifest) AssetLocations {
 	loc.UserCacheAssets = loc.UserCacheAssets || userCache
 	loc.RuntimeExists = loc.RuntimePath != "" && system.Exists(loc.RuntimePath)
 	loc.RuntimeExecutable = system.CommandExists(loc.RuntimePath)
+	loc.ServerPath, _, _ = locateRuntimeBinary(loc, "llama-server")
+	loc.ServerExists = loc.ServerPath != "" && system.Exists(loc.ServerPath)
+	loc.ServerExecutable = system.CommandExists(loc.ServerPath)
 	return loc
 }
 
@@ -126,21 +132,27 @@ func locateModel(loc AssetLocations, filename string) (string, bool, bool) {
 }
 
 func locateRuntime(loc AssetLocations) (string, bool, bool) {
+	return locateRuntimeBinary(loc, "llama-cli")
+}
+
+func locateRuntimeBinary(loc AssetLocations, binary string) (string, bool, bool) {
 	if override := os.Getenv("AGENTLINK_LLAMA_CLI"); override != "" {
-		return override, false, false
+		if binary == "llama-cli" {
+			return override, false, false
+		}
 	}
 	arch := loc.RuntimeArch
 	if loc.PackageRoot != "" {
-		p := filepath.Join(loc.PackageRoot, "assets", "runtimes", "llama.cpp", arch, "llama-cli")
+		p := filepath.Join(loc.PackageRoot, "assets", "runtimes", "llama.cpp", arch, binary)
 		if system.Exists(p) {
 			return p, true, false
 		}
 	}
-	p := filepath.Join(loc.BrainHome, "runtimes", "llama.cpp", arch, "llama-cli")
+	p := filepath.Join(loc.BrainHome, "runtimes", "llama.cpp", arch, binary)
 	if system.Exists(p) {
 		return p, false, true
 	}
-	if path, ok := findOnPath("llama-cli"); ok {
+	if path, ok := findOnPath(binary); ok {
 		return path, false, false
 	}
 	return p, false, false

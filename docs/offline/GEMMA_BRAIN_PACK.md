@@ -1,6 +1,6 @@
 # Gemma Brain Pack
 
-Cactus AgentLink Rescue v0.4.5 can use a local Gemma 4 E4B-it GGUF model through `llama-cli`.
+Cactus AgentLink Rescue v0.5.0 can use a local Gemma 4 E4B-it GGUF model through `llama-cli`.
 
 The Brain is planner-only. It produces `PlannerDecision` JSON. It does not execute commands, shell scripts, network rescue, or arbitrary text from the model. The deterministic recipe runner remains the only executor.
 
@@ -73,7 +73,7 @@ Expected cache layout:
 models/gemma-4-E4B-it-Q4_K_M.gguf
 runtimes/llama.cpp/arm64/llama-cli
 installers/clash-verge-rev/macos-arm64/*.dmg
-releases/v0.4.5/*.zip
+releases/v0.5.0/*.zip
 ASSET_MANIFEST_SHA256.txt
 ```
 

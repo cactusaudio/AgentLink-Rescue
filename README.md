@@ -2,7 +2,7 @@
 
 Cactus AgentLink Rescue is an offline, portable, reversible macOS rescue tool for restoring the broken path between a Mac and AI agents such as Codex, Claude, GitHub, and API endpoints.
 
-v0.4.5 adds Offline Readiness Center, Last-Good Profiles, Support Bundle, and Dev Essentials Doctor. These stay inside AgentLink's recovery boundary: restore the AI path, preserve known-good AI-tool state, and export redacted evidence. Gemma 4 E4B-it Q4_K_M remains a bounded planner/controller only: facts go to Gemma, Gemma returns PlannerDecision JSON for repair planning, the validator checks it, and the deterministic recipe runner executes only registered rollback-capable recipes. There is still no telemetry, daemon, privileged helper, SMAppService, RAG, queue, remote mutation, sudo execution in the GUI, or arbitrary shell execution.
+v0.5.0 is the Rescue Orchestrator release. It replaces the button-panel rescue flow with a bounded local loop: facts collection, Gemma Rescue Supervisor, validated rescue plan, deterministic repair action, Terminal-assisted sudo ticket when needed, verifier, automatic rollback if postflight worsens, restart gate when macOS runtime state cannot be released, and a redacted incident/support report. Gemma 4 E4B-it Q4_K_M remains a planner/controller only. There is still no telemetry, daemon, privileged helper, SMAppService, RAG, queue, remote mutation, sudo execution in the GUI, or arbitrary shell execution.
 
 ## Product Thesis
 
@@ -15,7 +15,8 @@ This is not a generic network reset tool and not a cleanup app.
 - Runs non-mutating diagnostics without root.
 - Classifies local agent-link failures with deterministic rules.
 - Clears system proxy, DNS, DHCP, and IPv6 settings in safe rescue.
-- Creates a clean macOS network location in standard rescue.
+- Runs targeted Clash/Mihomo TUN repair before broad network reset when TUN signatures are detected.
+- Keeps standard/deep rescue as fallback layers, not the first path for Clash/TUN residue.
 - Optionally quarantines known Clash-family helper residue after confirmation.
 - Backs up and quarantines selected SystemConfiguration plists in deep rescue.
 - Creates restore points before mutating actions.
@@ -26,6 +27,7 @@ This is not a generic network reset tool and not a cleanup app.
 - Runs optional local Gemma 4 E4B planning through `llama-cli`.
 - Validates Brain planner JSON before dry-run or execution.
 - Runs Guided Rescue as a bounded CLI workflow for non-developer users.
+- Runs the v0.5 Rescue Orchestrator for network/TUN failures with Terminal repair tickets.
 - Provides a native macOS GUI rescue console as a thin wrapper around the CLI.
 - Provides Installer Center for Codex CLI, Codex App, Claude Code CLI, Gemini CLI, and Clash Verge Rev recovery from official sources.
 - Can cache a Clash Verge Rev DMG in the Brain GUI ProxyKit package without enabling proxy/TUN automatically.
@@ -35,6 +37,7 @@ This is not a generic network reset tool and not a cleanup app.
 - Exports a redacted Support Bundle for Codex or a human helper.
 - Checks Dev Essentials needed by AI CLI installers without managing project dependencies.
 - Produces a MacBook Field Rescue package for copy-to-another-Mac Clash/TUN recovery.
+- Can start a local `llama-server` on `127.0.0.1` for controlled local Gemma/OpenCode bridge work.
 
 ## What It Does Not Do
 
@@ -93,8 +96,15 @@ agentlink brain selftest [--json]
 agentlink brain prompt --text "..." [--json]
 agentlink brain chat --prompt "..." [--json]
 agentlink brain plan --target path|proxy|codex|keys|network [--json]
+agentlink brain rescue-plan --target network|clash-tun [--json]
+agentlink brain server start|stop|status|verify [--port 8080] [--json]
 agentlink repair --auto --brain --target path|proxy|codex|keys|network [--dry-run] [--yes] [--online] [--json]
 agentlink guided rescue [--target auto|path|proxy|codex|keys|network] [--dry-run] [--yes] [--json]
+agentlink orchestrator rescue [--target auto|network|clash-tun|proxy|codex|keys|readiness] [--dry-run] [--yes] [--json]
+agentlink diagnose tun [--json]
+agentlink verify network|airdrop [--json]
+agentlink restart-gate prepare|verify [--json]
+agentlink ticket create --type clash-tun-fix|rollback|verify-network [--id ID] [--json]
 agentlink installer list [--json]
 agentlink installer doctor [--json]
 agentlink installer inspect <id> [--json]
@@ -102,11 +112,12 @@ agentlink installer dry-run <id> [--json]
 agentlink installer install <id> --yes [--json]
 agentlink installer verify <id> [--json]
 agentlink installer open <id> [--json]
+agentlink opencode doctor|install|configure-local-gemma|install-plugin|verify [--dry-run] [--yes] [--json]
 agentlink planner validate <decision.json>
 agentlink report --for-human --latest
 agentlink report --for-codex --latest
 agentlink classify [--json]
-agentlink rescue [--level safe|standard|deep] [--yes] [--dry-run] [--json]
+agentlink rescue [--level safe|tun|standard|standard-system-reset|deep] [--yes] [--dry-run] [--json]
 agentlink rollback [--last | --id RESTORE_POINT_ID] [--dry-run] [--json]
 agentlink report [--latest | --id REPORT_ID] [--json]
 agentlink selftest
@@ -121,7 +132,9 @@ Examples:
 ./bin/agentlink guided rescue --target auto --dry-run --json
 ./bin/agentlink guided rescue --target path --yes --json
 sudo ./bin/agentlink rescue --level standard
+sudo ./bin/agentlink rescue --level tun --yes
 sudo ./bin/agentlink rescue --level deep --yes
+./bin/agentlink ticket create --type clash-tun-fix --json
 sudo ./bin/agentlink rollback --last
 ```
 
@@ -129,7 +142,9 @@ sudo ./bin/agentlink rollback --last
 
 `safe` clears proxy state, DNS servers, search domains, DHCP, IPv6 automatic mode, renews DHCP on hardware devices, and flushes DNS cache.
 
-`standard` includes safe rescue, creates and switches to a clean network location, detects new hardware, flushes routes, renews DHCP again, and restarts Wi-Fi when a Wi-Fi service exists.
+`tun` is the preferred privileged repair when Clash/Mihomo TUN residue is detected. It stops Clash-family runtime, quarantines known residue, kickstarts NetworkExtension daemons, downs only stale matching `utun` interfaces, rebuilds active Wi-Fi DHCP/DNS/default route, refreshes mDNSResponder, and restores AWDL/sharingd for AirDrop discovery.
+
+`standard` includes safe rescue and a lower-impact Wi-Fi refresh by default. The old broad clean-location/route-flush behavior is demoted to `standard-system-reset`.
 
 `deep` requires `--yes`. It includes safe and standard repair, quarantines eligible known residue, backs up selected network configuration plists, removes them by moving them into the restore point quarantine, and recommends reboot.
 
@@ -178,7 +193,7 @@ The output folder is:
 
 ```text
 dist/Cactus-AgentLink-Rescue/
-dist/Cactus-AgentLink-Rescue-v0.4.5-core.zip
+dist/Cactus-AgentLink-Rescue-v0.5.0-core.zip
 ```
 
 It can be copied to Downloads and launched with `agentlink.command`.
@@ -193,7 +208,7 @@ To build the optional Brain package after fetching the model/runtime:
 Brain package output:
 
 ```text
-dist/Cactus-AgentLink-Rescue-v0.4.5-brain-gemma4-e4b-q4km.zip
+dist/Cactus-AgentLink-Rescue-v0.5.0-brain-gemma4-e4b-q4km.zip
 ```
 
 Native GUI packages:
@@ -206,14 +221,14 @@ Native GUI packages:
 GUI package outputs:
 
 ```text
-dist/Cactus-AgentLink-Rescue-v0.4.5-core-gui.zip
-dist/Cactus-AgentLink-Rescue-v0.4.5-brain-gui-gemma4-e4b-q4km.zip
+dist/Cactus-AgentLink-Rescue-v0.5.0-core-gui.zip
+dist/Cactus-AgentLink-Rescue-v0.5.0-brain-gui-gemma4-e4b-q4km.zip
 ```
 
 If a Clash Verge Rev DMG has been fetched, `scripts/package_gui_brain.sh` also emits:
 
 ```text
-dist/Cactus-AgentLink-Rescue-v0.4.5-brain-gui-gemma4-e4b-q4km-proxykit.zip
+dist/Cactus-AgentLink-Rescue-v0.5.0-brain-gui-gemma4-e4b-q4km-proxykit.zip
 ```
 
 For a copy-to-another-Mac Clash/TUN recovery build:
@@ -225,7 +240,7 @@ For a copy-to-another-Mac Clash/TUN recovery build:
 Field package output:
 
 ```text
-dist/Cactus-AgentLink-Rescue-v0.4.5-macbook-field-gui-proxykit.zip
+dist/Cactus-AgentLink-Rescue-v0.5.0-macbook-field-gui-proxykit.zip
 ```
 
 It unzips to `Cactus MacBook Network Rescue/` with `RUN-FIRST.command`, a short field README, emergency Terminal commands, and a GUI app that starts in MacBook Network Rescue mode. The GUI still does not run sudo, collect passwords, or enable Clash proxy/TUN automatically.

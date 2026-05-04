@@ -2,9 +2,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="0.4.5"
+VERSION="0.5.0"
 FIELD_ROOT="$ROOT/dist/Cactus MacBook Network Rescue"
-FIELD_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.5-macbook-field-gui-proxykit.zip"
+FIELD_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.0-macbook-field-gui-proxykit.zip"
 APP_NAME="Cactus AgentLink Rescue.app"
 APP="$FIELD_ROOT/$APP_NAME"
 PROXYKIT_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v${VERSION}-brain-gui-gemma4-e4b-q4km-proxykit.zip"
@@ -41,7 +41,8 @@ open "$APP" || {
   echo "If the app is blocked, run:"
   echo "xattr -cr \"$DIR\""
   echo "cd \"$AGENTLINK\""
-  echo "sudo ./bin/agentlink rescue --level safe"
+  echo "./bin/agentlink ticket create --type clash-tun-fix --json"
+  echo "sudo ./bin/agentlink rescue --level tun --yes"
 }
 SH
 
@@ -52,17 +53,21 @@ Use this copy when Wi-Fi/Ethernet connects but internet breaks after Clash Verge
 
 1. Double-click RUN-FIRST.command, or double-click Cactus AgentLink Rescue.app.
 2. Click Analyze Network.
-3. If Safe Repair is recommended, copy/run the Terminal command:
+3. If Clash/TUN is detected, create or run the targeted Terminal repair:
    cd ".../Cactus AgentLink Rescue.app/Contents/Resources/agentlink"
-   sudo ./bin/agentlink rescue --level safe
-4. If not fixed, run Standard:
-   sudo ./bin/agentlink rescue --level standard --yes
-5. If still not fixed, export Support Bundle.
-6. Deep repair only if instructed:
+   ./bin/agentlink ticket create --type clash-tun-fix --json
+   sudo ./bin/agentlink rescue --level tun --yes
+4. Verify:
+   ./bin/agentlink verify network --json
+5. If AgentLink says Restart Gate is required, restart once, do not open Clash, then run:
+   ./bin/agentlink restart-gate verify --json
+6. If still not fixed, export Support Bundle.
+7. Standard/deep are fallback only:
+   sudo ./bin/agentlink rescue --level standard-system-reset --yes
    sudo ./bin/agentlink rescue --level deep --yes
-7. Do not re-enable Clash TUN until network is confirmed working.
-8. AgentLink will not enable proxy/TUN automatically.
-9. If the app cannot open:
+8. Do not re-enable Clash TUN until network is confirmed working.
+9. AgentLink will not enable proxy/TUN automatically.
+10. If the app cannot open:
    xattr -cr "Cactus MacBook Network Rescue"
    then open the app again.
 TXT
@@ -72,9 +77,15 @@ cd "<path-to-this-folder>/Cactus AgentLink Rescue.app/Contents/Resources/agentli
 
 ./bin/agentlink version
 ./bin/agentlink diagnose
+./bin/agentlink diagnose tun
 ./bin/agentlink field macbook-network-rescue
+./bin/agentlink orchestrator rescue --target clash-tun --dry-run --json
+./bin/agentlink ticket create --type clash-tun-fix --json
+sudo ./bin/agentlink rescue --level tun --yes
+./bin/agentlink verify network --json
+./bin/agentlink restart-gate verify --json
 sudo ./bin/agentlink rescue --level safe
-sudo ./bin/agentlink rescue --level standard --yes
+sudo ./bin/agentlink rescue --level standard-system-reset --yes
 sudo ./bin/agentlink rescue --level deep --yes
 ./bin/agentlink support bundle
 

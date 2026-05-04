@@ -47,8 +47,11 @@ func (b LlamaCLIBackend) Available(ctx context.Context) BrainAvailability {
 		ModelSHA256OK:      loc.ModelSHA256OK,
 		ModelSizeBytes:     fileSize(loc.ModelPath),
 		RuntimePath:        loc.RuntimePath,
+		ServerPath:         loc.ServerPath,
 		RuntimeExists:      loc.RuntimeExists,
 		RuntimeExecutable:  loc.RuntimeExecutable,
+		ServerExists:       loc.ServerExists,
+		ServerExecutable:   loc.ServerExecutable,
 		RuntimeArch:        loc.RuntimeArch,
 		EstimatedModelSize: manifest.SizeBytesApprox,
 		PackageLocalAssets: loc.PackageLocalAssets,
@@ -70,7 +73,7 @@ func (b LlamaCLIBackend) Available(ctx context.Context) BrainAvailability {
 	}
 	out.BrainPackAvailable = out.ModelExists && out.ModelSHA256OK && out.RuntimeExecutable
 	if !out.BrainPackAvailable {
-		out.FetchCommands = []string{"./bin/agentlink brain fetch", "./scripts/fetch_brain_assets.sh", "download Cactus-AgentLink-Rescue-v0.4.3-brain-gemma4-e4b-q4km.zip for offline Brain use"}
+		out.FetchCommands = []string{"./bin/agentlink brain fetch", "./scripts/fetch_brain_assets.sh", "download Cactus-AgentLink-Rescue-v0.5.0-brain-gemma4-e4b-q4km.zip for offline Brain use"}
 	}
 	return out
 }

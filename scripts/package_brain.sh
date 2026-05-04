@@ -55,11 +55,11 @@ fi
 scripts/build.sh
 
 OUT="$ROOT/dist/Cactus-AgentLink-Rescue"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.4.5-brain-gemma4-e4b-q4km.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.0-brain-gemma4-e4b-q4km.zip"
 mkdir -p "$ROOT/dist"
 rm -rf "$OUT"
 rm -f "$ZIP"
-mkdir -p "$OUT/bin" "$OUT/rules" "$OUT/recipes" "$OUT/docs/offline" "$OUT/assets/models" "$OUT/assets/runtimes/llama.cpp/$ARCH" "$OUT/assets/manifests" "$OUT/assets/licenses" "$OUT/assets/installers" "$OUT/scripts"
+mkdir -p "$OUT/bin" "$OUT/rules" "$OUT/recipes" "$OUT/docs/offline" "$OUT/assets/models" "$OUT/assets/runtimes/llama.cpp/$ARCH" "$OUT/assets/manifests" "$OUT/assets/licenses" "$OUT/assets/installers" "$OUT/scripts" "$OUT/opencode"
 
 cp bin/agentlink "$OUT/bin/agentlink"
 cp README.md LICENSE "$OUT/"
@@ -86,6 +86,7 @@ cat > "$OUT/assets/manifests/manifest.lock.json" <<JSON
     "backend": "llama.cpp",
     "path": "assets/runtimes/llama.cpp/$ARCH/llama-cli",
     "binary": "llama-cli",
+    "server": "assets/runtimes/llama.cpp/$ARCH/llama-server",
     "sha256": "$RUNTIME_SHA",
     "arch": "$ARCH"
   }
@@ -99,10 +100,11 @@ if [ -d "$ASSET_CACHE/installers" ]; then
   rsync -a --exclude='*.dmg' "$ASSET_CACHE/installers/" "$OUT/assets/installers/"
 fi
 cp assets/README.md "$OUT/assets/README.md"
+cp -R opencode/agentlink-plugin "$OUT/opencode/agentlink-plugin"
 find "$OUT/assets/installers" -name '*.dmg' -delete
 cp scripts/fetch_gemma_model.sh scripts/fetch_llamacpp_runtime.sh scripts/fetch_brain_assets.sh scripts/fetch_clash_verge_rev.sh "$OUT/scripts/"
 
-chmod +x "$OUT/bin/agentlink" "$OUT/agentlink.command" "$OUT/rescue.sh" "$OUT/scripts/"*.sh "$OUT/assets/runtimes/llama.cpp/$ARCH/llama-cli" "$OUT/assets/runtimes/llama.cpp/$ARCH/llama-completion" 2>/dev/null || true
+chmod +x "$OUT/bin/agentlink" "$OUT/agentlink.command" "$OUT/rescue.sh" "$OUT/scripts/"*.sh "$OUT/assets/runtimes/llama.cpp/$ARCH/llama-cli" "$OUT/assets/runtimes/llama.cpp/$ARCH/llama-completion" "$OUT/assets/runtimes/llama.cpp/$ARCH/llama-server" 2>/dev/null || true
 find "$OUT" -depth \( -name .DS_Store -o -name __MACOSX -o -name '._*' -o -name .AppleDouble -o -name AppleDouble \) -exec rm -rf {} +
 
 (

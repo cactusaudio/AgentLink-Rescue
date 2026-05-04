@@ -22,16 +22,22 @@ import (
 	"cactus-agentlink-rescue/internal/guided"
 	"cactus-agentlink-rescue/internal/installer"
 	"cactus-agentlink-rescue/internal/lastgood"
+	"cactus-agentlink-rescue/internal/networkverify"
+	"cactus-agentlink-rescue/internal/opencode"
+	"cactus-agentlink-rescue/internal/orchestrator"
 	"cactus-agentlink-rescue/internal/planner"
+	"cactus-agentlink-rescue/internal/proxyapp"
 	"cactus-agentlink-rescue/internal/readiness"
 	"cactus-agentlink-rescue/internal/recipe"
 	"cactus-agentlink-rescue/internal/repair"
 	"cactus-agentlink-rescue/internal/report"
+	"cactus-agentlink-rescue/internal/restartgate"
 	"cactus-agentlink-rescue/internal/rollback"
 	"cactus-agentlink-rescue/internal/session"
 	"cactus-agentlink-rescue/internal/snapshot"
 	"cactus-agentlink-rescue/internal/supportbundle"
 	"cactus-agentlink-rescue/internal/system"
+	"cactus-agentlink-rescue/internal/ticket"
 	"cactus-agentlink-rescue/internal/verifier"
 	"cactus-agentlink-rescue/internal/verify"
 )
@@ -60,8 +66,16 @@ func Main(args []string, stdout io.Writer, stderr io.Writer) int {
 		return runDev(ctx, runner, args[1:], stdout, stderr)
 	case "guided":
 		return runGuided(ctx, runner, args[1:], stdout, stderr)
+	case "orchestrator":
+		return runOrchestrator(ctx, runner, rulesDir, args[1:], stdout, stderr)
 	case "field":
 		return runField(ctx, runner, rulesDir, args[1:], stdout, stderr)
+	case "verify":
+		return runVerify(ctx, runner, rulesDir, args[1:], stdout, stderr)
+	case "restart-gate":
+		return runRestartGate(ctx, runner, rulesDir, args[1:], stdout, stderr)
+	case "ticket":
+		return runTicket(ctx, runner, args[1:], stdout, stderr)
 	case "doctor":
 		return runDoctor(ctx, runner, args[1:], stdout, stderr)
 	case "snapshot":
@@ -83,9 +97,13 @@ func Main(args []string, stdout io.Writer, stderr io.Writer) int {
 	case "planner":
 		return runPlanner(ctx, runner, args[1:], stdout, stderr)
 	case "brain":
-		return runBrain(ctx, runner, args[1:], stdout, stderr)
+		return runBrain(ctx, runner, rulesDir, args[1:], stdout, stderr)
 	case "installer":
 		return runInstaller(ctx, runner, args[1:], stdout, stderr)
+	case "opencode":
+		return runOpenCode(ctx, runner, args[1:], stdout, stderr)
+	case "proxyapp":
+		return runProxyApp(ctx, runner, args[1:], stdout, stderr)
 	case "diagnose":
 		return runDiagnose(ctx, runner, rulesDir, args[1:], stdout, stderr)
 	case "classify":
@@ -592,6 +610,40 @@ func runGuided(ctx context.Context, runner command.Runner, args []string, stdout
 	return 0
 }
 
+func runOrchestrator(ctx context.Context, runner command.Runner, rulesDir string, args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 || args[0] != "rescue" {
+		fmt.Fprintln(stderr, "orchestrator requires: orchestrator rescue")
+		return 50
+	}
+	fs := flag.NewFlagSet("orchestrator rescue", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	target := fs.String("target", "auto", "auto, network, clash-tun, proxy, codex, keys, readiness")
+	dryRun := fs.Bool("dry-run", false, "dry run")
+	yes := fs.Bool("yes", false, "execute if allowed")
+	jsonOut := fs.Bool("json", false, "JSON")
+	maxCycles := fs.Int("max-cycles", 3, "maximum cycles")
+	timeoutSeconds := fs.Int("timeout-seconds", 600, "timeout seconds")
+	if err := fs.Parse(args[1:]); err != nil {
+		return 50
+	}
+	rep := orchestrator.Run(ctx, runner, orchestrator.Options{Target: *target, DryRun: *dryRun || !*yes, Yes: *yes, MaxCycles: *maxCycles, TimeoutSeconds: *timeoutSeconds, RulesDir: rulesDir, Home: currentHome(ctx, runner)})
+	if *jsonOut {
+		fmt.Fprintln(stdout, orchestrator.MarshalReport(rep))
+	} else {
+		fmt.Fprintf(stdout, "Cactus AgentLink Rescue %s Orchestrator\n\nStatus: %s\n%s\n", system.Version, rep.Status, rep.HumanSummary)
+		if rep.TerminalTicketPath != "" {
+			fmt.Fprintf(stdout, "\nTerminal ticket: %s\n", rep.TerminalTicketPath)
+		}
+		if rep.NextAction != "" {
+			fmt.Fprintf(stdout, "Next: %s\n", rep.NextAction)
+		}
+	}
+	if rep.Status == "failed" {
+		return 30
+	}
+	return 0
+}
+
 func runField(ctx context.Context, runner command.Runner, rulesDir string, args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 || args[0] != "macbook-network-rescue" {
 		fmt.Fprintln(stderr, "field requires: field macbook-network-rescue")
@@ -600,8 +652,22 @@ func runField(ctx context.Context, runner command.Runner, rulesDir string, args 
 	fs := flag.NewFlagSet("field macbook-network-rescue", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	jsonOut := fs.Bool("json", false, "print JSON")
+	fixTun := fs.Bool("fix-tun", false, "run targeted Clash/TUN repair")
+	yes := fs.Bool("yes", false, "approve targeted repair")
 	if err := fs.Parse(args[1:]); err != nil {
 		return 50
+	}
+	if *fixTun {
+		if *yes && !system.IsRoot() {
+			return sudoReexec(append([]string{"field"}, args...), stdout, stderr)
+		}
+		res := repair.Run(ctx, runner, repair.Options{Level: repair.LevelTun, Yes: *yes, DryRun: !*yes, JSON: *jsonOut, RulesDir: rulesDir, Stdin: os.Stdin, Stdout: stdout})
+		if *jsonOut {
+			fmt.Fprintln(stdout, repair.JSON(res))
+		} else {
+			printRescueSummary(stdout, res)
+		}
+		return res.ExitCode
 	}
 	diag := diagnose.NewEngine(runner, diagnose.Options{RulesDir: rulesDir}).Run(ctx)
 	classify.Apply(&diag)
@@ -616,11 +682,12 @@ func runField(ctx context.Context, runner command.Runner, rulesDir string, args 
 	fmt.Fprintf(stdout, "Classes: %s\n", strings.Join(rep.Diagnosis.Classes, ", "))
 	fmt.Fprintf(stdout, "System proxy dirty: %v\n", rep.Diagnosis.ProxyDirty)
 	fmt.Fprintf(stdout, "Clash/Verge/Mihomo residue: %v\n", rep.Diagnosis.ClashResidueDetected)
+	fmt.Fprintf(stdout, "Clash/Mihomo stale TUN: %v\n", rep.Diagnosis.ClashTunDetected)
 	fmt.Fprintf(stdout, "Network Extension/TUN suspected: %v\n", rep.Diagnosis.NetworkExtensionSuspected)
 	fmt.Fprintf(stdout, "Default route OK: %v\n", rep.Diagnosis.DefaultRouteOK)
 	fmt.Fprintf(stdout, "DNS OK: %v\n\n", rep.Diagnosis.DNSOK)
 	fmt.Fprintln(stdout, "Copyable commands:")
-	for _, key := range []string{"safe", "standard", "deep", "supportBundle"} {
+	for _, key := range []string{"tun", "safe", "standard", "standardSystemReset", "deep", "verifyNetwork", "ticket", "supportBundle"} {
 		if cmd := rep.Commands[key]; cmd != "" {
 			fmt.Fprintf(stdout, "- %s: %s\n", key, cmd)
 		}
@@ -754,9 +821,9 @@ func runPlanner(ctx context.Context, runner command.Runner, args []string, stdou
 	return 0
 }
 
-func runBrain(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
+func runBrain(ctx context.Context, runner command.Runner, rulesDir string, args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "brain requires doctor, fetch, selftest, prompt, chat, plan, or explain")
+		fmt.Fprintln(stderr, "brain requires doctor, fetch, selftest, prompt, chat, plan, rescue-plan, server, or explain")
 		return 50
 	}
 	home := currentHome(ctx, runner)
@@ -888,6 +955,24 @@ func runBrain(ctx context.Context, runner command.Runner, args []string, stdout,
 			return 30
 		}
 		return 0
+	case "rescue-plan":
+		fs := flag.NewFlagSet("brain rescue-plan", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		target := fs.String("target", "network", "network or clash-tun")
+		jsonOut := fs.Bool("json", false, "JSON")
+		if err := fs.Parse(args[1:]); err != nil {
+			return 50
+		}
+		decision := orchestrator.RescuePlan(ctx, runner, orchestrator.Options{Target: *target, DryRun: true, Yes: false, RulesDir: rulesDir, Home: home})
+		if *jsonOut {
+			data, _ := json.MarshalIndent(decision, "", "  ")
+			fmt.Fprintln(stdout, string(data))
+		} else {
+			fmt.Fprintf(stdout, "Intent: %s\nFailure: %s\nRecipe: %s\nConfidence: %.2f\n%s\n", decision.Intent, decision.FailureClass, decision.SelectedRecipe, decision.Confidence, decision.ExplanationForUser)
+		}
+		return 0
+	case "server":
+		return runBrainServer(ctx, runner, home, args[1:], stdout, stderr)
 	case "explain":
 		if len(args) != 2 || args[1] != "--latest" {
 			fmt.Fprintln(stderr, "brain explain requires --latest")
@@ -905,6 +990,47 @@ func runBrain(ctx context.Context, runner command.Runner, args []string, stdout,
 		fmt.Fprintln(stderr, "unknown brain subcommand")
 		return 50
 	}
+}
+
+func runBrainServer(ctx context.Context, runner command.Runner, home string, args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		fmt.Fprintln(stderr, "brain server requires start, stop, status, or verify")
+		return 50
+	}
+	fs := flag.NewFlagSet("brain server "+args[0], flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	port := fs.Int("port", 8080, "local port")
+	jsonOut := fs.Bool("json", false, "JSON")
+	if err := fs.Parse(args[1:]); err != nil {
+		return 50
+	}
+	var rep brain.ServerReport
+	switch args[0] {
+	case "start":
+		rep = brain.StartServer(ctx, runner, home, *port)
+	case "stop":
+		rep = brain.StopServer(home, *port)
+	case "status", "verify":
+		rep = brain.ServerStatus(home, *port)
+	default:
+		fmt.Fprintln(stderr, "brain server requires start, stop, status, or verify")
+		return 50
+	}
+	if *jsonOut {
+		fmt.Fprintln(stdout, brain.MarshalServer(rep))
+	} else {
+		fmt.Fprintf(stdout, "Brain server: %s\nURL: %s\n", rep.Status, rep.URL)
+		if rep.Error != "" {
+			fmt.Fprintf(stderr, "%s\n", rep.Error)
+		}
+	}
+	if rep.Status == "failed" {
+		return 30
+	}
+	if args[0] == "verify" && rep.Status != "running" {
+		return 20
+	}
+	return 0
 }
 
 func runBrainFetch(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
@@ -1079,7 +1205,160 @@ func runInstallerAction(ctx context.Context, runner command.Runner, catalog inst
 	return 0
 }
 
+func runOpenCode(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		fmt.Fprintln(stderr, "opencode requires doctor, install, configure-local-gemma, install-plugin, verify, or open")
+		return 50
+	}
+	home := currentHome(ctx, runner)
+	switch args[0] {
+	case "doctor":
+		return printOpenCode(opencode.Doctor(ctx, runner, home), contains(args[1:], "--json"), stdout)
+	case "install":
+		fs := flag.NewFlagSet("opencode install", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		dryRun := fs.Bool("dry-run", false, "dry run")
+		yes := fs.Bool("yes", false, "install")
+		jsonOut := fs.Bool("json", false, "JSON")
+		if err := fs.Parse(args[1:]); err != nil {
+			return 50
+		}
+		if *dryRun || !*yes {
+			return printOpenCode(opencode.InstallDryRun(), *jsonOut, stdout)
+		}
+		catalog, err := installer.LoadCatalog(installer.FindCatalogPath())
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			return 30
+		}
+		rep, err := installer.Run(ctx, runner, catalog, installer.Options{Action: installer.ActionInstall, ID: "opencode-cli", Yes: true, Version: system.Version})
+		if *jsonOut {
+			data, _ := json.MarshalIndent(rep, "", "  ")
+			fmt.Fprintln(stdout, string(data))
+		} else {
+			fmt.Fprintf(stdout, "%s: %s\n", rep.ID, rep.Status)
+		}
+		if err != nil {
+			return 30
+		}
+		return 0
+	case "configure-local-gemma":
+		fs := flag.NewFlagSet("opencode configure-local-gemma", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		dryRun := fs.Bool("dry-run", false, "dry run")
+		yes := fs.Bool("yes", false, "write config if safe")
+		jsonOut := fs.Bool("json", false, "JSON")
+		if err := fs.Parse(args[1:]); err != nil {
+			return 50
+		}
+		return printOpenCode(opencode.ConfigureLocalGemma(home, *yes && !*dryRun), *jsonOut, stdout)
+	case "install-plugin":
+		return printOpenCode(opencode.InstallPluginDryRun(), contains(args[1:], "--json"), stdout)
+	case "verify":
+		return printOpenCode(opencode.Verify(ctx, runner, home), contains(args[1:], "--json"), stdout)
+	case "open":
+		path := "/usr/bin/open"
+		res := runner.Run(ctx, path, "-a", "Terminal")
+		if res.ExitCode != 0 {
+			fmt.Fprintln(stderr, res.Stderr+res.Error)
+			return 30
+		}
+		return 0
+	default:
+		fmt.Fprintln(stderr, "unknown opencode subcommand")
+		return 50
+	}
+}
+
+func printOpenCode(rep opencode.Report, jsonOut bool, stdout io.Writer) int {
+	if jsonOut {
+		fmt.Fprintln(stdout, opencode.Marshal(rep))
+	} else {
+		fmt.Fprint(stdout, opencode.Human(rep))
+	}
+	if rep.Status == "failed" {
+		return 30
+	}
+	return 0
+}
+
+func runProxyApp(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 || args[0] != "clean-reinstall" {
+		fmt.Fprintln(stderr, "proxyapp requires clean-reinstall <id>")
+		return 50
+	}
+	parseArgs := args[1:]
+	appID := ""
+	if len(parseArgs) > 0 && !strings.HasPrefix(parseArgs[0], "-") {
+		appID = parseArgs[0]
+		parseArgs = parseArgs[1:]
+	}
+	fs := flag.NewFlagSet("proxyapp clean-reinstall", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	dryRun := fs.Bool("dry-run", false, "dry run")
+	yes := fs.Bool("yes", false, "quarantine final-resort app residue")
+	jsonOut := fs.Bool("json", false, "JSON")
+	if err := fs.Parse(parseArgs); err != nil {
+		return 50
+	}
+	if appID == "" && fs.NArg() == 1 {
+		appID = fs.Arg(0)
+	}
+	if appID == "" {
+		fmt.Fprintln(stderr, "proxyapp clean-reinstall requires app id")
+		return 50
+	}
+	runYes := *yes && !*dryRun
+	rep := proxyapp.CleanReinstall(ctx, runner, currentHome(ctx, runner), appID, runYes)
+	if *jsonOut {
+		fmt.Fprintln(stdout, proxyapp.Marshal(rep))
+	} else {
+		fmt.Fprintf(stdout, "Proxy app %s clean reinstall: %s\n", appID, rep.Status)
+		for _, action := range rep.Actions {
+			fmt.Fprintf(stdout, "- %s\n", action)
+		}
+		for _, warning := range rep.Warnings {
+			fmt.Fprintf(stdout, "Warning: %s\n", warning)
+		}
+		if rep.NextAction != "" {
+			fmt.Fprintf(stdout, "Next: %s\n", rep.NextAction)
+		}
+	}
+	if rep.Status == "failed" {
+		if rep.Error != "" {
+			fmt.Fprintln(stderr, rep.Error)
+		}
+		return 30
+	}
+	if rep.Status == "manual_action_required" {
+		return 20
+	}
+	return 0
+}
+
 func runDiagnose(ctx context.Context, runner command.Runner, rulesDir string, args []string, stdout, stderr io.Writer) int {
+	if len(args) > 0 && args[0] == "tun" {
+		fs := flag.NewFlagSet("diagnose tun", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		jsonOut := fs.Bool("json", false, "print JSON")
+		if err := fs.Parse(args[1:]); err != nil {
+			return 50
+		}
+		engine := diagnose.NewEngine(runner, diagnose.Options{RulesDir: rulesDir, Verbose: true})
+		r := engine.Run(ctx)
+		classify.Apply(&r)
+		tun := diagnose.DiagnoseTun(r)
+		if *jsonOut {
+			data, _ := json.MarshalIndent(tun, "", "  ")
+			fmt.Fprintln(stdout, string(data))
+		} else {
+			fmt.Fprintf(stdout, "Suspicious TUN signatures: %d\nRecommended repair: %s\n", len(tun.SuspiciousSignatures), tun.RecommendedRepair)
+			for _, sig := range tun.SuspiciousSignatures {
+				fmt.Fprintf(stdout, "- %s\n", sig)
+			}
+		}
+		return 0
+	}
 	fs := flag.NewFlagSet("diagnose", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	jsonOut := fs.Bool("json", false, "print JSON")
@@ -1127,10 +1406,118 @@ func runClassify(ctx context.Context, runner command.Runner, rulesDir string, ar
 	return 0
 }
 
+func runVerify(ctx context.Context, runner command.Runner, rulesDir string, args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		fmt.Fprintln(stderr, "verify requires network or airdrop")
+		return 50
+	}
+	switch args[0] {
+	case "network":
+		fs := flag.NewFlagSet("verify network", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		jsonOut := fs.Bool("json", false, "JSON")
+		if err := fs.Parse(args[1:]); err != nil {
+			return 50
+		}
+		rep := networkverify.Run(ctx, runner, rulesDir, false)
+		if *jsonOut {
+			data, _ := json.MarshalIndent(rep, "", "  ")
+			fmt.Fprintln(stdout, string(data))
+		} else {
+			fmt.Fprintf(stdout, "Network OK: %v\nRecommendation: %s\nClasses: %s\n", rep.OK, rep.NextRecommendation, strings.Join(rep.FailureClasses, ", "))
+		}
+		if !rep.OK {
+			return 20
+		}
+		return 0
+	case "airdrop":
+		fs := flag.NewFlagSet("verify airdrop", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		jsonOut := fs.Bool("json", false, "JSON")
+		if err := fs.Parse(args[1:]); err != nil {
+			return 50
+		}
+		rep := networkverify.Run(ctx, runner, rulesDir, false)
+		out := map[string]any{"toolVersion": system.Version, "awdl0Up": rep.AWDLUp, "firewallBlockAll": rep.FirewallBlockAll, "ok": rep.AWDLUp}
+		if *jsonOut {
+			data, _ := json.MarshalIndent(out, "", "  ")
+			fmt.Fprintln(stdout, string(data))
+		} else {
+			fmt.Fprintf(stdout, "AWDL up: %v\n", rep.AWDLUp)
+		}
+		if !rep.AWDLUp {
+			return 20
+		}
+		return 0
+	default:
+		fmt.Fprintln(stderr, "verify requires network or airdrop")
+		return 50
+	}
+}
+
+func runRestartGate(ctx context.Context, runner command.Runner, rulesDir string, args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		fmt.Fprintln(stderr, "restart-gate requires prepare or verify")
+		return 50
+	}
+	fs := flag.NewFlagSet("restart-gate "+args[0], flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	jsonOut := fs.Bool("json", false, "JSON")
+	if err := fs.Parse(args[1:]); err != nil {
+		return 50
+	}
+	var rep restartgate.Report
+	switch args[0] {
+	case "prepare":
+		rep = restartgate.Prepare(ctx, runner, rulesDir)
+	case "verify":
+		rep = restartgate.Verify(ctx, runner, rulesDir)
+	default:
+		fmt.Fprintln(stderr, "restart-gate requires prepare or verify")
+		return 50
+	}
+	if *jsonOut {
+		data, _ := json.MarshalIndent(rep, "", "  ")
+		fmt.Fprintln(stdout, string(data))
+	} else {
+		fmt.Fprintf(stdout, "Restart required: %v\nReason: %s\nPost-restart: %s\n", rep.RestartRequired, rep.Reason, rep.PostRestartCommand)
+	}
+	if rep.RestartRequired {
+		return 20
+	}
+	return 0
+}
+
+func runTicket(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 || args[0] != "create" {
+		fmt.Fprintln(stderr, "ticket requires create")
+		return 50
+	}
+	fs := flag.NewFlagSet("ticket create", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	ticketType := fs.String("type", "", "clash-tun-fix, rollback, or verify-network")
+	id := fs.String("id", "", "restore point id")
+	jsonOut := fs.Bool("json", false, "JSON")
+	if err := fs.Parse(args[1:]); err != nil {
+		return 50
+	}
+	rep := ticket.Create(ctx, runner, ticket.Options{Home: currentHome(ctx, runner), Type: *ticketType, ID: *id, Version: system.Version})
+	if *jsonOut {
+		data, _ := json.MarshalIndent(rep, "", "  ")
+		fmt.Fprintln(stdout, string(data))
+	} else {
+		fmt.Fprint(stdout, ticket.Human(rep))
+	}
+	if rep.Status == "failed" {
+		return 30
+	}
+	return 0
+}
+
 func runRescue(ctx context.Context, runner command.Runner, rulesDir string, args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("rescue", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	level := fs.String("level", repair.LevelSafe, "safe, standard, or deep")
+	level := fs.String("level", repair.LevelSafe, "safe, tun, standard, standard-system-reset, or deep")
 	yes := fs.Bool("yes", false, "confirm destructive steps")
 	dryRun := fs.Bool("dry-run", false, "show actions without changing system")
 	jsonOut := fs.Bool("json", false, "print JSON")
@@ -1141,6 +1528,10 @@ func runRescue(ctx context.Context, runner command.Runner, rulesDir string, args
 	}
 	if *level == repair.LevelDeep && !*yes {
 		fmt.Fprintln(stderr, "deep rescue requires --yes")
+		return 50
+	}
+	if *level == repair.LevelTun && !*dryRun && !*yes {
+		fmt.Fprintln(stderr, "tun rescue requires --yes")
 		return 50
 	}
 	if !*dryRun && !system.IsRoot() {
@@ -1479,21 +1870,30 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "  agentlink keys doctor [--json]")
 	fmt.Fprintln(w, "  agentlink planner validate <decision.json>")
 	fmt.Fprintln(w, "  agentlink guided rescue [--target auto|path|proxy|codex|keys|network] [--dry-run] [--yes] [--json]")
-	fmt.Fprintln(w, "  agentlink field macbook-network-rescue [--json]")
+	fmt.Fprintln(w, "  agentlink orchestrator rescue [--target auto|network|clash-tun|proxy|codex|keys|readiness] [--dry-run] [--yes] [--json]")
+	fmt.Fprintln(w, "  agentlink field macbook-network-rescue [--fix-tun] [--yes] [--json]")
+	fmt.Fprintln(w, "  agentlink diagnose tun [--json]")
+	fmt.Fprintln(w, "  agentlink verify network|airdrop [--json]")
+	fmt.Fprintln(w, "  agentlink restart-gate prepare|verify [--json]")
+	fmt.Fprintln(w, "  agentlink ticket create --type clash-tun-fix|rollback|verify-network [--id ID] [--json]")
 	fmt.Fprintln(w, "  agentlink brain doctor [--json]")
 	fmt.Fprintln(w, "  agentlink brain fetch [--model gemma-4-e4b-it-q4km] [--runtime llama.cpp]")
 	fmt.Fprintln(w, "  agentlink brain selftest [--json]")
 	fmt.Fprintln(w, "  agentlink brain prompt --text \"...\" [--json]")
 	fmt.Fprintln(w, "  agentlink brain chat --prompt \"...\" [--json]")
 	fmt.Fprintln(w, "  agentlink brain plan --target path|proxy|codex|keys|network [--json]")
+	fmt.Fprintln(w, "  agentlink brain rescue-plan --target network|clash-tun [--json]")
+	fmt.Fprintln(w, "  agentlink brain server start|stop|status|verify [--port 8080] [--json]")
 	fmt.Fprintln(w, "  agentlink installer list [--json]")
 	fmt.Fprintln(w, "  agentlink installer doctor [--json]")
 	fmt.Fprintln(w, "  agentlink installer inspect <id> [--json]")
 	fmt.Fprintln(w, "  agentlink installer dry-run|install|verify|open <id> [--yes] [--json]")
+	fmt.Fprintln(w, "  agentlink opencode doctor|install|configure-local-gemma|install-plugin|verify [--dry-run] [--yes] [--json]")
+	fmt.Fprintln(w, "  agentlink proxyapp clean-reinstall clash-verge-rev [--dry-run] [--yes] [--json]")
 	fmt.Fprintln(w, "  agentlink repair --auto --brain --target path|proxy|codex|keys|network [--dry-run] [--yes] [--online] [--json]")
 	fmt.Fprintln(w, "  agentlink diagnose [--json] [--verbose]")
 	fmt.Fprintln(w, "  agentlink classify [--json]")
-	fmt.Fprintln(w, "  agentlink rescue [--level safe|standard|deep] [--yes] [--dry-run] [--json]")
+	fmt.Fprintln(w, "  agentlink rescue [--level safe|tun|standard|standard-system-reset|deep] [--yes] [--dry-run] [--json]")
 	fmt.Fprintln(w, "  agentlink rollback [--last | --id RESTORE_POINT_ID] [--dry-run] [--json]")
 	fmt.Fprintln(w, "  agentlink report [--latest | --id REPORT_ID] [--json]")
 	fmt.Fprintln(w, "  agentlink selftest")

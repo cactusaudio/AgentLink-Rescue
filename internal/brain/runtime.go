@@ -23,8 +23,11 @@ type BrainAvailability struct {
 	ModelSHA256OK      bool     `json:"modelSha256OK"`
 	ModelSizeBytes     int64    `json:"modelSizeBytes,omitempty"`
 	RuntimePath        string   `json:"runtimePath,omitempty"`
+	ServerPath         string   `json:"serverPath,omitempty"`
 	RuntimeExists      bool     `json:"runtimeExists"`
 	RuntimeExecutable  bool     `json:"runtimeExecutable"`
+	ServerExists       bool     `json:"serverExists"`
+	ServerExecutable   bool     `json:"serverExecutable"`
 	RuntimeArch        string   `json:"runtimeArch,omitempty"`
 	EstimatedModelSize int64    `json:"estimatedModelSize"`
 	PackageLocalAssets bool     `json:"packageLocalAssets"`

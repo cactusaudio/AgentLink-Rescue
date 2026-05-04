@@ -31,7 +31,7 @@
         "AgentLink will not enable system proxy, TUN, or import a proxy profile automatically."
       ],
       "notes": [
-        "Installer Center opens the embedded DMG when present. Manual app install is preferred in v0.4.3."
+        "Installer Center opens the embedded DMG when present. Manual app install is preferred in v0.5.0."
       ]
     },
     {
@@ -160,6 +160,51 @@
       ],
       "warnings": [
         "Use only @google/gemini-cli or the official Homebrew formula gemini-cli. Similar package names are refused."
+      ]
+    },
+    {
+      "id": "opencode-cli",
+      "displayName": "OpenCode CLI",
+      "risk": "network_action",
+      "defaultMethod": "npm",
+      "methods": [
+        {
+          "id": "npm",
+          "type": "npm",
+          "requiresNetwork": true,
+          "requiresAdmin": false,
+          "command": ["npm", "install", "-g", "opencode-ai"]
+        },
+        {
+          "id": "homebrew",
+          "type": "homebrew",
+          "requiresNetwork": true,
+          "requiresAdmin": false,
+          "command": ["brew", "install", "anomalyco/tap/opencode"]
+        },
+        {
+          "id": "official_script_copy_only",
+          "type": "manual",
+          "requiresNetwork": true,
+          "requiresAdmin": false,
+          "officialURL": "https://opencode.ai/install",
+          "command": ["curl", "-fsSL", "https://opencode.ai/install", "|", "bash"]
+        }
+      ],
+      "verify": [
+        {"type": "command_runs", "command": "opencode", "args": ["--version"]},
+        {"type": "command_runs", "command": "opencode", "args": ["--help"]}
+      ],
+      "dependencies": [
+        {"command": "npm", "required": false},
+        {"command": "brew", "required": false}
+      ],
+      "officialDocs": [
+        "https://opencode.ai/docs/"
+      ],
+      "warnings": [
+        "OpenCode is a local coding/report-analysis harness. It is not the AgentLink system rescue executor.",
+        "The curl install script is copy-only in AgentLink and is never auto-run."
       ]
     }
   ]

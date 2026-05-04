@@ -6,7 +6,7 @@ BIN="$ROOT/bin/agentlink"
 FALLBACK="$ROOT/rescue.sh"
 
 clear
-echo "Cactus AgentLink Rescue 0.4.5"
+echo "Cactus AgentLink Rescue 0.5.0"
 echo
 
 xattr -cr "$ROOT" 2>/dev/null || true
@@ -49,7 +49,7 @@ echo
 
 while true; do
   echo "Choose an action:"
-  echo "  1. Guided Rescue Analyze"
+  echo "  1. Fix My Connection Analyze"
   echo "  2. Readiness Center"
   echo "  3. Save Last-Good Profile"
   echo "  4. Create Support Bundle"
@@ -60,18 +60,20 @@ while true; do
   echo "  9. Brain Auto Repair Dry-Run"
   echo "  10. Installer Center Doctor"
   echo "  11. Brain Chat Sandbox"
-  echo "  12. Network Rescue Safe"
-  echo "  13. Network Rescue Standard"
-  echo "  14. Repair PATH"
-  echo "  15. Proxy Detect"
-  echo "  16. Codex Config Doctor"
-  echo "  17. Rollback Last"
-  echo "  18. Exit"
+  echo "  12. Clash/TUN Repair Ticket"
+  echo "  13. Targeted Clash/TUN Repair"
+  echo "  14. Network Rescue Safe"
+  echo "  15. Network System Reset"
+  echo "  16. Repair PATH"
+  echo "  17. Proxy Detect"
+  echo "  18. Codex Config Doctor"
+  echo "  19. Rollback Last"
+  echo "  20. Exit"
   printf "> "
   read -r choice
   case "$choice" in
     1)
-      "$BIN" guided rescue --target auto --dry-run
+      "$BIN" orchestrator rescue --target auto --dry-run
       break
       ;;
     2)
@@ -116,14 +118,22 @@ while true; do
       break
       ;;
     12)
-      sudo "$BIN" rescue --level safe
+      "$BIN" ticket create --type clash-tun-fix
       break
       ;;
     13)
-      sudo "$BIN" rescue --level standard
+      sudo "$BIN" rescue --level tun --yes
       break
       ;;
     14)
+      sudo "$BIN" rescue --level safe
+      break
+      ;;
+    15)
+      sudo "$BIN" rescue --level standard-system-reset --yes
+      break
+      ;;
+    16)
       echo "PATH repair writes a managed block to ~/.zshrc and creates a rollback snapshot."
       read -r -p "Type YES to continue: " confirm
       if [ "$confirm" = "YES" ]; then
@@ -133,19 +143,19 @@ while true; do
       fi
       break
       ;;
-    15)
+    17)
       "$BIN" proxy detect
       break
       ;;
-    16)
+    18)
       "$BIN" config doctor
       break
       ;;
-    17)
+    19)
       "$BIN" restore last || sudo "$BIN" rollback --last
       break
       ;;
-    18)
+    20)
       exit 0
       ;;
     *)

@@ -33,7 +33,7 @@ struct GuidedRescueView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Clash/TUN 网络恢复")
                         .font(.title2.weight(.semibold))
-                    Text("Use this if Wi-Fi/Ethernet connects but the internet breaks after Clash Verge TUN mode.")
+                    Text("Use this if Wi-Fi/Ethernet connects but the internet breaks after Clash Verge TUN mode. AgentLink prefers targeted TUN repair before broad standard reset.")
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -42,7 +42,7 @@ struct GuidedRescueView: View {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 190), spacing: 10)], spacing: 10) {
                 fieldStatus("Proxy", state.fieldReport?.diagnosis?.proxyDirty == true ? "Dirty" : "Clean/unknown", state.fieldReport?.diagnosis?.proxyDirty == true ? .warn : .ok)
                 fieldStatus("Clash residue", state.fieldReport?.diagnosis?.clashResidueDetected == true ? "Detected" : "Not detected", state.fieldReport?.diagnosis?.clashResidueDetected == true ? .warn : .neutral)
-                fieldStatus("TUN/Extension", state.fieldReport?.diagnosis?.networkExtensionSuspected == true ? "Suspected" : "Not suspected", state.fieldReport?.diagnosis?.networkExtensionSuspected == true ? .warn : .neutral)
+                fieldStatus("TUN/Extension", state.fieldReport?.diagnosis?.clashTunDetected == true ? "Clash TUN" : (state.fieldReport?.diagnosis?.networkExtensionSuspected == true ? "Suspected" : "Not suspected"), (state.fieldReport?.diagnosis?.clashTunDetected == true || state.fieldReport?.diagnosis?.networkExtensionSuspected == true) ? .warn : .neutral)
                 fieldStatus("Brain", state.brainDoctor?.brainPackAvailable == true ? "Available" : "Missing", state.brainDoctor?.brainPackAvailable == true ? .ok : .warn)
             }
             HStack(spacing: 10) {
@@ -53,11 +53,11 @@ struct GuidedRescueView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(state.isRunning)
-                Button("Copy Safe Repair Command") {
-                    copy(state.fieldRescueCommand(level: "safe"))
+                Button("Copy TUN Repair Command") {
+                    copy(state.fieldRescueCommand(level: "tun"))
                 }
-                Button("Copy Standard Repair Command") {
-                    copy(state.fieldRescueCommand(level: "standard"))
+                Button("Create Terminal Ticket") {
+                    Task { await state.runGuidedRescue(allowRepair: true, target: "network") }
                 }
                 Button("Open Clash Verge Rev Installer") {
                     Task { await state.runInstallerOpen("clash-verge-rev") }
@@ -68,9 +68,11 @@ struct GuidedRescueView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("GUI mode does not run sudo or collect passwords. Copy these commands into Terminal.")
                         .foregroundStyle(.secondary)
-                    CommandPreview(title: "Safe Repair", command: state.fieldRescueCommand(level: "safe"))
-                    CommandPreview(title: "Standard Repair", command: state.fieldRescueCommand(level: "standard"))
-                    CommandPreview(title: "Deep Repair", command: state.fieldRescueCommand(level: "deep"))
+                    CommandPreview(title: "Targeted Clash/TUN Repair", command: state.fieldRescueCommand(level: "tun"))
+                    CommandPreview(title: "Verify Network", command: "cd \(shellQuote(state.client.packageRoot.path))\n./bin/agentlink verify network --json")
+                    CommandPreview(title: "Restart Gate Verify", command: "cd \(shellQuote(state.client.packageRoot.path))\n./bin/agentlink restart-gate verify --json")
+                    CommandPreview(title: "Standard System Reset (fallback)", command: state.fieldRescueCommand(level: "standard-system-reset"))
+                    CommandPreview(title: "Deep Repair (final resort)", command: state.fieldRescueCommand(level: "deep"))
                     CommandPreview(title: "Support Bundle", command: "cd \(shellQuote(state.client.packageRoot.path))\n./bin/agentlink support bundle")
                 }
                 .padding(.top, 8)
@@ -188,9 +190,9 @@ struct GuidedRescueView: View {
 
     private func guidedKind(_ status: String) -> StatusBadge.Kind {
         switch status.lowercased() {
-        case "ok", "healthy", "fixed", "ready", "ready to apply", "dry-run complete", "repaired":
+        case "ok", "healthy", "fixed", "ready", "ready to apply", "dry-run complete", "repaired", "planned":
             return .ok
-        case "running", "warn", "needs review", "no local candidate", "manual action required", "no safe action", "rolled back":
+        case "running", "warn", "needs review", "no local candidate", "manual action required", "no safe action", "rolled back", "terminal ticket ready", "restart required", "rolled back after worsening", "ticket_created", "restart_required", "rolled_back_after_worsening":
             return .warn
         case "failed":
             return .fail

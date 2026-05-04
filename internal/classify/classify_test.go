@@ -58,6 +58,27 @@ func TestClassifierClashResidueNetworkBroken(t *testing.T) {
 	}
 }
 
+func TestClassifierClashTunRecommendsTun(t *testing.T) {
+	r := healthyReport()
+	r.Reachability.RawIPs = map[string]diagnose.ProbeResult{"1.1.1.1": {Target: "1.1.1.1", OK: false}}
+	r.Network.Interfaces = append(r.Network.Interfaces, diagnose.NetworkInterface{Name: "utun0", Status: "active", IsUTun: true, IPv4: []string{"198.18.0.1"}, IPv6: []string{"fdfe:dcba:9876::1"}})
+	r.Residues.PrivilegedHelpers = []diagnose.ResidueMatch{{
+		RuleID:                "clash_verge",
+		DisplayName:           "Clash Verge Rev",
+		Risk:                  "network_proxy_tun_residue",
+		Path:                  "/Library/PrivilegedHelperTools/io.github.clash-verge-rev.clash-verge-rev.service.bundle",
+		Kind:                  "privilegedHelper",
+		AutoQuarantineAllowed: true,
+	}}
+	classes := Classify(r)
+	if !has(classes, ClashTunActiveOrStale) {
+		t.Fatalf("missing TUN class: %v", classes)
+	}
+	if got := RecommendedRepairLevel(classes); got != "tun" {
+		t.Fatalf("level=%s classes=%v", got, classes)
+	}
+}
+
 func TestInactiveHardwareNoDHCPDoesNotTriggerNoLease(t *testing.T) {
 	r := healthyReport()
 	r.Network.HardwarePorts = []diagnose.HardwarePort{{Port: "Wi-Fi", Device: "en0"}, {Port: "USB 10/100/1000 LAN", Device: "en6"}}
