@@ -11,7 +11,8 @@ import (
 
 func TestCreateClashTunTicket(t *testing.T) {
 	home := t.TempDir()
-	rep := Create(context.Background(), &command.MockRunner{}, Options{Home: home, Type: "clash-tun-fix", Version: "test"})
+	packageRoot := "/tmp/Cactus MacBook Network Rescue/Cactus AgentLink Rescue.app/Contents/Resources/agentlink"
+	rep := Create(context.Background(), &command.MockRunner{}, Options{Home: home, Type: "clash-tun-fix", Version: "test", PackageRoot: packageRoot})
 	if rep.Status != "created" {
 		t.Fatalf("ticket failed: %+v", rep)
 	}
@@ -23,6 +24,9 @@ func TestCreateClashTunTicket(t *testing.T) {
 	text := string(data)
 	if !strings.Contains(text, "sudo ./bin/agentlink rescue --level tun --yes") {
 		t.Fatalf("ticket missing tun repair command:\n%s", text)
+	}
+	if !strings.Contains(text, "cd '"+packageRoot+"'") {
+		t.Fatalf("ticket did not use explicit quoted package root:\n%s", text)
 	}
 	if strings.Contains(strings.ToLower(text), "password") && strings.Contains(text, "sudo -S") {
 		t.Fatalf("ticket contains unsafe password handling:\n%s", text)

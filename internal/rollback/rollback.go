@@ -11,6 +11,7 @@ import (
 	"cactus-agentlink-rescue/internal/classify"
 	"cactus-agentlink-rescue/internal/command"
 	"cactus-agentlink-rescue/internal/diagnose"
+	"cactus-agentlink-rescue/internal/repair"
 	"cactus-agentlink-rescue/internal/safety"
 	"cactus-agentlink-rescue/internal/snapshot"
 	"cactus-agentlink-rescue/internal/system"
@@ -25,16 +26,19 @@ type Options struct {
 }
 
 type Result struct {
-	ToolVersion      string   `json:"toolVersion"`
-	DryRun           bool     `json:"dryRun"`
-	RestorePointID   string   `json:"restorePointId,omitempty"`
-	RestorePointPath string   `json:"restorePointPath,omitempty"`
-	Status           string   `json:"status"`
-	ExitCode         int      `json:"exitCode"`
-	Actions          []string `json:"actions"`
-	Warnings         []string `json:"warnings,omitempty"`
-	ReportPath       string   `json:"reportPath,omitempty"`
-	Error            string   `json:"error,omitempty"`
+	ToolVersion            string                `json:"toolVersion"`
+	DryRun                 bool                  `json:"dryRun"`
+	RestorePointID         string                `json:"restorePointId,omitempty"`
+	RestorePointPath       string                `json:"restorePointPath,omitempty"`
+	Status                 string                `json:"status"`
+	ExitCode               int                   `json:"exitCode"`
+	Actions                []string              `json:"actions"`
+	Warnings               []string              `json:"warnings,omitempty"`
+	ReportPath             string                `json:"reportPath,omitempty"`
+	FileRollbackStatus     string                `json:"fileRollbackStatus,omitempty"`
+	NetworkRollbackStatus  string                `json:"networkRollbackStatus,omitempty"`
+	NetworkRollbackActions []repair.ActionResult `json:"networkRollbackActions,omitempty"`
+	Error                  string                `json:"error,omitempty"`
 }
 
 func Run(ctx context.Context, runner command.Runner, opts Options) Result {
@@ -70,6 +74,11 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 	if rp.Manifest.PreviousNetworkLocation != "" {
 		result.Actions = append([]string{"switch network location back to " + rp.Manifest.PreviousNetworkLocation}, result.Actions...)
 	}
+	networkSnapshot, networkMutations, hasNetworkSnapshot, networkLoadWarnings := loadNetworkRollbackState(rp)
+	result.Warnings = append(result.Warnings, networkLoadWarnings...)
+	if hasNetworkSnapshot {
+		result.Actions = append(result.Actions, "restore network state from "+filepath.Base(rp.Manifest.NetworkSnapshotPath))
+	}
 	if opts.DryRun {
 		result.Status = "dry run only; no changes made"
 		result.ExitCode = 0
@@ -94,14 +103,17 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 	if err := rp.RestoreAll(); err != nil {
 		result.ExitCode = 30
 		result.Status = "file rollback failed"
+		result.FileRollbackStatus = "failed"
 		result.Error = err.Error()
 		return result
 	}
+	result.FileRollbackStatus = "restored"
 	if needsLocationSwitch && (restoreFilesFirst || !switchBeforeOK) {
 		ok, detail := switchLocation(ctx, runner, &rp, "rollback.location.switch.after_restore")
 		if !ok {
 			result.ExitCode = 30
 			result.Status = "files restored; network location restore failed"
+			result.NetworkRollbackStatus = "partial_rollback_failed"
 			result.Error = detail
 			result.Warnings = append(result.Warnings, "files were restored, but network location restore failed: "+detail)
 			return result
@@ -110,6 +122,18 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 			result.Warnings = append(result.Warnings, "network location restore succeeded after file restore retry")
 		}
 	}
+	if hasNetworkSnapshot {
+		networkRestore := repair.RestoreNetworkSnapshot(ctx, runner, networkSnapshot, networkMutations)
+		result.NetworkRollbackStatus = networkRestore.Status
+		result.NetworkRollbackActions = append(result.NetworkRollbackActions, networkRestore.Actions...)
+		result.Warnings = append(result.Warnings, networkRestore.Warnings...)
+		if networkRestore.Status == "partial_rollback_failed" {
+			result.Status = "rollback complete with warnings"
+			result.ExitCode = 20
+		}
+	} else {
+		result.NetworkRollbackStatus = "skipped"
+	}
 	engine := diagnose.NewEngine(runner, diagnose.Options{RulesDir: opts.RulesDir})
 	post := engine.Run(ctx)
 	classify.Apply(&post)
@@ -117,9 +141,54 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 	reportPath := filepath.Join(rp.Path, "rollback-diagnostic.json")
 	_ = os.WriteFile(reportPath, data, 0644)
 	result.ReportPath = reportPath
-	result.Status = "rollback complete"
-	result.ExitCode = 0
+	if result.Status == "" {
+		result.Status = "rollback complete"
+		result.ExitCode = 0
+	}
 	return result
+}
+
+func loadNetworkRollbackState(rp snapshot.RestorePoint) (repair.NetworkStateSnapshot, repair.NetworkMutations, bool, []string) {
+	var warnings []string
+	if rp.Manifest.NetworkSnapshotPath == "" {
+		return repair.NetworkStateSnapshot{}, repair.NetworkMutations{}, false, nil
+	}
+	snapshotPath := rp.Manifest.NetworkSnapshotPath
+	if !filepath.IsAbs(snapshotPath) {
+		snapshotPath = filepath.Join(rp.Path, snapshotPath)
+	}
+	var snap repair.NetworkStateSnapshot
+	if err := readJSONInsideRestorePoint(rp.Path, snapshotPath, &snap); err != nil {
+		return repair.NetworkStateSnapshot{}, repair.NetworkMutations{}, false, []string{"network rollback snapshot could not be loaded: " + err.Error()}
+	}
+	mutations := repair.AllNetworkMutations()
+	if rp.Manifest.NetworkMutationsPath != "" {
+		mutationPath := rp.Manifest.NetworkMutationsPath
+		if !filepath.IsAbs(mutationPath) {
+			mutationPath = filepath.Join(rp.Path, mutationPath)
+		}
+		var loadedMutations repair.NetworkMutations
+		if err := readJSONInsideRestorePoint(rp.Path, mutationPath, &loadedMutations); err != nil {
+			warnings = append(warnings, "network rollback mutations could not be loaded; restoring all captured network fields: "+err.Error())
+			mutations = repair.AllNetworkMutations()
+		} else {
+			mutations = loadedMutations
+		}
+	}
+	return snap, mutations, true, warnings
+}
+
+func readJSONInsideRestorePoint(root string, path string, v any) error {
+	rootClean := filepath.Clean(root)
+	pathClean := filepath.Clean(path)
+	if pathClean != rootClean && !strings.HasPrefix(pathClean, rootClean+string(os.PathSeparator)) {
+		return fmt.Errorf("path outside restore point refused: %s", path)
+	}
+	data, err := os.ReadFile(pathClean)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, v)
 }
 
 func loadRestorePoint(opts Options) (snapshot.RestorePoint, error) {

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cactus.local/cactus-flywheel/config.schema.json",
+  "title": "cactus-flywheel run configuration",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "schemaVersion": { "type": "integer", "minimum": 1 },
+    "mode": {
+      "type": "string",
+      "enum": ["stress-test", "training", "bugfix", "release-hardening", "research"]
+    },
+    "profile": {
+      "type": "string",
+      "description": "Name of a profile under skills/cactus-flywheel/profiles/ (without extension)"
+    },
+    "maxRounds": { "type": "integer", "minimum": 1 },
+    "maxWallClockMinutes": { "type": "integer", "minimum": 1 },
+    "plateauWindow": { "type": "integer", "minimum": 1 },
+    "plateauEpsilon": { "type": "number", "minimum": 0 },
+    "plateauMetric": { "type": "string" },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    },
+    "weights": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    },
+    "verifiers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "command"],
+        "properties": {
+          "name": { "type": "string" },
+          "command": { "type": "string" },
+          "metric": { "type": "string", "description": "metric key this verifier feeds into" },
+          "passValue": { "type": "number" },
+          "failValue": { "type": "number" }
+        }
+      }
+    },
+    "promotionThresholds": {
+      "type": "object",
+      "properties": {
+        "minDelta": { "type": "number", "minimum": 0 },
+        "maxRegressionPerMetric": { "type": "number", "minimum": 0 }
+      }
+    },
+    "promoteCriteria": {
+      "type": "object",
+      "properties": {
+        "ruleMinOccurrences": { "type": "integer", "minimum": 1 },
+        "skillMinOccurrences": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

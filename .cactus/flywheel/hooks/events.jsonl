@@ -1,0 +1,5 @@
+{"timestamp": "2026-05-05T18:04:14Z", "event": "SubagentStop-allow", "runID": "cf-20260505-175806", "reason": "stop requested: Audit task complete: hard-invariant review of AgentLink v0.5.0 finished. 10 items audited (9 HOLD verified, 1 INVESTIGATE truthful), 0 violations found, 0 code changes required. Task is read-only exploration, not iterative improvement\u2014flywheel framework does not apply."}
+{"timestamp": "2026-05-05T18:17:24Z", "event": "Stop-allow", "runID": "cf-20260505-175806", "reason": "no active run"}
+{"timestamp": "2026-05-05T18:18:04Z", "event": "Stop-allow", "runID": "cf-20260505-175806", "reason": "no active run"}
+{"timestamp": "2026-05-05T18:18:11Z", "event": "SubagentStop-allow", "runID": "cf-20260505-175806", "reason": "no active run"}
+{"timestamp": "2026-05-05T18:21:08Z", "event": "SubagentStop-allow", "runID": "cf-20260505-175806", "reason": "no active run"}

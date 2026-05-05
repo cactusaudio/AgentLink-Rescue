@@ -7,6 +7,20 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 8) {
+                    Text("Developer Mode").font(.headline)
+                    Toggle("Enable Developer Mode", isOn: $state.developerModeEnabled)
+                        .toggleStyle(.checkbox)
+                    Text("Developer Mode exposes the Expert Console: Doctor, Brain, installer, raw rescue levels, rollback, and logs. Normal rescue does not require it.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if state.developerModeEnabled {
+                        Button("Open Expert Console") {
+                            state.page = .guided
+                        }
+                    }
+                }
+                .card()
+                VStack(alignment: .leading, spacing: 8) {
                     Text("Package").font(.headline)
                     InfoRow(label: "Package root", value: state.client.packageRoot.path, monospaced: true)
                     InfoRow(label: "Binary", value: state.client.binaryURL.path, monospaced: true)

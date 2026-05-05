@@ -62,7 +62,8 @@ Use this copy when Wi-Fi/Ethernet connects but internet breaks after Clash Verge
 5. If AgentLink says Restart Gate is required, restart once, do not open Clash, then run:
    ./bin/agentlink restart-gate verify --json
 6. If still not fixed, export Support Bundle.
-7. Standard/deep are fallback only:
+7. Last-resort reset paths are fallback only:
+   sudo ./bin/agentlink rescue --level clean-baseline --yes
    sudo ./bin/agentlink rescue --level standard-system-reset --yes
    sudo ./bin/agentlink rescue --level deep --yes
 8. Do not re-enable Clash TUN until network is confirmed working.
@@ -85,6 +86,7 @@ sudo ./bin/agentlink rescue --level tun --yes
 ./bin/agentlink verify network --json
 ./bin/agentlink restart-gate verify --json
 sudo ./bin/agentlink rescue --level safe
+sudo ./bin/agentlink rescue --level clean-baseline --yes
 sudo ./bin/agentlink rescue --level standard-system-reset --yes
 sudo ./bin/agentlink rescue --level deep --yes
 ./bin/agentlink support bundle

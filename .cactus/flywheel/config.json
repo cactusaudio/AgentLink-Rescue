@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "mode": "stress-test",
+  "profile": "generic-repo",
+  "maxRounds": 30,
+  "maxWallClockMinutes": 240,
+  "plateauWindow": 5,
+  "plateauEpsilon": 0.01,
+  "plateauMetric": "compositeScore",
+  "metrics": {
+    "testsPass": 0,
+    "releaseCheckPass": 0,
+    "bugsFound": 0,
+    "bugsFixed": 0,
+    "regressions": 0,
+    "coverage": 0,
+    "packageHygiene": 0,
+    "safetyBoundary": 0,
+    "uxClarity": 0,
+    "robustness": 0
+  },
+  "weights": {
+    "testsPass": 2.0,
+    "releaseCheckPass": 2.0,
+    "bugsFixed": 1.5,
+    "regressions": -2.0,
+    "bugsFound": 0.5,
+    "coverage": 1.0,
+    "packageHygiene": 1.0,
+    "safetyBoundary": 1.0,
+    "uxClarity": 1.0,
+    "robustness": 1.0
+  },
+  "verifiers": [],
+  "promotionThresholds": {
+    "minDelta": 0.01,
+    "maxRegressionPerMetric": 0.005
+  },
+  "promoteCriteria": {
+    "ruleMinOccurrences": 2,
+    "skillMinOccurrences": 3
+  }
+}

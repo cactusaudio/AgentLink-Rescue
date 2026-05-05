@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "metrics": {
+    "networkRegressionPrevention": 0.98,
+    "rollbackTruthfulness": 0.96,
+    "oneButtonUX": 0.88,
+    "terminalTicket": 0.95,
+    "gemmaArbitration": 0.97,
+    "restartGate": 0.92,
+    "openCodeHonesty": 0.95,
+    "packageHygiene": 0.92,
+    "incidentUsefulness": 0.8
+  },
+  "weights": {
+    "networkRegressionPrevention": 25.0,
+    "rollbackTruthfulness": 20.0,
+    "oneButtonUX": 15.0,
+    "terminalTicket": 10.0,
+    "gemmaArbitration": 10.0,
+    "restartGate": 5.0,
+    "openCodeHonesty": 5.0,
+    "packageHygiene": 5.0,
+    "incidentUsefulness": 5.0
+  },
+  "compositeScore": 94.05,
+  "history": [
+    {
+      "timestamp": "2026-05-05T18:08:06Z",
+      "round": 0,
+      "metrics": {
+        "networkRegressionPrevention": 0.95,
+        "rollbackTruthfulness": 0.9,
+        "oneButtonUX": 0.85,
+        "terminalTicket": 0.95,
+        "gemmaArbitration": 0.95,
+        "restartGate": 0.9,
+        "openCodeHonesty": 0.95,
+        "packageHygiene": 0.9,
+        "incidentUsefulness": 0.7
+      },
+      "compositeScore": 90.75,
+      "delta": 90.75,
+      "verdict": "improved",
+      "note": "round 0 baseline: deep source inspection across all 10 axes; go test/vet/cross-compile all green; package hashes match Codex's claims; orchestrator arbitration line 389 hard-codes hasValidatedContradictoryFacts=false (v0.5.0 cannot downgrade deterministic high-conf TUN plan); standard mode early-returns at line 353 before location/flush; rollback honestly differentiates partial; ticket.go has no sudo -S no password verify-after-repair; Fix My Connection is primary CTA; OpenCode explicitly not_verified/experimental"
+    },
+    {
+      "timestamp": "2026-05-05T18:12:18Z",
+      "round": 1,
+      "metrics": {
+        "networkRegressionPrevention": 0.98,
+        "rollbackTruthfulness": 0.95,
+        "oneButtonUX": 0.85,
+        "terminalTicket": 0.95,
+        "gemmaArbitration": 0.95,
+        "restartGate": 0.92,
+        "openCodeHonesty": 0.95,
+        "packageHygiene": 0.92,
+        "incidentUsefulness": 0.78
+      },
+      "compositeScore": 93.1,
+      "delta": 2.35,
+      "verdict": "improved",
+      "note": "round 1 dynamic verification: 9/9 dogfood scripts pass; safeDHCPGateway covers full 198.18/15 + 198.19.x + fdfe prefix + utun* — broader than literal IPs Codex claimed; TestNetworkRollbackRefusesSuspiciousTunGateway validates end-to-end refusal; restore-point persistence verified by TestLoadNetworkRollbackStateFromRestorePoint with path-traversal defense"
+    },
+    {
+      "timestamp": "2026-05-05T18:13:43Z",
+      "round": 2,
+      "metrics": {
+        "networkRegressionPrevention": 0.98,
+        "rollbackTruthfulness": 0.96,
+        "oneButtonUX": 0.85,
+        "terminalTicket": 0.95,
+        "gemmaArbitration": 0.97,
+        "restartGate": 0.92,
+        "openCodeHonesty": 0.95,
+        "packageHygiene": 0.92,
+        "incidentUsefulness": 0.78
+      },
+      "compositeScore": 93.5,
+      "delta": 0.4,
+      "verdict": "improved",
+      "note": "round 2 adversarial: 12 arbitration tests cover positive+negative paths; isHighConfidenceSafetyCritical thresholds verified at 0.85; TestSafeDefaultRouteRebuildFailsIfDeleteThenAddFails encodes the delete+add-fail=fatal claim; ZERO TODO/FIXME in production. Probed: bumping confidence to 0.86 vs 0.84, manual_action vs report Gemma intents, schemaVersion violations — all defeated"
+    },
+    {
+      "timestamp": "2026-05-05T18:14:38Z",
+      "round": 3,
+      "metrics": {
+        "networkRegressionPrevention": 0.98,
+        "rollbackTruthfulness": 0.96,
+        "oneButtonUX": 0.88,
+        "terminalTicket": 0.95,
+        "gemmaArbitration": 0.97,
+        "restartGate": 0.92,
+        "openCodeHonesty": 0.95,
+        "packageHygiene": 0.92,
+        "incidentUsefulness": 0.8
+      },
+      "compositeScore": 94.05,
+      "delta": 0.55,
+      "verdict": "improved",
+      "note": "round 3: support bundle picks up latest-session metadata (which embeds orchestrator Report incl. IncidentReportPath, GemmaOverride*) but doesn't directly bundle per-cycle incident artifacts — P2 backlog. GUI Developer Mode defaults to OFF via UserDefaults (returns false if key missing). All Axis evidence converged."
+    }
+  ],
+  "weightsRubric": "v0.5.0 release-gate; max composite = 100 if every axis = 1.0"
+}

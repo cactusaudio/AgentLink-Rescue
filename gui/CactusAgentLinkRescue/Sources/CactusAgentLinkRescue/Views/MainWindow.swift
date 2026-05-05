@@ -35,8 +35,8 @@ struct MainWindow: View {
 
 struct SidebarView: View {
     @EnvironmentObject var state: AppState
-    private let mainPages: [RescuePage] = [.dashboard, .guided, .readiness, .installer, .reports, .settings]
-    private let advancedPages: [RescuePage] = [.doctor, .brain, .plan, .dryRun, .rescue, .rollback]
+    private let mainPages: [RescuePage] = [.dashboard, .reports, .settings]
+    private let developerPages: [RescuePage] = [.guided, .readiness, .installer, .doctor, .brain, .plan, .dryRun, .rescue, .rollback]
 
     var body: some View {
         List(selection: $state.page) {
@@ -46,14 +46,29 @@ struct SidebarView: View {
                         .tag(page)
                 }
             }
-            Section("Expert Console") {
-                ForEach(advancedPages) { page in
-                    Label(page.rawValue, systemImage: icon(for: page))
-                        .tag(page)
+            if state.developerModeEnabled {
+                Section("Developer Mode") {
+                    ForEach(developerPages) { page in
+                        Label(page.rawValue, systemImage: icon(for: page))
+                            .tag(page)
+                    }
+                }
+            } else {
+                Section {
+                    Button {
+                        state.page = .settings
+                    } label: {
+                        Label("Enable Developer Mode in Settings", systemImage: "slider.horizontal.3")
+                    }
                 }
             }
         }
         .navigationSplitViewColumnWidth(220)
+        .onChange(of: state.developerModeEnabled) { enabled in
+            if !enabled && developerPages.contains(state.page) {
+                state.page = .dashboard
+            }
+        }
     }
 
     private func icon(for page: RescuePage) -> String {

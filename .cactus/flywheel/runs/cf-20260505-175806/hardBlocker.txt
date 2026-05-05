@@ -1,0 +1,13 @@
+Task classification error: flywheel activated for read-only audit.
+
+Audit (v0.5.0 hard-invariant review) is:
+- Verification-only, not improvement-seeking
+- Completes in one pass: search → analyze → report
+- No baseline/verifier cycle; no patches; no rounds
+- All 10 findings finalized: 9 HOLD, 1 INVESTIGATE, 0 violations
+
+Flywheel protocol (baseline→patch→verify→score→promote) does not apply
+to one-shot audits. Reactivate only for subsequent hardening work that
+requires iterative improvement.
+
+User should reset the flywheel or start fresh for follow-up tasks.

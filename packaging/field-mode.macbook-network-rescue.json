@@ -3,7 +3,7 @@
   "mode": "macbook-network-rescue",
   "startupView": "guided-rescue",
   "target": "network",
-  "headline": "Fix Clash / TUN Network Breakage",
+  "headline": "Fix My Connection",
   "showClashTunShortcut": true,
   "showNetworkRescueCommands": true,
   "showInstallerCenter": true,

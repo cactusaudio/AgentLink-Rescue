@@ -39,10 +39,13 @@ struct RescueView: View {
     private var networkAdvanced: some View {
         DisclosureGroup("Network Rescue Advanced") {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Network rescue safe/standard/deep may require sudo and system network changes. GUI v0.5.0 does not collect passwords and does not run sudo commands. Copy the command and run it in Terminal.")
+                Text("Network rescue commands may require sudo and system network changes. GUI v0.5.0 does not collect passwords and does not run sudo commands. Copy the command and run it in Terminal. Use Targeted Clash/TUN before broad system reset when Clash, Mihomo, or stale utun signatures are present.")
                     .foregroundStyle(.secondary)
                 CommandPreview(title: "Safe Rescue", command: state.sudoRescueCommand(level: "safe"))
+                CommandPreview(title: "Targeted Clash/TUN Rescue", command: state.sudoRescueCommand(level: "tun"))
                 CommandPreview(title: "Standard Rescue", command: state.sudoRescueCommand(level: "standard"))
+                CommandPreview(title: "Clean Network Baseline Reset (last resort)", command: state.sudoRescueCommand(level: "clean-baseline"))
+                CommandPreview(title: "Standard System Reset", command: state.sudoRescueCommand(level: "standard-system-reset"))
                 CommandPreview(title: "Deep Rescue", command: state.sudoDeepCommand())
                 CommandPreview(title: "Fallback rescue.sh", command: state.client.fallbackRescueCommand(level: "standard"))
             }

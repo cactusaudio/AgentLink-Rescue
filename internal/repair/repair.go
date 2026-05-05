@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -25,6 +26,7 @@ const (
 	LevelStandard            = "standard"
 	LevelDeep                = "deep"
 	LevelTun                 = "tun"
+	LevelCleanBaseline       = "clean-baseline"
 	LevelStandardSystemReset = "standard-system-reset"
 )
 
@@ -42,37 +44,48 @@ type Options struct {
 }
 
 type Result struct {
-	ToolVersion      string         `json:"toolVersion"`
-	Level            string         `json:"level"`
-	DryRun           bool           `json:"dryRun"`
-	Status           string         `json:"status"`
-	ExitCode         int            `json:"exitCode"`
-	RestorePointID   string         `json:"restorePointId,omitempty"`
-	RestorePointPath string         `json:"restorePointPath,omitempty"`
-	ReportPath       string         `json:"reportPath,omitempty"`
-	RollbackCommand  string         `json:"rollbackCommand,omitempty"`
-	Preflight        []string       `json:"preflight"`
-	Postflight       []string       `json:"postflight,omitempty"`
-	Actions          []ActionResult `json:"actions"`
-	Warnings         []string       `json:"warnings,omitempty"`
-	Error            string         `json:"error,omitempty"`
+	ToolVersion             string         `json:"toolVersion"`
+	Level                   string         `json:"level"`
+	DryRun                  bool           `json:"dryRun"`
+	Status                  string         `json:"status"`
+	ExitCode                int            `json:"exitCode"`
+	RestorePointID          string         `json:"restorePointId,omitempty"`
+	RestorePointPath        string         `json:"restorePointPath,omitempty"`
+	ReportPath              string         `json:"reportPath,omitempty"`
+	RollbackCommand         string         `json:"rollbackCommand,omitempty"`
+	Preflight               []string       `json:"preflight"`
+	Postflight              []string       `json:"postflight,omitempty"`
+	Actions                 []ActionResult `json:"actions"`
+	FileRollbackStatus      string         `json:"fileRollbackStatus,omitempty"`
+	NetworkRollbackStatus   string         `json:"networkRollbackStatus,omitempty"`
+	PartialRollbackWarnings []string       `json:"partialRollbackWarnings,omitempty"`
+	NetworkRollbackActions  []ActionResult `json:"networkRollbackActions,omitempty"`
+	Warnings                []string       `json:"warnings,omitempty"`
+	Error                   string         `json:"error,omitempty"`
 }
 
 type ActionResult struct {
-	ID                string   `json:"id"`
-	Description       string   `json:"description"`
-	Command           []string `json:"command,omitempty"`
-	DryRun            bool     `json:"dryRun"`
-	ExitCode          int      `json:"exitCode,omitempty"`
-	Error             string   `json:"error,omitempty"`
-	RollbackAvailable bool     `json:"rollbackAvailable"`
+	ID                   string   `json:"id"`
+	Stage                string   `json:"stage,omitempty"`
+	Description          string   `json:"description"`
+	Command              []string `json:"command,omitempty"`
+	DryRun               bool     `json:"dryRun"`
+	ExitCode             int      `json:"exitCode,omitempty"`
+	Error                string   `json:"error,omitempty"`
+	RollbackAvailable    bool     `json:"rollbackAvailable"`
+	RouteDeleteAttempted bool     `json:"routeDeleteAttempted,omitempty"`
+	RouteAddAttempted    bool     `json:"routeAddAttempted,omitempty"`
+	RouteAddGateway      string   `json:"routeAddGateway,omitempty"`
+	SkippedReason        string   `json:"skippedReason,omitempty"`
 }
 
 type action struct {
 	ID                string
+	Stage             string
 	Description       string
 	Path              string
 	Args              []string
+	Dynamic           string
 	Timeout           time.Duration
 	IgnoreFailure     bool
 	RollbackAvailable bool
@@ -91,13 +104,25 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 	if !validLevel(opts.Level) {
 		result.ExitCode = 50
 		result.Status = "invalid rescue level"
-		result.Error = "level must be safe, tun, standard, standard-system-reset, or deep"
+		result.Error = "level must be safe, tun, standard, clean-baseline, standard-system-reset, or deep"
 		return result
 	}
 	if opts.Level == LevelDeep && !opts.Yes {
 		result.ExitCode = 50
 		result.Status = "deep rescue refused"
 		result.Error = "deep rescue requires --yes"
+		return result
+	}
+	if opts.Level == LevelStandardSystemReset && !opts.Yes {
+		result.ExitCode = 50
+		result.Status = "standard-system-reset rescue refused"
+		result.Error = "standard-system-reset rescue requires --yes"
+		return result
+	}
+	if opts.Level == LevelCleanBaseline && !opts.DryRun && !opts.Yes {
+		result.ExitCode = 50
+		result.Status = "clean-baseline rescue refused"
+		result.Error = "clean-baseline rescue requires --yes"
 		return result
 	}
 	if opts.Level == LevelTun && !opts.DryRun && !opts.Yes {
@@ -118,13 +143,24 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 	classify.Apply(&pre)
 	result.Preflight = append([]string(nil), pre.Classifications...)
 
-	planned := buildActions(opts.Level, pre)
 	if opts.DryRun {
-		for _, a := range planned {
-			result.Actions = append(result.Actions, dryAction(a))
-		}
-		for _, a := range buildQuarantinePlan(pre, opts.Level) {
-			result.Actions = append(result.Actions, a)
+		if opts.Level == LevelTun {
+			for _, a := range buildTunPreActions(pre) {
+				result.Actions = append(result.Actions, dryAction(a))
+			}
+			for _, a := range buildQuarantinePlan(pre, opts.Level) {
+				result.Actions = append(result.Actions, a)
+			}
+			for _, a := range buildTunPostActions(pre) {
+				result.Actions = append(result.Actions, dryAction(a))
+			}
+		} else {
+			for _, a := range buildActions(opts.Level, pre) {
+				result.Actions = append(result.Actions, dryAction(a))
+			}
+			for _, a := range buildQuarantinePlan(pre, opts.Level) {
+				result.Actions = append(result.Actions, a)
+			}
 		}
 		for _, a := range buildDeepPlan(opts, nil) {
 			result.Actions = append(result.Actions, a)
@@ -150,17 +186,38 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 		rp.Manifest.PreviousNetworkLocation = pre.Network.CurrentLocation
 		_ = rp.Save()
 	}
+	networkSnapshot := captureNetworkState(pre)
+	_, _ = rp.WriteJSON("network-preflight.json", networkSnapshot)
 
 	failures := 0
-	for _, a := range planned {
-		ar := runAction(ctx, runner, &rp, a, false)
-		result.Actions = append(result.Actions, ar)
-		if ar.Error != "" && !a.IgnoreFailure {
-			failures++
+	if opts.Level == LevelTun {
+		for _, a := range buildTunPreActions(pre) {
+			ar := runAction(ctx, runner, &rp, a, false)
+			result.Actions = append(result.Actions, ar)
+			if ar.Error != "" && !a.IgnoreFailure {
+				failures++
+			}
 		}
+		qFailures := runQuarantine(ctx, runner, &rp, opts, pre, &result)
+		failures += qFailures
+		for _, a := range buildTunPostActions(pre) {
+			ar := runAction(ctx, runner, &rp, a, false)
+			result.Actions = append(result.Actions, ar)
+			if ar.Error != "" && !a.IgnoreFailure {
+				failures++
+			}
+		}
+	} else {
+		for _, a := range buildActions(opts.Level, pre) {
+			ar := runAction(ctx, runner, &rp, a, false)
+			result.Actions = append(result.Actions, ar)
+			if ar.Error != "" && !a.IgnoreFailure {
+				failures++
+			}
+		}
+		qFailures := runQuarantine(ctx, runner, &rp, opts, pre, &result)
+		failures += qFailures
 	}
-	qFailures := runQuarantine(ctx, runner, &rp, opts, pre, &result)
-	failures += qFailures
 	dFailures := runDeep(ctx, &rp, opts, &result)
 	failures += dFailures
 	if opts.Reboot && opts.Level == LevelDeep {
@@ -171,23 +228,36 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 			failures++
 		}
 	}
+	networkMutations := InferNetworkMutationsFromActions(result.Actions)
+	_, _ = rp.WriteJSON("network-mutations.json", networkMutations)
 
 	post := engine.Run(ctx)
 	classify.Apply(&post)
 	result.Postflight = append([]string(nil), post.Classifications...)
 	_, _ = rp.WriteJSON("postflight.json", post)
+	worsened := criticalWorsened(pre, post)
+	_, _ = rp.WriteJSON("postflight-comparator.json", map[string]any{"criticalWorsened": worsened, "preflightClasses": pre.Classifications, "postflightClasses": post.Classifications})
 	result.ReportPath = rp.Manifest.HumanReportPath
 	result.ExitCode, result.Status = compare(pre, post, failures)
-	if !opts.DryRun && criticalWorsened(pre, post) {
+	if !opts.DryRun && worsened {
 		result.Warnings = append(result.Warnings, "postflight was worse than preflight; automatic rollback started")
 		rp.SetMutationPolicy(system.MutationOptions{RealUserHome: pre.Host.RealUserHome, IncludeNetworkExtensionPlists: true, ExtraAllowedPaths: manifestPaths(rp.Manifest)})
 		if err := rp.RestoreAllWithRunner(ctx, runner); err != nil {
+			result.FileRollbackStatus = "failed"
 			result.ExitCode = 30
 			result.Status = "rollback_failed_after_worsening"
 			result.Error = "postflight worsened and rollback failed: " + err.Error()
 		} else {
-			result.ExitCode = 20
-			result.Status = "rolled_back_after_worsening"
+			result.FileRollbackStatus = "restored"
+			result.NetworkRollbackStatus = restoreNetworkSnapshotWithMutations(ctx, runner, networkSnapshot, networkMutations, &result)
+			_, _ = rp.WriteJSON("network-rollback.json", map[string]any{"status": result.NetworkRollbackStatus, "actions": result.NetworkRollbackActions, "warnings": result.PartialRollbackWarnings})
+			if result.NetworkRollbackStatus == "restored" || result.NetworkRollbackStatus == "skipped" {
+				result.ExitCode = 20
+				result.Status = "rolled_back_after_worsening"
+			} else {
+				result.ExitCode = 30
+				result.Status = "partial_rollback_failed"
+			}
 			rollbackDiag := engine.Run(ctx)
 			classify.Apply(&rollbackDiag)
 			_, _ = rp.WriteJSON("rollback-postflight.json", rollbackDiag)
@@ -202,7 +272,7 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 }
 
 func validLevel(level string) bool {
-	return level == LevelSafe || level == LevelTun || level == LevelStandard || level == LevelStandardSystemReset || level == LevelDeep
+	return level == LevelSafe || level == LevelTun || level == LevelStandard || level == LevelCleanBaseline || level == LevelStandardSystemReset || level == LevelDeep
 }
 
 func CurrentRollbackCommand(id string) string {
@@ -235,6 +305,9 @@ func shellQuote(s string) string {
 func buildActions(level string, pre diagnose.DiagnosticReport) []action {
 	if level == LevelTun {
 		return buildTunActions(pre)
+	}
+	if level == LevelCleanBaseline {
+		return buildCleanBaselineActions(pre)
 	}
 	var actions []action
 	for _, svc := range pre.Network.Services {
@@ -270,16 +343,17 @@ func buildActions(level string, pre diagnose.DiagnosticReport) []action {
 		return actions
 	}
 	if level == LevelStandard {
-		if !shouldUseSystemReset(pre) {
-			if wifiService := findWiFiService(pre); wifiService != "" {
-				actions = append(actions,
-					action{ID: "standard.wifi.off", Description: "Turn Wi-Fi off", Path: "/usr/sbin/networksetup", Args: []string{"-setairportpower", wifiService, "off"}, IgnoreFailure: true},
-					action{ID: "standard.wifi.sleep", Description: "Wait before turning Wi-Fi back on", Sleep: 2 * time.Second, IgnoreFailure: true},
-					action{ID: "standard.wifi.on", Description: "Turn Wi-Fi on", Path: "/usr/sbin/networksetup", Args: []string{"-setairportpower", wifiService, "on"}, IgnoreFailure: true},
-				)
-			}
-			return actions
+		if wifiService := findWiFiService(pre); wifiService != "" {
+			actions = append(actions,
+				action{ID: "standard.wifi.off", Description: "Turn Wi-Fi off", Path: "/usr/sbin/networksetup", Args: []string{"-setairportpower", wifiService, "off"}, IgnoreFailure: true},
+				action{ID: "standard.wifi.sleep", Description: "Wait before turning Wi-Fi back on", Sleep: 2 * time.Second, IgnoreFailure: true},
+				action{ID: "standard.wifi.on", Description: "Turn Wi-Fi on", Path: "/usr/sbin/networksetup", Args: []string{"-setairportpower", wifiService, "on"}, IgnoreFailure: true},
+			)
 		}
+		return actions
+	}
+	if level != LevelStandardSystemReset && level != LevelDeep {
+		return actions
 	}
 	ts := time.Now().Format("20060102-150405")
 	cleanLocation := "AgentLink-Clean-" + ts
@@ -307,50 +381,108 @@ func buildActions(level string, pre diagnose.DiagnosticReport) []action {
 }
 
 func buildTunActions(pre diagnose.DiagnosticReport) []action {
+	actions := append([]action{}, buildTunPreActions(pre)...)
+	actions = append(actions, buildTunPostActions(pre)...)
+	return actions
+}
+
+func buildCleanBaselineActions(pre diagnose.DiagnosticReport) []action {
 	var actions []action
 	for _, pattern := range []string{"Clash Verge", "clash-verge", "verge-mihomo", "mihomo", "clash-meta", "clash", "ClashX"} {
-		actions = append(actions, action{ID: "tun.stop." + sanitizeID(pattern), Description: "Force-stop Clash/Mihomo runtime matching " + pattern, Path: "/usr/bin/pkill", Args: []string{"-9", "-f", pattern}, IgnoreFailure: true})
+		actions = append(actions, action{Stage: "1_stop_interference_runtime", ID: "clean.stop." + sanitizeID(pattern), Description: "Force-stop network interference runtime matching " + pattern, Path: "/usr/bin/pkill", Args: []string{"-9", "-f", pattern}, IgnoreFailure: true})
 	}
+	actions = append(actions,
+		action{Stage: "2_clean_location_baseline", ID: "clean.location.automatic", Description: "Switch to Automatic network location if available", Path: "/usr/sbin/networksetup", Args: []string{"-switchtolocation", "Automatic"}, IgnoreFailure: true, RollbackAvailable: true},
+	)
+	for _, svc := range pre.Network.Services {
+		if strings.TrimSpace(svc.Name) == "" || svc.Disabled {
+			continue
+		}
+		name := svc.Name
+		prefix := "clean.service." + sanitizeID(name)
+		actions = append(actions,
+			action{Stage: "3_clean_service_baseline", ID: prefix + ".webproxy", Description: "Disable web proxy for " + name, Path: "/usr/sbin/networksetup", Args: []string{"-setwebproxystate", name, "off"}, IgnoreFailure: true, RollbackAvailable: true},
+			action{Stage: "3_clean_service_baseline", ID: prefix + ".securewebproxy", Description: "Disable secure web proxy for " + name, Path: "/usr/sbin/networksetup", Args: []string{"-setsecurewebproxystate", name, "off"}, IgnoreFailure: true, RollbackAvailable: true},
+			action{Stage: "3_clean_service_baseline", ID: prefix + ".socks", Description: "Disable SOCKS proxy for " + name, Path: "/usr/sbin/networksetup", Args: []string{"-setsocksfirewallproxystate", name, "off"}, IgnoreFailure: true, RollbackAvailable: true},
+			action{Stage: "3_clean_service_baseline", ID: prefix + ".autoproxy", Description: "Disable automatic proxy for " + name, Path: "/usr/sbin/networksetup", Args: []string{"-setautoproxystate", name, "off"}, IgnoreFailure: true, RollbackAvailable: true},
+			action{Stage: "3_clean_service_baseline", ID: prefix + ".dns", Description: "Reset DNS servers for " + name + " to DHCP/default", Path: "/usr/sbin/networksetup", Args: []string{"-setdnsservers", name, "empty"}, IgnoreFailure: true, RollbackAvailable: true},
+			action{Stage: "3_clean_service_baseline", ID: prefix + ".searchdomains", Description: "Reset search domains for " + name, Path: "/usr/sbin/networksetup", Args: []string{"-setsearchdomains", name, "empty"}, IgnoreFailure: true, RollbackAvailable: true},
+			action{Stage: "3_clean_service_baseline", ID: prefix + ".dhcp", Description: "Set DHCP for " + name, Path: "/usr/sbin/networksetup", Args: []string{"-setdhcp", name}, IgnoreFailure: true},
+			action{Stage: "3_clean_service_baseline", ID: prefix + ".ipv6", Description: "Set IPv6 automatic for " + name, Path: "/usr/sbin/networksetup", Args: []string{"-setv6automatic", name}, IgnoreFailure: true},
+		)
+	}
+	wifiDevice := findWiFiDevice(pre)
+	if wifiDevice != "" {
+		actions = append(actions,
+			action{Stage: "4_route_dns_awdl_verify_baseline", ID: "clean.ipconfig.dhcp." + sanitizeID(wifiDevice), Description: "Renew DHCP on active Wi-Fi/default device " + wifiDevice, Path: "/usr/sbin/ipconfig", Args: []string{"set", wifiDevice, "DHCP"}, IgnoreFailure: true},
+			action{Stage: "4_route_dns_awdl_verify_baseline", ID: "clean.route.rebuild.safe_dhcp", Description: "Rebuild default route only from current safe DHCP router if missing", Dynamic: "safe-default-route-from-dhcp", Args: []string{wifiDevice}, RollbackAvailable: true},
+		)
+	}
+	actions = append(actions,
+		action{Stage: "4_route_dns_awdl_verify_baseline", ID: "clean.dns.flushcache", Description: "Flush DNS cache", Path: "/usr/bin/dscacheutil", Args: []string{"-flushcache"}, IgnoreFailure: true},
+		action{Stage: "4_route_dns_awdl_verify_baseline", ID: "clean.dns.mdnsresponder", Description: "Signal mDNSResponder", Path: "/usr/bin/killall", Args: []string{"-HUP", "mDNSResponder"}, IgnoreFailure: true},
+		action{Stage: "4_route_dns_awdl_verify_baseline", ID: "clean.awdl.up", Description: "Bring AWDL up for AirDrop discovery", Path: "/sbin/ifconfig", Args: []string{"awdl0", "up"}, IgnoreFailure: true},
+		action{Stage: "4_route_dns_awdl_verify_baseline", ID: "clean.sharingd.restart", Description: "Restart sharingd for AirDrop receive discovery", Path: "/usr/bin/killall", Args: []string{"sharingd"}, IgnoreFailure: true},
+	)
+	return actions
+}
+
+func buildTunPreActions(pre diagnose.DiagnosticReport) []action {
+	var actions []action
+	for _, pattern := range []string{"Clash Verge", "clash-verge", "verge-mihomo", "mihomo", "clash-meta", "clash", "ClashX"} {
+		actions = append(actions, action{Stage: "1_stop_runtime_processes", ID: "tun.stop." + sanitizeID(pattern), Description: "Force-stop Clash/Mihomo runtime matching " + pattern, Path: "/usr/bin/pkill", Args: []string{"-9", "-f", pattern}, IgnoreFailure: true})
+	}
+	uid := realUID()
+	for _, item := range eligibleResidues(pre) {
+		if item.Kind == "launchDaemon" {
+			actions = append(actions, action{Stage: "2_bootout_launch_items", ID: "tun.bootout.system." + sanitizeID(filepath.Base(item.Path)), Description: "Boot out launch daemon " + item.Path, Path: "/bin/launchctl", Args: []string{"bootout", "system", item.Path}, IgnoreFailure: true})
+		}
+		if item.Kind == "launchAgent" {
+			actions = append(actions, action{Stage: "2_bootout_launch_items", ID: "tun.bootout.user." + sanitizeID(filepath.Base(item.Path)), Description: "Boot out launch agent " + item.Path, Path: "/bin/launchctl", Args: []string{"bootout", "gui/" + uid, item.Path}, IgnoreFailure: true})
+		}
+	}
+	return actions
+}
+
+func buildTunPostActions(pre diagnose.DiagnosticReport) []action {
+	var actions []action
 	for _, label := range []string{"system/com.apple.nesessionmanager", "system/com.apple.networkextensiond", "system/com.apple.nehelper"} {
-		actions = append(actions, action{ID: "tun.networkextension.kick." + sanitizeID(label), Description: "Kickstart " + label, Path: "/bin/launchctl", Args: []string{"kickstart", "-k", label}, IgnoreFailure: true})
+		actions = append(actions, action{Stage: "4_kick_network_extension_daemons", ID: "tun.networkextension.kick." + sanitizeID(label), Description: "Kickstart " + label, Path: "/bin/launchctl", Args: []string{"kickstart", "-k", label}, IgnoreFailure: true})
 	}
 	for _, iface := range diagnose.DiagnoseTun(pre).UTunInterfaces {
 		if !iface.Suspicious {
 			continue
 		}
-		actions = append(actions, action{ID: "tun.ifconfig.down." + sanitizeID(iface.Name), Description: "Down stale TUN interface " + iface.Name, Path: "/sbin/ifconfig", Args: []string{iface.Name, "down"}, IgnoreFailure: true})
+		actions = append(actions, action{Stage: "5_down_stale_utun", ID: "tun.ifconfig.down." + sanitizeID(iface.Name), Description: "Down stale TUN interface " + iface.Name, Path: "/sbin/ifconfig", Args: []string{iface.Name, "down"}, IgnoreFailure: true})
 	}
 	wifiService := findWiFiService(pre)
 	wifiDevice := findWiFiDevice(pre)
 	if wifiService != "" {
 		actions = append(actions,
-			action{ID: "tun.wifi.webproxy", Description: "Disable Wi-Fi web proxy", Path: "/usr/sbin/networksetup", Args: []string{"-setwebproxystate", wifiService, "off"}, IgnoreFailure: true},
-			action{ID: "tun.wifi.securewebproxy", Description: "Disable Wi-Fi secure web proxy", Path: "/usr/sbin/networksetup", Args: []string{"-setsecurewebproxystate", wifiService, "off"}, IgnoreFailure: true},
-			action{ID: "tun.wifi.socks", Description: "Disable Wi-Fi SOCKS proxy", Path: "/usr/sbin/networksetup", Args: []string{"-setsocksfirewallproxystate", wifiService, "off"}, IgnoreFailure: true},
-			action{ID: "tun.wifi.autoproxy", Description: "Disable Wi-Fi automatic proxy", Path: "/usr/sbin/networksetup", Args: []string{"-setautoproxystate", wifiService, "off"}, IgnoreFailure: true},
-			action{ID: "tun.wifi.dns", Description: "Set Wi-Fi DNS to reliable regional/public resolvers", Path: "/usr/sbin/networksetup", Args: []string{"-setdnsservers", wifiService, "223.5.5.5", "119.29.29.29", "8.8.8.8"}, RollbackAvailable: true},
-			action{ID: "tun.wifi.searchdomains", Description: "Clear Wi-Fi search domains", Path: "/usr/sbin/networksetup", Args: []string{"-setsearchdomains", wifiService, "empty"}, IgnoreFailure: true, RollbackAvailable: true},
-			action{ID: "tun.wifi.dhcp", Description: "Set Wi-Fi DHCP", Path: "/usr/sbin/networksetup", Args: []string{"-setdhcp", wifiService}, IgnoreFailure: true},
-			action{ID: "tun.wifi.ipv6", Description: "Set Wi-Fi IPv6 automatic", Path: "/usr/sbin/networksetup", Args: []string{"-setv6automatic", wifiService}, IgnoreFailure: true},
-			action{ID: "tun.wifi.off", Description: "Turn Wi-Fi off", Path: "/usr/sbin/networksetup", Args: []string{"-setairportpower", wifiService, "off"}, IgnoreFailure: true},
-			action{ID: "tun.wifi.sleep", Description: "Wait before turning Wi-Fi back on", Sleep: 2 * time.Second, IgnoreFailure: true},
-			action{ID: "tun.wifi.on", Description: "Turn Wi-Fi on", Path: "/usr/sbin/networksetup", Args: []string{"-setairportpower", wifiService, "on"}, IgnoreFailure: true},
+			action{Stage: "6_active_wifi_repair", ID: "tun.wifi.webproxy", Description: "Disable Wi-Fi web proxy", Path: "/usr/sbin/networksetup", Args: []string{"-setwebproxystate", wifiService, "off"}, IgnoreFailure: true},
+			action{Stage: "6_active_wifi_repair", ID: "tun.wifi.securewebproxy", Description: "Disable Wi-Fi secure web proxy", Path: "/usr/sbin/networksetup", Args: []string{"-setsecurewebproxystate", wifiService, "off"}, IgnoreFailure: true},
+			action{Stage: "6_active_wifi_repair", ID: "tun.wifi.socks", Description: "Disable Wi-Fi SOCKS proxy", Path: "/usr/sbin/networksetup", Args: []string{"-setsocksfirewallproxystate", wifiService, "off"}, IgnoreFailure: true},
+			action{Stage: "6_active_wifi_repair", ID: "tun.wifi.autoproxy", Description: "Disable Wi-Fi automatic proxy", Path: "/usr/sbin/networksetup", Args: []string{"-setautoproxystate", wifiService, "off"}, IgnoreFailure: true},
+			action{Stage: "6_active_wifi_repair", ID: "tun.wifi.dns", Description: "Set Wi-Fi DNS to reliable regional/public resolvers", Path: "/usr/sbin/networksetup", Args: []string{"-setdnsservers", wifiService, "223.5.5.5", "119.29.29.29", "8.8.8.8"}, RollbackAvailable: true},
+			action{Stage: "6_active_wifi_repair", ID: "tun.wifi.searchdomains", Description: "Clear Wi-Fi search domains", Path: "/usr/sbin/networksetup", Args: []string{"-setsearchdomains", wifiService, "empty"}, IgnoreFailure: true, RollbackAvailable: true},
+			action{Stage: "6_active_wifi_repair", ID: "tun.wifi.dhcp", Description: "Set Wi-Fi DHCP", Path: "/usr/sbin/networksetup", Args: []string{"-setdhcp", wifiService}, IgnoreFailure: true},
+			action{Stage: "6_active_wifi_repair", ID: "tun.wifi.ipv6", Description: "Set Wi-Fi IPv6 automatic", Path: "/usr/sbin/networksetup", Args: []string{"-setv6automatic", wifiService}, IgnoreFailure: true},
+			action{Stage: "6_active_wifi_repair", ID: "tun.wifi.off", Description: "Turn Wi-Fi off", Path: "/usr/sbin/networksetup", Args: []string{"-setairportpower", wifiService, "off"}, IgnoreFailure: true},
+			action{Stage: "6_active_wifi_repair", ID: "tun.wifi.sleep", Description: "Wait before turning Wi-Fi back on", Sleep: 2 * time.Second, IgnoreFailure: true},
+			action{Stage: "6_active_wifi_repair", ID: "tun.wifi.on", Description: "Turn Wi-Fi on", Path: "/usr/sbin/networksetup", Args: []string{"-setairportpower", wifiService, "on"}, IgnoreFailure: true},
 		)
 	}
 	if wifiDevice != "" {
-		actions = append(actions, action{ID: "tun.ipconfig.dhcp." + sanitizeID(wifiDevice), Description: "Renew DHCP on active Wi-Fi device " + wifiDevice, Path: "/usr/sbin/ipconfig", Args: []string{"set", wifiDevice, "DHCP"}, IgnoreFailure: true})
-	}
-	if pre.Network.DefaultRoute.Gateway != "" {
 		actions = append(actions,
-			action{ID: "tun.route.delete.default", Description: "Delete stale default route before rebuilding from DHCP gateway", Path: "/sbin/route", Args: []string{"delete", "default"}, IgnoreFailure: true},
-			action{ID: "tun.route.add.default", Description: "Add default route via DHCP gateway " + pre.Network.DefaultRoute.Gateway, Path: "/sbin/route", Args: []string{"add", "default", pre.Network.DefaultRoute.Gateway}, IgnoreFailure: true},
+			action{Stage: "6_active_wifi_repair", ID: "tun.ipconfig.dhcp." + sanitizeID(wifiDevice), Description: "Renew DHCP on active Wi-Fi device " + wifiDevice, Path: "/usr/sbin/ipconfig", Args: []string{"set", wifiDevice, "DHCP"}, IgnoreFailure: true},
+			action{Stage: "6_active_wifi_repair", ID: "tun.route.rebuild.safe_dhcp", Description: "Rebuild default route only from current safe DHCP router if missing", Dynamic: "safe-default-route-from-dhcp", Args: []string{wifiDevice}, RollbackAvailable: true},
 		)
 	}
 	actions = append(actions,
-		action{ID: "tun.dns.flushcache", Description: "Flush DNS cache", Path: "/usr/bin/dscacheutil", Args: []string{"-flushcache"}, IgnoreFailure: true},
-		action{ID: "tun.dns.mdnsresponder", Description: "Signal mDNSResponder", Path: "/usr/bin/killall", Args: []string{"-HUP", "mDNSResponder"}, IgnoreFailure: true},
-		action{ID: "tun.awdl.up", Description: "Bring AWDL up for AirDrop discovery", Path: "/sbin/ifconfig", Args: []string{"awdl0", "up"}, IgnoreFailure: true},
-		action{ID: "tun.sharingd.restart", Description: "Restart sharingd for AirDrop receive discovery", Path: "/usr/bin/killall", Args: []string{"sharingd"}, IgnoreFailure: true},
+		action{Stage: "7_dns_airdrop_awdl_repair", ID: "tun.dns.flushcache", Description: "Flush DNS cache", Path: "/usr/bin/dscacheutil", Args: []string{"-flushcache"}, IgnoreFailure: true},
+		action{Stage: "7_dns_airdrop_awdl_repair", ID: "tun.dns.mdnsresponder", Description: "Signal mDNSResponder", Path: "/usr/bin/killall", Args: []string{"-HUP", "mDNSResponder"}, IgnoreFailure: true},
+		action{Stage: "7_dns_airdrop_awdl_repair", ID: "tun.awdl.up", Description: "Bring AWDL up for AirDrop discovery", Path: "/sbin/ifconfig", Args: []string{"awdl0", "up"}, IgnoreFailure: true},
+		action{Stage: "7_dns_airdrop_awdl_repair", ID: "tun.sharingd.restart", Description: "Restart sharingd for AirDrop receive discovery", Path: "/usr/bin/killall", Args: []string{"sharingd"}, IgnoreFailure: true},
 	)
 	return actions
 }
@@ -360,6 +492,9 @@ func runAction(ctx context.Context, runner command.Runner, rp *snapshot.RestoreP
 	ar.DryRun = dry
 	if dry {
 		return ar
+	}
+	if a.Dynamic != "" {
+		return runDynamicAction(ctx, runner, rp, a)
 	}
 	if a.Sleep > 0 {
 		time.Sleep(a.Sleep)
@@ -387,12 +522,83 @@ func runAction(ctx context.Context, runner command.Runner, rp *snapshot.RestoreP
 }
 
 func dryAction(a action) ActionResult {
-	ar := ActionResult{ID: a.ID, Description: a.Description, DryRun: true, RollbackAvailable: a.RollbackAvailable}
+	ar := ActionResult{ID: a.ID, Stage: a.Stage, Description: a.Description, DryRun: true, RollbackAvailable: a.RollbackAvailable}
 	if a.Path != "" {
 		ar.Command = append([]string{a.Path}, a.Args...)
 	}
+	if a.Dynamic != "" {
+		ar.Command = append([]string{"dynamic", a.Dynamic}, a.Args...)
+	}
 	if a.Sleep > 0 {
 		ar.Command = []string{"sleep", fmt.Sprintf("%.0f", a.Sleep.Seconds())}
+	}
+	return ar
+}
+
+func runDynamicAction(ctx context.Context, runner command.Runner, rp *snapshot.RestorePoint, a action) ActionResult {
+	ar := dryAction(a)
+	ar.DryRun = false
+	switch a.Dynamic {
+	case "safe-default-route-from-dhcp":
+		return runSafeDefaultRouteFromDHCP(ctx, runner, rp, a, ar)
+	default:
+		ar.ExitCode = 1
+		ar.Error = "unknown dynamic action: " + a.Dynamic
+		return ar
+	}
+}
+
+func runSafeDefaultRouteFromDHCP(ctx context.Context, runner command.Runner, rp *snapshot.RestorePoint, a action, ar ActionResult) ActionResult {
+	route := runner.Run(ctx, "/sbin/route", "-n", "get", "default")
+	_ = rp.LogCommand(a.ID+".check_default_route", route, false)
+	routeExists := route.ExitCode == 0 && strings.TrimSpace(route.Stdout) != ""
+	routeSuspicious := routeOutputSuspicious(route.Stdout)
+	if routeExists && !routeSuspicious {
+		ar.ExitCode = 0
+		ar.SkippedReason = "default_route_already_safe"
+		return ar
+	}
+	if len(a.Args) == 0 || strings.TrimSpace(a.Args[0]) == "" {
+		ar.ExitCode = 0
+		ar.SkippedReason = "route_rebuild_skipped_no_wifi_device"
+		return ar
+	}
+	device := a.Args[0]
+	router := runner.Run(ctx, "/usr/sbin/ipconfig", "getoption", device, "router")
+	_ = rp.LogCommand(a.ID+".dhcp_router", router, false)
+	fields := strings.Fields(router.Stdout)
+	gateway := ""
+	if len(fields) > 0 {
+		gateway = strings.TrimSpace(fields[0])
+	}
+	if router.ExitCode != 0 || !safeDHCPGateway(gateway) {
+		ar.ExitCode = 0
+		ar.SkippedReason = "route_rebuild_skipped_no_safe_gateway"
+		return ar
+	}
+	ar.RouteAddGateway = gateway
+	if routeExists && routeSuspicious {
+		ar.RouteDeleteAttempted = true
+		del := runner.Run(ctx, "/sbin/route", "delete", "default")
+		_ = rp.LogCommand(a.ID+".delete_suspicious_default", del, true)
+		if del.ExitCode != 0 {
+			ar.ExitCode = del.ExitCode
+			ar.Error = strings.TrimSpace(del.Error + " " + del.Stderr)
+			if ar.Error == "" {
+				ar.Error = fmt.Sprintf("route delete exited %d", del.ExitCode)
+			}
+			return ar
+		}
+	}
+	ar.RouteAddAttempted = true
+	add := runner.Run(ctx, "/sbin/route", "add", "default", gateway)
+	_ = rp.LogCommand(a.ID+".add_default", add, true)
+	ar.ExitCode = add.ExitCode
+	if add.ExitCode != 0 {
+		ar.Error = strings.TrimSpace(add.Error + " " + add.Stderr)
+		if ar.Error == "" {
+			ar.Error = fmt.Sprintf("route add exited %d", add.ExitCode)
+		}
 	}
 	return ar
 }
@@ -412,16 +618,16 @@ func runQuarantine(ctx context.Context, runner command.Runner, rp *snapshot.Rest
 	failures := 0
 	uid := realUID()
 	for _, item := range items {
-		if item.Kind == "launchDaemon" {
+		if opts.Level != LevelTun && item.Kind == "launchDaemon" {
 			a := action{ID: "quarantine.bootout.system." + sanitizeID(filepath.Base(item.Path)), Description: "Boot out launch daemon " + item.Path, Path: "/bin/launchctl", Args: []string{"bootout", "system", item.Path}, IgnoreFailure: true}
 			result.Actions = append(result.Actions, runAction(ctx, runner, rp, a, false))
 		}
-		if item.Kind == "launchAgent" {
+		if opts.Level != LevelTun && item.Kind == "launchAgent" {
 			a := action{ID: "quarantine.bootout.user." + sanitizeID(filepath.Base(item.Path)), Description: "Boot out launch agent " + item.Path, Path: "/bin/launchctl", Args: []string{"bootout", "gui/" + uid, item.Path}, IgnoreFailure: true}
 			result.Actions = append(result.Actions, runAction(ctx, runner, rp, a, false))
 		}
 		desc := "Quarantine " + item.Path
-		ar := ActionResult{ID: "quarantine.path." + sanitizeID(filepath.Base(item.Path)), Description: desc, RollbackAvailable: true}
+		ar := ActionResult{ID: "quarantine.path." + sanitizeID(filepath.Base(item.Path)), Stage: "3_quarantine_residue", Description: desc, RollbackAvailable: true}
 		if _, err := rp.QuarantinePath(item.Path); err != nil {
 			ar.Error = err.Error()
 			failures++
@@ -430,9 +636,11 @@ func runQuarantine(ctx context.Context, runner command.Runner, rp *snapshot.Rest
 		}
 		result.Actions = append(result.Actions, ar)
 	}
-	for _, name := range []string{"Clash Verge", "clash-verge", "verge-mihomo", "mihomo", "clash-meta", "clash"} {
-		a := action{ID: "quarantine.pkill." + sanitizeID(name), Description: "Stop process " + name, Path: "/usr/bin/pkill", Args: []string{"-x", name}, IgnoreFailure: true}
-		result.Actions = append(result.Actions, runAction(ctx, runner, rp, a, false))
+	if opts.Level != LevelTun {
+		for _, name := range []string{"Clash Verge", "clash-verge", "verge-mihomo", "mihomo", "clash-meta", "clash"} {
+			a := action{ID: "quarantine.pkill." + sanitizeID(name), Description: "Stop process " + name, Path: "/usr/bin/pkill", Args: []string{"-x", name}, IgnoreFailure: true}
+			result.Actions = append(result.Actions, runAction(ctx, runner, rp, a, false))
+		}
 	}
 	return failures
 }
@@ -463,7 +671,7 @@ func buildQuarantinePlan(pre diagnose.DiagnosticReport, level string) []ActionRe
 	}
 	var out []ActionResult
 	for _, item := range eligibleResidues(pre) {
-		out = append(out, ActionResult{ID: "quarantine.path." + sanitizeID(filepath.Base(item.Path)), Description: "Would quarantine " + item.Path, DryRun: true, RollbackAvailable: true})
+		out = append(out, ActionResult{ID: "quarantine.path." + sanitizeID(filepath.Base(item.Path)), Stage: "3_quarantine_residue", Description: "Would quarantine " + item.Path, DryRun: true, RollbackAvailable: true})
 	}
 	return out
 }
@@ -613,6 +821,240 @@ func awdlUp(r diagnose.DiagnosticReport) bool {
 		}
 	}
 	return false
+}
+
+type NetworkStateSnapshot struct {
+	CurrentLocation       string                `json:"currentLocation,omitempty"`
+	WiFiService           string                `json:"wifiService,omitempty"`
+	WiFiDevice            string                `json:"wifiDevice,omitempty"`
+	DNSServers            []string              `json:"dnsServers,omitempty"`
+	SearchDomains         []string              `json:"searchDomains,omitempty"`
+	ProxySummary          diagnose.ProxySummary `json:"proxySummary,omitempty"`
+	DefaultRouteGateway   string                `json:"defaultRouteGateway,omitempty"`
+	DefaultRouteInterface string                `json:"defaultRouteInterface,omitempty"`
+	AWDLUp                bool                  `json:"awdlUp,omitempty"`
+}
+
+func captureNetworkState(pre diagnose.DiagnosticReport) NetworkStateSnapshot {
+	return NetworkStateSnapshot{
+		CurrentLocation:       pre.Network.CurrentLocation,
+		WiFiService:           findWiFiService(pre),
+		WiFiDevice:            findWiFiDevice(pre),
+		DNSServers:            append([]string(nil), pre.Network.DNSSummary.Nameservers...),
+		SearchDomains:         append([]string(nil), pre.Network.DNSSummary.Search...),
+		ProxySummary:          pre.Network.ProxySummary,
+		DefaultRouteGateway:   pre.Network.DefaultRoute.Gateway,
+		DefaultRouteInterface: pre.Network.DefaultRoute.Interface,
+		AWDLUp:                awdlUp(pre),
+	}
+}
+
+type NetworkMutations struct {
+	LocationChanged      bool     `json:"locationChanged,omitempty"`
+	DNSChanged           bool     `json:"dnsChanged,omitempty"`
+	SearchDomainsChanged bool     `json:"searchDomainsChanged,omitempty"`
+	ProxyChanged         bool     `json:"proxyChanged,omitempty"`
+	DefaultRouteChanged  bool     `json:"defaultRouteChanged,omitempty"`
+	WiFiPowerBounced     bool     `json:"wifiPowerBounced,omitempty"`
+	DHCPRenewed          bool     `json:"dhcpRenewed,omitempty"`
+	AWDLChanged          bool     `json:"awdlChanged,omitempty"`
+	Actions              []string `json:"actions,omitempty"`
+}
+
+func (m NetworkMutations) empty() bool {
+	return !m.LocationChanged && !m.DNSChanged && !m.SearchDomainsChanged && !m.ProxyChanged && !m.DefaultRouteChanged && !m.WiFiPowerBounced && !m.DHCPRenewed && !m.AWDLChanged
+}
+
+func AllNetworkMutations() NetworkMutations {
+	return NetworkMutations{LocationChanged: true, DNSChanged: true, SearchDomainsChanged: true, ProxyChanged: true, DefaultRouteChanged: true, WiFiPowerBounced: true, DHCPRenewed: true, AWDLChanged: true}
+}
+
+func InferNetworkMutationsFromActions(actions []ActionResult) NetworkMutations {
+	var m NetworkMutations
+	seen := map[string]bool{}
+	add := func(id string) {
+		if id == "" || seen[id] {
+			return
+		}
+		seen[id] = true
+		m.Actions = append(m.Actions, id)
+	}
+	for _, action := range actions {
+		id := strings.ToLower(action.ID)
+		if strings.Contains(id, "location.") {
+			m.LocationChanged = true
+			add(action.ID)
+		}
+		if strings.Contains(id, ".webproxy") || strings.Contains(id, ".securewebproxy") || strings.Contains(id, ".socks") || strings.Contains(id, ".autoproxy") {
+			m.ProxyChanged = true
+			add(action.ID)
+		}
+		if strings.HasSuffix(id, ".dns") || strings.Contains(id, ".wifi.dns") {
+			m.DNSChanged = true
+			add(action.ID)
+		}
+		if strings.Contains(id, "searchdomains") {
+			m.SearchDomainsChanged = true
+			add(action.ID)
+		}
+		if strings.Contains(id, "route.rebuild") || action.RouteDeleteAttempted || action.RouteAddAttempted {
+			m.DefaultRouteChanged = true
+			add(action.ID)
+		}
+		if strings.Contains(id, ".dhcp") || strings.Contains(id, "ipconfig") {
+			m.DHCPRenewed = true
+			add(action.ID)
+		}
+		if strings.Contains(id, "wifi.off") || strings.Contains(id, "wifi.on") {
+			m.WiFiPowerBounced = true
+			add(action.ID)
+		}
+		if strings.Contains(id, "awdl") || strings.Contains(id, "sharingd") {
+			m.AWDLChanged = true
+			add(action.ID)
+		}
+	}
+	return m
+}
+
+type NetworkRestoreResult struct {
+	Status   string         `json:"status"`
+	Actions  []ActionResult `json:"actions,omitempty"`
+	Warnings []string       `json:"warnings,omitempty"`
+}
+
+func restoreNetworkSnapshot(ctx context.Context, runner command.Runner, snap NetworkStateSnapshot, result *Result) string {
+	return restoreNetworkSnapshotWithMutations(ctx, runner, snap, AllNetworkMutations(), result)
+}
+
+func restoreNetworkSnapshotWithMutations(ctx context.Context, runner command.Runner, snap NetworkStateSnapshot, mutations NetworkMutations, result *Result) string {
+	restore := RestoreNetworkSnapshot(ctx, runner, snap, mutations)
+	result.NetworkRollbackActions = append(result.NetworkRollbackActions, restore.Actions...)
+	result.PartialRollbackWarnings = append(result.PartialRollbackWarnings, restore.Warnings...)
+	return restore.Status
+}
+
+func RestoreNetworkSnapshot(ctx context.Context, runner command.Runner, snap NetworkStateSnapshot, mutations NetworkMutations) NetworkRestoreResult {
+	restore := NetworkRestoreResult{Status: "restored"}
+	if mutations.empty() || (snap.WiFiService == "" && snap.DefaultRouteGateway == "" && !snap.AWDLUp && snap.CurrentLocation == "") {
+		restore.Status = "skipped"
+		return restore
+	}
+	if runner == nil {
+		runner = command.NewExecRunner()
+	}
+	failures := 0
+	run := func(id, desc, path string, args ...string) {
+		res := runner.Run(ctx, path, args...)
+		res.Stdout = safety.RedactSensitive(res.Stdout)
+		res.Stderr = safety.RedactSensitive(res.Stderr)
+		ar := ActionResult{ID: id, Description: desc, Command: append([]string{path}, args...), ExitCode: res.ExitCode}
+		if res.ExitCode != 0 {
+			ar.Error = strings.TrimSpace(res.Error + " " + res.Stderr)
+			if ar.Error == "" {
+				ar.Error = fmt.Sprintf("command exited %d", res.ExitCode)
+			}
+			failures++
+		}
+		restore.Actions = append(restore.Actions, ar)
+	}
+	if mutations.LocationChanged && snap.CurrentLocation != "" {
+		run("network.rollback.location", "Restore previous network location", "/usr/sbin/networksetup", "-switchtolocation", snap.CurrentLocation)
+	}
+	if snap.WiFiService != "" && mutations.ProxyChanged {
+		if snap.ProxySummary.Dirty {
+			restore.Warnings = append(restore.Warnings, "previous proxy state was dirty; exact proxy host/port restoration is not supported, so AgentLink did not re-enable proxy settings")
+		} else {
+			run("network.rollback.proxy.web.off", "Restore clean Wi-Fi web proxy state", "/usr/sbin/networksetup", "-setwebproxystate", snap.WiFiService, "off")
+			run("network.rollback.proxy.secure.off", "Restore clean Wi-Fi secure web proxy state", "/usr/sbin/networksetup", "-setsecurewebproxystate", snap.WiFiService, "off")
+			run("network.rollback.proxy.socks.off", "Restore clean Wi-Fi SOCKS proxy state", "/usr/sbin/networksetup", "-setsocksfirewallproxystate", snap.WiFiService, "off")
+			run("network.rollback.proxy.auto.off", "Restore clean Wi-Fi automatic proxy state", "/usr/sbin/networksetup", "-setautoproxystate", snap.WiFiService, "off")
+		}
+	}
+	if snap.WiFiService != "" && mutations.DNSChanged {
+		dnsArgs := []string{"-setdnsservers", snap.WiFiService}
+		if len(snap.DNSServers) == 0 {
+			dnsArgs = append(dnsArgs, "empty")
+		} else {
+			dnsArgs = append(dnsArgs, snap.DNSServers...)
+		}
+		run("network.rollback.dns", "Restore Wi-Fi DNS servers", "/usr/sbin/networksetup", dnsArgs...)
+	}
+	if snap.WiFiService != "" && mutations.SearchDomainsChanged {
+		searchArgs := []string{"-setsearchdomains", snap.WiFiService}
+		if len(snap.SearchDomains) == 0 {
+			searchArgs = append(searchArgs, "empty")
+		} else {
+			searchArgs = append(searchArgs, snap.SearchDomains...)
+		}
+		run("network.rollback.searchdomains", "Restore Wi-Fi search domains", "/usr/sbin/networksetup", searchArgs...)
+	}
+	if mutations.DefaultRouteChanged && snap.DefaultRouteGateway != "" {
+		if safeRouteGatewayForRestore(snap.DefaultRouteGateway, snap.DefaultRouteInterface) {
+			run("network.rollback.route.delete_default", "Delete current default route before restoring previous safe route", "/sbin/route", "delete", "default")
+			run("network.rollback.route.add_default", "Restore previous safe default route", "/sbin/route", "add", "default", snap.DefaultRouteGateway)
+		} else {
+			restore.Warnings = append(restore.Warnings, "previous default route was suspicious and was not restored: "+snap.DefaultRouteGateway+" via "+snap.DefaultRouteInterface)
+		}
+	}
+	if mutations.AWDLChanged && snap.AWDLUp {
+		run("network.rollback.awdl.up", "Restore AWDL up state", "/sbin/ifconfig", "awdl0", "up")
+	}
+	if len(restore.Actions) == 0 && len(restore.Warnings) == 0 {
+		restore.Status = "skipped"
+		return restore
+	}
+	if failures > 0 || len(restore.Warnings) > 0 {
+		restore.Status = "partial_rollback_failed"
+		return restore
+	}
+	return restore
+}
+
+func safeRouteGatewayForRestore(gateway, iface string) bool {
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(iface)), "utun") {
+		return false
+	}
+	return safeDHCPGateway(gateway)
+}
+
+func routeOutputSuspicious(raw string) bool {
+	lower := strings.ToLower(raw)
+	if strings.Contains(lower, "interface: utun") {
+		return true
+	}
+	for _, field := range strings.Fields(raw) {
+		field = strings.Trim(field, " ,")
+		if !safeDHCPGateway(field) {
+			ip := net.ParseIP(field)
+			if ip != nil {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func safeDHCPGateway(gateway string) bool {
+	gateway = strings.TrimSpace(gateway)
+	if gateway == "" {
+		return false
+	}
+	ip := net.ParseIP(gateway)
+	if ip == nil {
+		return false
+	}
+	if v4 := ip.To4(); v4 != nil {
+		if v4[0] == 198 && (v4[1] == 18 || v4[1] == 19) {
+			return false
+		}
+		return true
+	}
+	lower := strings.ToLower(gateway)
+	if strings.HasPrefix(lower, "fdfe:dcba:9876") {
+		return false
+	}
+	return true
 }
 
 func anyProbeOK(m map[string]diagnose.ProbeResult) bool {

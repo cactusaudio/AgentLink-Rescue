@@ -1,0 +1,35 @@
+?   	cactus-agentlink-rescue/cmd/agentlink	[no test files]
+ok  	cactus-agentlink-rescue/internal/brain	1.536s
+ok  	cactus-agentlink-rescue/internal/classify	(cached)
+?   	cactus-agentlink-rescue/internal/cli	[no test files]
+ok  	cactus-agentlink-rescue/internal/command	(cached)
+ok  	cactus-agentlink-rescue/internal/configfile	(cached)
+ok  	cactus-agentlink-rescue/internal/devdoctor	2.786s
+ok  	cactus-agentlink-rescue/internal/diagnose	(cached)
+?   	cactus-agentlink-rescue/internal/facts	[no test files]
+ok  	cactus-agentlink-rescue/internal/field	2.029s
+ok  	cactus-agentlink-rescue/internal/guided	2.509s
+ok  	cactus-agentlink-rescue/internal/installer	3.171s
+?   	cactus-agentlink-rescue/internal/interference	[no test files]
+ok  	cactus-agentlink-rescue/internal/lastgood	3.638s
+?   	cactus-agentlink-rescue/internal/networkverify	[no test files]
+ok  	cactus-agentlink-rescue/internal/opencode	4.158s
+ok  	cactus-agentlink-rescue/internal/orchestrator	4.630s
+ok  	cactus-agentlink-rescue/internal/planner	(cached)
+ok  	cactus-agentlink-rescue/internal/proxyapp	(cached)
+?   	cactus-agentlink-rescue/internal/readiness	[no test files]
+ok  	cactus-agentlink-rescue/internal/recipe	5.291s
+ok  	cactus-agentlink-rescue/internal/repair	5.487s
+ok  	cactus-agentlink-rescue/internal/report	(cached)
+ok  	cactus-agentlink-rescue/internal/restartgate	4.405s
+ok  	cactus-agentlink-rescue/internal/rollback	4.292s
+ok  	cactus-agentlink-rescue/internal/rules	(cached)
+ok  	cactus-agentlink-rescue/internal/safety	(cached)
+ok  	cactus-agentlink-rescue/internal/session	(cached)
+ok  	cactus-agentlink-rescue/internal/snapshot	4.149s
+ok  	cactus-agentlink-rescue/internal/supportbundle	4.287s
+ok  	cactus-agentlink-rescue/internal/system	(cached)
+ok  	cactus-agentlink-rescue/internal/ticket	4.269s
+ok  	cactus-agentlink-rescue/internal/verifier	(cached)
+?   	cactus-agentlink-rescue/internal/verify	[no test files]
+ok  	cactus-agentlink-rescue/scripts	4.210s

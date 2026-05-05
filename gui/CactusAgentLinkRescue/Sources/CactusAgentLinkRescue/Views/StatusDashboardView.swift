@@ -2,8 +2,7 @@ import SwiftUI
 
 struct StatusDashboardView: View {
     @EnvironmentObject var state: AppState
-    @State private var allowReversibleRepairs = false
-    @State private var confirmReversibleRepair = false
+    @State private var confirmSupportBundle = false
 
     var body: some View {
         ScrollView {
@@ -19,21 +18,29 @@ struct StatusDashboardView: View {
                     restoreCard
                     reportsCard
                 }
-                OutputCard(title: "Advanced / Raw Diagnostics", text: state.latestResult?.combinedOutput ?? "", placeholder: "Run Doctor or Brain Plan to see raw output.", collapsedByDefault: true)
+                OutputCard(title: "Latest Command Output", text: state.latestResult?.combinedOutput ?? "", placeholder: "Run the main rescue flow to see command output.", collapsedByDefault: true)
             }
             .padding()
+        }
+        .alert("Export Support Bundle?", isPresented: $confirmSupportBundle) {
+            Button("Cancel", role: .cancel) {}
+            Button("Export") {
+                Task { await state.createSupportBundle() }
+            }
+        } message: {
+            Text("This support bundle contains redacted local diagnostics, including tool presence, local paths, network/proxy status, readiness reports, and latest session metadata. It does not include private keys, browser cookies, shell history, Wi-Fi passwords, or full API keys.")
         }
     }
 
     private var guidedHero: some View {
         HStack(alignment: .center, spacing: 18) {
             VStack(alignment: .leading, spacing: 8) {
-                Text(state.fieldMode?.mode == "macbook-network-rescue" ? "Fix Clash / TUN Network" : "Fix My Connection")
+                Text("Fix My Connection")
                     .font(.title2.weight(.semibold))
                     .onTapGesture(count: 3) {
-                        state.brainSandboxPresented = true
+                        state.developerModeEnabled = true
                     }
-                Text("Detect -> Gemma supervise -> safe plan -> Terminal ticket when admin permission is needed -> verify -> rollback or restart gate.")
+                Text(state.fieldMode?.mode == "macbook-network-rescue" ? "AgentLink diagnoses the connection, checks Clash/TUN as one possible cause, asks before writable repair, creates rollback checkpoints, and uses Terminal tickets when admin permission is needed." : "AgentLink diagnoses your network, explains the likely cause, asks before writable repair, creates rollback checkpoints, verifies after each step, and uses Terminal tickets when admin permission is needed.")
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 8) {
@@ -45,39 +52,33 @@ struct StatusDashboardView: View {
                 }
             }
             Spacer(minLength: 16)
-            VStack(alignment: .trailing, spacing: 10) {
-                Toggle("Allow reversible repairs", isOn: $allowReversibleRepairs)
-                    .toggleStyle(.checkbox)
+            VStack(alignment: .trailing, spacing: 12) {
                 Button {
                     state.page = .guided
-                    if allowReversibleRepairs {
-                        confirmReversibleRepair = true
-                    } else {
-                        Task { await state.runGuidedRescue(allowRepair: false) }
-                    }
+                    Task { await state.runGuidedRescue(allowRepair: false, target: state.fieldMode?.mode == "macbook-network-rescue" ? "network" : "auto") }
                 } label: {
-                    Label(state.fieldMode?.mode == "macbook-network-rescue" ? "Fix Clash / TUN Network" : "Fix My Connection", systemImage: "sparkles.rectangle.stack")
+                    Label("Fix My Connection", systemImage: "sparkles.rectangle.stack")
                         .font(.headline)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
+                        .frame(minWidth: 260)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(state.isRunning)
-                Button("Analyze Only") {
-                    state.page = .guided
-                    Task { await state.runGuidedRescue(allowRepair: false) }
+                if state.isRunning {
+                    Text("A rescue command is already running.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .buttonStyle(.borderless)
-                Button("Open Expert Console") {
-                    state.page = .doctor
+                Button {
+                    confirmSupportBundle = true
+                } label: {
+                    Label("Export Support Bundle", systemImage: "shippingbox")
                 }
-                .buttonStyle(.borderless)
-                Button("Installer Center") {
-                    state.page = .installer
-                }
-                .buttonStyle(.borderless)
-                Button("Readiness Center") {
-                    state.page = .readiness
+                .buttonStyle(.bordered)
+                .disabled(state.isRunning)
+                Button(state.developerModeEnabled ? "Developer Mode On" : "Developer Mode") {
+                    state.page = .settings
                 }
                 .buttonStyle(.borderless)
             }
@@ -85,20 +86,11 @@ struct StatusDashboardView: View {
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 10))
-        .alert("Allow reversible repairs?", isPresented: $confirmReversibleRepair) {
-            Button("Cancel", role: .cancel) {}
-            Button("Run Guided Repair") {
-                state.page = .guided
-                Task { await state.runGuidedRescue(allowRepair: true) }
-            }
-        } message: {
-            Text("AgentLink may apply reversible recipe repairs only. It will create snapshots and verify results. It will not run sudo or network deep rescue.")
-        }
     }
 
     private var restoreCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(state.fieldMode?.mode == "macbook-network-rescue" ? "Clash/TUN Rescue" : "Connection Rescue").font(.headline)
+            Text("Connection Rescue").font(.headline)
             Text(state.versionText).foregroundStyle(.secondary)
             StatusBadge(text: state.selftestStatus, kind: state.selftestStatus == "OK" ? .ok : .warn)
             InfoRow(label: "Package", value: state.packageType)

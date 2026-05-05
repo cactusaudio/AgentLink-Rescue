@@ -28,14 +28,16 @@ func Doctor(ctx context.Context, runner command.Runner, home string) Report {
 	if path := commandPath("opencode"); path != "" {
 		res := runner.Run(ctx, path, "--version")
 		if command.Success(res) {
-			rep.Status = "installed"
+			rep.Status = "experimental"
+			rep.Warnings = append(rep.Warnings, "OpenCode is installed, but the Gemma lab verdict is not verified for AgentLink v0.5.0.")
 		} else {
-			rep.Status = "installed_unverified"
+			rep.Status = "not_verified"
 			rep.Warnings = append(rep.Warnings, res.Error+res.Stderr)
 		}
 	} else {
-		rep.Status = "missing"
+		rep.Status = "experimental"
 		rep.Commands = []string{"agentlink installer dry-run opencode-cli --json"}
+		rep.Warnings = append(rep.Warnings, "OpenCode is missing; this optional adapter remains experimental and is not part of rescue execution.")
 	}
 	rep.ConfigPath = configPath(home)
 	return rep
@@ -43,9 +45,9 @@ func Doctor(ctx context.Context, runner command.Runner, home string) Report {
 
 func InstallDryRun() Report {
 	rep := base("install-dry-run")
-	rep.Status = "dry_run"
+	rep.Status = "experimental"
 	rep.Commands = []string{"npm install -g opencode-ai", "brew install anomalyco/tap/opencode"}
-	rep.Warnings = []string{"AgentLink will not auto-run curl | bash for OpenCode."}
+	rep.Warnings = []string{"AgentLink will not auto-run curl | bash for OpenCode.", "OpenCode + Gemma is not verified as a v0.5.0 harness."}
 	return rep
 }
 
@@ -69,8 +71,9 @@ func ConfigureLocalGemma(home string, yes bool) Report {
 }
 `
 	if !yes {
-		rep.Status = "dry_run"
+		rep.Status = "experimental"
 		rep.Commands = []string{"start Gemma server: agentlink brain server start --port 8080 --json", "write OpenCode provider agentlink-gemma to " + rep.ConfigPath}
+		rep.Warnings = append(rep.Warnings, "Dry-run only; OpenCode + Gemma remains experimental and not verified.")
 		return rep
 	}
 	if err := os.MkdirAll(filepath.Dir(rep.ConfigPath), 0700); err != nil {
@@ -79,7 +82,7 @@ func ConfigureLocalGemma(home string, yes bool) Report {
 		return rep
 	}
 	if system.Exists(rep.ConfigPath) {
-		rep.Status = "manual_action_required"
+		rep.Status = "manual_merge_required"
 		rep.Warnings = append(rep.Warnings, "existing OpenCode config found; AgentLink will not overwrite it in v0.5.0")
 		return rep
 	}
@@ -88,15 +91,15 @@ func ConfigureLocalGemma(home string, yes bool) Report {
 		rep.Error = err.Error()
 		return rep
 	}
-	rep.Status = "configured"
+	rep.Status = "template_generated"
 	return rep
 }
 
 func InstallPluginDryRun() Report {
 	rep := base("install-plugin")
-	rep.Status = "dry_run"
+	rep.Status = "scaffold_available"
 	rep.Commands = []string{"copy opencode/agentlink-plugin into OpenCode plugin directory"}
-	rep.Warnings = []string{"Plugin exposes read-only AgentLink tools only; direct sudo rescue execution is not exposed."}
+	rep.Warnings = []string{"Plugin scaffold exposes read-only AgentLink tools only; real OpenCode plugin loading is not verified in v0.5.0."}
 	return rep
 }
 

@@ -21,15 +21,32 @@ type Report struct {
 	PostRestartCommand  string               `json:"postRestartCommand,omitempty"`
 	SupportBundlePath   string               `json:"supportBundlePath,omitempty"`
 	RollbackAvailable   bool                 `json:"rollbackAvailable"`
+	NextAction          string               `json:"nextAction,omitempty"`
 	Verify              networkverify.Report `json:"verify"`
 }
 
-func Prepare(ctx context.Context, runner command.Runner, rulesDir string) Report {
+type Context struct {
+	AfterRestorePoint  string
+	Incident           string
+	TunRepairAttempted bool
+}
+
+func Prepare(ctx context.Context, runner command.Runner, rulesDir string, gateCtx ...Context) Report {
+	var info Context
+	if len(gateCtx) > 0 {
+		info = gateCtx[0]
+	}
 	verify := networkverify.Run(ctx, runner, rulesDir, false)
 	report := baseReport(verify)
 	if verify.OK {
 		report.RestartRequired = false
 		report.Reason = "network verification already passes"
+		return report
+	}
+	if !info.TunRepairAttempted && info.AfterRestorePoint == "" && info.Incident == "" {
+		report.RestartRequired = false
+		report.Reason = "targeted TUN repair has not been attempted yet"
+		report.NextAction = "agentlink orchestrator rescue --target clash-tun --dry-run --json"
 		return report
 	}
 	if verify.Tun.RecommendedRepair == "tun" || hasCriticalNetworkFailures(verify) {
@@ -44,6 +61,7 @@ func Prepare(ctx context.Context, runner command.Runner, rulesDir string) Report
 		}
 		report.DoBeforeRestart = []string{"Do not reopen Clash, ClashX, Clash Verge, or Mihomo before verification."}
 		report.PostRestartCommand = "agentlink restart-gate verify --json"
+		report.NextAction = report.PostRestartCommand
 	}
 	return report
 }

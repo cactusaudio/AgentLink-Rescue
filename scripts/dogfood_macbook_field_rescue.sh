@@ -32,6 +32,7 @@ import json, sys
 data=json.load(open(sys.argv[1]))
 assert data["fieldMode"] == "macbook-network-rescue", data
 assert data["commands"]["tun"] == "sudo ./bin/agentlink rescue --level tun --yes", data
+assert data["commands"]["cleanBaseline"] == "sudo ./bin/agentlink rescue --level clean-baseline --yes", data
 assert data["commands"]["standardSystemReset"] == "sudo ./bin/agentlink rescue --level standard-system-reset --yes", data
 assert "supportBundle" in data["commands"], data
 PY
@@ -45,6 +46,7 @@ PY
 
 grep -q 'sudo ./bin/agentlink rescue --level safe' "$FOLDER/emergency-terminal-commands.txt"
 grep -q 'sudo ./bin/agentlink rescue --level tun --yes' "$FOLDER/emergency-terminal-commands.txt"
+grep -q 'sudo ./bin/agentlink rescue --level clean-baseline --yes' "$FOLDER/emergency-terminal-commands.txt"
 grep -q 'sudo ./bin/agentlink rescue --level standard-system-reset --yes' "$FOLDER/emergency-terminal-commands.txt"
 grep -q 'AgentLink will not enable proxy/TUN automatically' "$FOLDER/README-MACBOOK-NETWORK-RESCUE.txt"
 

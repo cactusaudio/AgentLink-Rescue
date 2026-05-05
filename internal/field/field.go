@@ -53,6 +53,7 @@ func MacBookNetworkRescue(version string, report diagnose.DiagnosticReport) Repo
 			"safe":                "sudo ./bin/agentlink rescue --level safe",
 			"tun":                 "sudo ./bin/agentlink rescue --level tun --yes",
 			"standard":            "sudo ./bin/agentlink rescue --level standard --yes",
+			"cleanBaseline":       "sudo ./bin/agentlink rescue --level clean-baseline --yes",
 			"standardSystemReset": "sudo ./bin/agentlink rescue --level standard-system-reset --yes",
 			"deep":                "sudo ./bin/agentlink rescue --level deep --yes",
 			"verifyNetwork":       "./bin/agentlink verify network --json",
@@ -61,7 +62,7 @@ func MacBookNetworkRescue(version string, report diagnose.DiagnosticReport) Repo
 		},
 		Warnings: []string{
 			"AgentLink will not enable Clash TUN automatically.",
-			"Use standard-system-reset or deep only after targeted TUN repair and restart-gate verification fail.",
+			"Use clean-baseline, standard-system-reset, or deep only after targeted TUN repair and restart-gate verification fail.",
 			"GUI mode does not run sudo or collect passwords.",
 		},
 	}

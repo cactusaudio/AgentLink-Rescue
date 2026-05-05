@@ -3,6 +3,9 @@ import SwiftUI
 
 @MainActor
 final class AppState: ObservableObject {
+    @Published var developerModeEnabled = UserDefaults.standard.bool(forKey: "developerModeEnabled") {
+        didSet { UserDefaults.standard.set(developerModeEnabled, forKey: "developerModeEnabled") }
+    }
     @Published var page: RescuePage = .dashboard
     @Published var target: String = "path" {
         didSet {
@@ -11,6 +14,7 @@ final class AppState: ObservableObject {
             planResult = nil
             dryRun = nil
             dryRunResult = nil
+            guidedCanApply = false
         }
     }
     @Published var isRunning = false
@@ -71,9 +75,9 @@ final class AppState: ObservableObject {
         if let fieldMode = self.fieldMode {
             target = fieldMode.target ?? "network"
             if fieldMode.startupView == "guided-rescue" {
-                page = .guided
+                page = .dashboard
                 guidedStatus = "Field mode"
-                guidedSummary = "MacBook Network Rescue mode is active. Analyze the network first; sudo repair commands stay copy-only."
+                guidedSummary = "MacBook Network Rescue mode is active. Start with the main Fix button; sudo repair uses a Terminal ticket."
             }
         }
     }
@@ -433,7 +437,8 @@ final class AppState: ObservableObject {
         guidedLastTarget = report.target
         guidedLastRecipe = report.selectedRecipe
         rollbackAvailable = report.rollbackAvailable == true
-        guidedCanApply = report.status == "dry_run_complete" && report.mode == "dry-run" && report.selectedRecipe != nil
+        let status = report.status ?? ""
+        guidedCanApply = (status == "planned" || status == "dry_run_complete") && report.mode == "dry-run" && report.selectedRecipe != nil
         guidedSteps = []
         for cycle in report.cycles ?? [] {
             let result = cycle.result ?? "completed"
@@ -462,6 +467,7 @@ final class AppState: ObservableObject {
     private func guidedStatusLabel(_ status: String?) -> String {
         switch status {
         case "healthy": return "Healthy"
+        case "planned": return "Plan ready"
         case "dry_run_complete": return "Dry-run complete"
         case "repaired": return "Repaired"
         case "no_safe_action": return "No safe action"
@@ -477,7 +483,7 @@ final class AppState: ObservableObject {
 
     private func guidedStepStatus(_ result: String) -> String {
         switch result {
-        case "healthy", "repaired", "dry_run_complete":
+        case "healthy", "repaired", "dry_run_complete", "planned":
             return "ok"
         case "manual_action_required", "no_safe_action", "verifier_failed", "ticket_created", "restart_required", "rolled_back_after_worsening":
             return "warn"
@@ -509,7 +515,11 @@ final class AppState: ObservableObject {
     }
 
     func sudoRescueCommand(level: String) -> String {
-        client.copyableTerminalCommand(["rescue", "--level", level], sudo: true)
+        var args = ["rescue", "--level", level]
+        if level == "tun" || level == "clean-baseline" || level == "standard-system-reset" {
+            args.append("--yes")
+        }
+        return client.copyableTerminalCommand(args, sudo: true)
     }
 
     func sudoDeepCommand() -> String {
@@ -522,7 +532,7 @@ final class AppState: ObservableObject {
             args.append("--yes")
             return client.copyableTerminalCommand(args, sudo: true)
         }
-        if level == "standard" || level == "standard-system-reset" || level == "deep" {
+        if level == "standard" || level == "clean-baseline" || level == "standard-system-reset" || level == "deep" {
             args.append("--yes")
         }
         return client.copyableTerminalCommand(args, sudo: true)

@@ -16,6 +16,9 @@ struct GuidedRescueView: View {
                 if state.guidedCanApply || state.executeEnabled {
                     applyCard
                 }
+                if let ticketPath = state.guidedReport?.terminalTicketPath, !ticketPath.isEmpty {
+                    terminalTicketCard(ticketPath)
+                }
                 OutputCard(
                     title: "Guided Rescue Output",
                     text: state.guidedResult?.combinedOutput ?? "",
@@ -31,9 +34,9 @@ struct GuidedRescueView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Clash/TUN 网络恢复")
+                    Text("网络恢复")
                         .font(.title2.weight(.semibold))
-                    Text("Use this if Wi-Fi/Ethernet connects but the internet breaks after Clash Verge TUN mode. AgentLink prefers targeted TUN repair before broad standard reset.")
+                    Text("Use this when Wi-Fi/Ethernet connects but the internet does not work. AgentLink checks Clash/TUN as one possible cause and prefers targeted repair before broad reset.")
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -182,6 +185,38 @@ struct GuidedRescueView: View {
                     Label("Rerun Analyze-Only", systemImage: "arrow.clockwise")
                 }
                 .buttonStyle(.bordered)
+                .disabled(state.isRunning)
+            }
+        }
+        .card()
+    }
+
+    private func terminalTicketCard(_ ticketPath: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Terminal Repair Ticket").font(.headline)
+            Text("This repair needs administrator permission. AgentLink created a .command ticket so macOS Terminal asks for sudo. The GUI does not collect or store your password.")
+                .foregroundStyle(.secondary)
+            InfoRow(label: "Ticket", value: ticketPath, monospaced: true)
+            HStack {
+                Button {
+                    NSWorkspace.shared.open(URL(fileURLWithPath: ticketPath))
+                } label: {
+                    Label("Reveal Ticket", systemImage: "folder")
+                }
+                .buttonStyle(.bordered)
+                Button {
+                    let command = "open \(shellQuote(ticketPath))"
+                    copy(command)
+                } label: {
+                    Label("Copy Open Command", systemImage: "doc.on.doc")
+                }
+                .buttonStyle(.bordered)
+                Button {
+                    Task { await state.runGuidedRescue(allowRepair: false, target: state.guidedLastTarget ?? state.target) }
+                } label: {
+                    Label("Verify / Re-analyze", systemImage: "checkmark.seal")
+                }
+                .buttonStyle(.borderedProminent)
                 .disabled(state.isRunning)
             }
         }

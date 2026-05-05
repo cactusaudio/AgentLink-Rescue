@@ -28,7 +28,7 @@ This is not a generic network reset tool and not a cleanup app.
 - Validates Brain planner JSON before dry-run or execution.
 - Runs Guided Rescue as a bounded CLI workflow for non-developer users.
 - Runs the v0.5 Rescue Orchestrator for network/TUN failures with Terminal repair tickets.
-- Provides a native macOS GUI rescue console as a thin wrapper around the CLI.
+- Provides a native macOS GUI rescue operator as a thin wrapper around the CLI: one main Fix button, clear diagnosis/progress, support bundle export, and Developer Mode for expert tools.
 - Provides Installer Center for Codex CLI, Codex App, Claude Code CLI, Gemini CLI, and Clash Verge Rev recovery from official sources.
 - Can cache a Clash Verge Rev DMG in the Brain GUI ProxyKit package without enabling proxy/TUN automatically.
 - Provides a hidden local Brain Chat Sandbox for explanation only; it cannot execute commands.
@@ -37,7 +37,7 @@ This is not a generic network reset tool and not a cleanup app.
 - Exports a redacted Support Bundle for Codex or a human helper.
 - Checks Dev Essentials needed by AI CLI installers without managing project dependencies.
 - Produces a MacBook Field Rescue package for copy-to-another-Mac Clash/TUN recovery.
-- Can start a local `llama-server` on `127.0.0.1` for controlled local Gemma/OpenCode bridge work.
+- Can start a local `llama-server` on `127.0.0.1` for controlled local Gemma work; OpenCode Bridge remains experimental and not part of rescue execution.
 
 ## What It Does Not Do
 
@@ -99,8 +99,8 @@ agentlink brain plan --target path|proxy|codex|keys|network [--json]
 agentlink brain rescue-plan --target network|clash-tun [--json]
 agentlink brain server start|stop|status|verify [--port 8080] [--json]
 agentlink repair --auto --brain --target path|proxy|codex|keys|network [--dry-run] [--yes] [--online] [--json]
-agentlink guided rescue [--target auto|path|proxy|codex|keys|network] [--dry-run] [--yes] [--json]
 agentlink orchestrator rescue [--target auto|network|clash-tun|proxy|codex|keys|readiness] [--dry-run] [--yes] [--json]
+agentlink guided rescue [--target auto|path|proxy|codex|keys|network] [--dry-run] [--yes] [--json]  # deprecated v0.4 compatibility alias
 agentlink diagnose tun [--json]
 agentlink verify network|airdrop [--json]
 agentlink restart-gate prepare|verify [--json]
@@ -117,7 +117,7 @@ agentlink planner validate <decision.json>
 agentlink report --for-human --latest
 agentlink report --for-codex --latest
 agentlink classify [--json]
-agentlink rescue [--level safe|tun|standard|standard-system-reset|deep] [--yes] [--dry-run] [--json]
+agentlink rescue [--level safe|tun|standard|clean-baseline|standard-system-reset|deep] [--yes] [--dry-run] [--json]
 agentlink rollback [--last | --id RESTORE_POINT_ID] [--dry-run] [--json]
 agentlink report [--latest | --id REPORT_ID] [--json]
 agentlink selftest
@@ -129,10 +129,11 @@ Examples:
 ```bash
 ./bin/agentlink diagnose --json
 ./bin/agentlink rescue --level safe --dry-run
-./bin/agentlink guided rescue --target auto --dry-run --json
-./bin/agentlink guided rescue --target path --yes --json
-sudo ./bin/agentlink rescue --level standard
+./bin/agentlink orchestrator rescue --target auto --dry-run --json
+./bin/agentlink orchestrator rescue --target clash-tun --dry-run --json
 sudo ./bin/agentlink rescue --level tun --yes
+sudo ./bin/agentlink rescue --level clean-baseline --yes
+sudo ./bin/agentlink rescue --level standard-system-reset --yes
 sudo ./bin/agentlink rescue --level deep --yes
 ./bin/agentlink ticket create --type clash-tun-fix --json
 sudo ./bin/agentlink rollback --last
@@ -145,6 +146,10 @@ sudo ./bin/agentlink rollback --last
 `tun` is the preferred privileged repair when Clash/Mihomo TUN residue is detected. It stops Clash-family runtime, quarantines known residue, kickstarts NetworkExtension daemons, downs only stale matching `utun` interfaces, rebuilds active Wi-Fi DHCP/DNS/default route, refreshes mDNSResponder, and restores AWDL/sharingd for AirDrop discovery.
 
 `standard` includes safe rescue and a lower-impact Wi-Fi refresh by default. The old broad clean-location/route-flush behavior is demoted to `standard-system-reset`.
+
+`clean-baseline` requires `--yes`. It is a last-resort path for reaching a clean local online baseline after targeted repair, rollback, restart-gate verification, or support review shows no safer remaining action. It stops known interference runtimes, clears proxy/DNS/search/DHCP state, renews the active service, rebuilds the default route only from a safe current DHCP router, refreshes DNS/AWDL, and still does not enable Clash proxy/TUN.
+
+`standard-system-reset` requires `--yes`. It is the explicit broad clean-location / route-flush / all-service DHCP reset path and is not the default for Clash/TUN signatures.
 
 `deep` requires `--yes`. It includes safe and standard repair, quarantines eligible known residue, backs up selected network configuration plists, removes them by moving them into the restore point quarantine, and recommends reboot.
 
@@ -253,6 +258,10 @@ Cactus AgentLink Rescue.app/Contents/Resources/agentlink/
 
 The GUI uses the embedded `bin/agentlink`; it does not use a system `agentlink` from `PATH` unless a developer override is set. It uses `Process` with argument arrays, not shell command strings.
 
+In normal mode the GUI is intentionally narrow: one primary Fix button, current health, last result, support bundle export, and Settings. The Fix button runs the CLI Rescue Orchestrator in analyze/dry-run mode first. If a selected repair needs administrator permission, the GUI shows a Terminal repair ticket instead of asking for a password.
+
+Advanced controls are behind Settings -> Developer Mode. Developer Mode exposes the Expert Console: Doctor, Brain, Readiness, Installer Center, Plan, Dry Run, Rescue levels, Rollback, raw output, and experimental OpenCode Bridge status. Developer Mode is not needed for normal rescue.
+
 ### Core Package Vs Brain Package
 
 The Core package is the network and recipe runtime. It does not include the Gemma GGUF model or llama.cpp runtime. Core can still run `doctor`, `diagnose`, recipe repairs, network rescue, reports, rollback, and `brain doctor`. In Core, `brain doctor` reports missing Brain assets and prints fetch commands.
@@ -300,7 +309,7 @@ external cache. The ignored payloads are `assets/models/*.gguf`,
 `assets/runtimes/llama.cpp/`, `assets/installers/clash-verge-rev/**/*.dmg`,
 `bin/`, `dist/`, GUI build outputs, and temporary zip files.
 
-Gemma is not the executor. It returns PlannerDecision JSON only. The validator rejects unknown recipes, low-confidence repairs, privileged/destructive actions, and invalid JSON. The deterministic runner executes only bundled recipes, and writable repairs still require snapshot and rollback.
+Gemma is not the executor. For rescue orchestration it returns validated `RescuePlanDecision` JSON; for older recipe planning it returns `PlannerDecision` JSON. Reports distinguish `brainAvailable` from `gemmaCalled`, so an installed Brain pack is not reported as model-supervised unless Gemma was actually invoked. The validator rejects unknown recipes, low-confidence repairs, privileged/destructive actions, and invalid JSON. The deterministic runner executes only bundled recipes, and writable repairs still require snapshot and rollback.
 
 GUI dogfood:
 
@@ -336,9 +345,13 @@ Fetch the optional Clash Verge Rev cache:
 ./scripts/fetch_clash_verge_rev.sh
 ```
 
+### Experimental OpenCode Bridge
+
+OpenCode Bridge is experimental in v0.5.0. Lab work showed OpenCode 1.14.33 could reach the local Gemma server, but OpenCode + Gemma failed 9/9 tasks across 18 attempts, mostly through provider/config failure and context overflow. AgentLink does not depend on OpenCode, does not claim OpenCode is configured or verified, and does not route system rescue through OpenCode. The packaged plugin is a scaffold only unless a later lab proves real loading.
+
 ### Brain Chat Sandbox
 
-The Brain Chat Sandbox is a hidden/advanced local Gemma chat surface for explanation and report summarization. It is available from Settings or by triple-clicking the Dashboard title. It cannot execute commands, read files unless text is pasted, or change system settings. For repair, use Guided Rescue or Expert Console.
+The Brain Chat Sandbox is a hidden/advanced local Gemma chat surface for explanation and report summarization. It is available from Settings. Triple-clicking the Dashboard title unlocks Developer Mode, not repair execution. The sandbox cannot execute commands, read files unless text is pasted, or change system settings. For repair, use the main Fix flow or Developer Mode Expert Console.
 
 ### Offline Readiness, Last-Good, And Support Bundle
 

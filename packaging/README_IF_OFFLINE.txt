@@ -7,7 +7,8 @@ Cactus AgentLink Rescue 0.5.0
    xattr -cr "/path/to/Cactus-AgentLink-Rescue"
    /bin/bash "/path/to/rescue.sh" diagnose
    sudo /bin/bash "/path/to/rescue.sh" safe
-4. For deep reset:
+4. For last-resort clean baseline or deep reset:
+   sudo ./bin/agentlink rescue --level clean-baseline --yes
    sudo /bin/bash "/path/to/rescue.sh" deep
 5. To rollback, use agentlink if the binary works:
    ./bin/agentlink restore last
@@ -16,7 +17,7 @@ Cactus AgentLink Rescue 0.5.0
    If the binary does not work:
    sudo /bin/bash "/path/to/rescue.sh" rollback "/Library/Application Support/Cactus AgentLink Rescue/restore-points/<restore-point-id>"
 
-Guided Rescue:
+Rescue Orchestrator:
 - Analyze only:
   ./bin/agentlink orchestrator rescue --target auto --dry-run --json
 - Clash/TUN repair ticket:
@@ -26,6 +27,8 @@ Guided Rescue:
 - Verify after repair or restart:
   ./bin/agentlink verify network --json
 - The GUI does not run sudo. Privileged repair uses Terminal tickets.
+- Last resort, only after targeted repair/restart/support review:
+  sudo ./bin/agentlink rescue --level clean-baseline --yes
 
 Manual restore structure:
 - Backed-up files are under restore-point/files/<original absolute path>.
@@ -51,7 +54,7 @@ Core vs Brain package:
 MacBook Field Rescue package:
 - Use Cactus-AgentLink-Rescue-v0.5.0-macbook-field-gui-proxykit.zip when copying to a MacBook whose internet breaks after Clash Verge TUN mode.
 - Unzip it, then double-click RUN-FIRST.command.
-- The app opens in MacBook Network Rescue mode and shows Analyze Network plus targeted Clash/TUN repair tickets.
+- The app opens in MacBook Network Rescue mode with one primary Fix My Connection flow. Clash/TUN is checked as one possible cause; targeted repair uses Terminal tickets when applicable.
 - The GUI does not run sudo and does not enable Clash proxy/TUN automatically.
 - If the app is blocked, run:
   xattr -cr "Cactus MacBook Network Rescue"
@@ -63,7 +66,7 @@ Brain package offline checks:
   ./bin/agentlink repair --auto --brain --target path --dry-run
 
 Brain mode is planner-only:
-- Gemma outputs PlannerDecision JSON.
+- Gemma outputs RescuePlanDecision JSON for network rescue and PlannerDecision JSON for older recipe planning.
 - The deterministic runner executes only local recipes.
 - Gemma never executes arbitrary shell.
 - For Network/TUN rescue, Gemma supervises plan selection, but AgentLink validates the plan and executes only approved deterministic actions.
@@ -76,7 +79,7 @@ Installer Center:
 - Codex App opens the official OpenAI page.
 - Clash Verge Rev can be opened from a cached DMG when using a ProxyKit package.
 - AgentLink does not enable proxy/TUN automatically and does not collect passwords.
-- OpenCode is optional local coding/report-analysis harness. It is not the system rescue executor.
+- OpenCode Bridge is experimental. Lab work showed OpenCode + Gemma is not yet a usable first-class harness. It is optional config/template support only and is not the system rescue executor.
 
 Offline Readiness / Last-Good / Support Bundle:
   ./bin/agentlink readiness doctor
@@ -91,12 +94,14 @@ Offline Readiness / Last-Good / Support Bundle:
 Brain Chat Sandbox:
 - Hidden/advanced local Gemma chat for explanations only.
 - It cannot run commands, change settings, or repair the machine.
-- Use Guided Rescue or Expert Console for actual repair flows.
+- Use the main Fix flow or Developer Mode Expert Console for actual repair flows.
 
 GUI mode is a shell:
 - The GUI calls the bundled ./bin/agentlink.
 - The GUI does not collect sudo passwords.
-- Network rescue safe/standard/deep commands are shown for Terminal copy/paste.
+- Normal mode shows one primary Fix button, health, last result, support bundle, and Settings.
+- Developer Mode exposes Doctor, Brain, Installer Center, Readiness, Rescue levels, Rollback, OpenCode status, and raw logs.
+- Network rescue safe/tun/standard/clean-baseline/standard-system-reset/deep commands are shown for Terminal copy/paste inside Developer Mode.
 - The GUI does not implement its own repair engine.
 
 v0.5.0 also includes offline recipe and Brain docs:

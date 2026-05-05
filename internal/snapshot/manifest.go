@@ -31,6 +31,8 @@ type Manifest struct {
 	PostflightPath          string        `json:"postflightPath,omitempty"`
 	CommandsLogPath         string        `json:"commandsLogPath,omitempty"`
 	HumanReportPath         string        `json:"humanReportPath,omitempty"`
+	NetworkSnapshotPath     string        `json:"networkSnapshotPath,omitempty"`
+	NetworkMutationsPath    string        `json:"networkMutationsPath,omitempty"`
 	PreviousNetworkLocation string        `json:"previousNetworkLocation,omitempty"`
 	Entries                 []FileEntry   `json:"entries"`
 	ConfigEntries           []ConfigEntry `json:"configEntries,omitempty"`
@@ -178,6 +180,10 @@ func (rp *RestorePoint) WriteJSON(name string, v any) (string, error) {
 		rp.Manifest.PreflightPath = path
 	case "postflight.json":
 		rp.Manifest.PostflightPath = path
+	case "network-preflight.json":
+		rp.Manifest.NetworkSnapshotPath = path
+	case "network-mutations.json":
+		rp.Manifest.NetworkMutationsPath = path
 	}
 	return path, rp.Save()
 }

@@ -200,6 +200,10 @@ struct GuidedRescueReport: Codable {
     var selectedRecipe: String?
     var requiresAdmin: Bool?
     var terminalTicketPath: String?
+    var brainAvailable: Bool?
+    var gemmaCalled: Bool?
+    var supervisorMode: String?
+    var gemmaCallCount: Int?
     var plannerUsed: Bool?
     var brainModel: String?
     var snapshotID: String?

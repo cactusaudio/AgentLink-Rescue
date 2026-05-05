@@ -26,6 +26,8 @@ type Options struct {
 	TimeoutSeconds int
 	RulesDir       string
 	Home           string
+	PackageRoot    string
+	BrainBackend   brain.BrainBackend
 }
 
 func Run(ctx context.Context, runner command.Runner, opts Options) Report {
@@ -36,9 +38,6 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Report {
 	if target == "" {
 		target = "auto"
 	}
-	if target == "clash-tun" {
-		target = "clash-tun"
-	}
 	if opts.TimeoutSeconds <= 0 {
 		opts.TimeoutSeconds = 600
 	}
@@ -46,13 +45,15 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Report {
 	defer cancel()
 	start := time.Now()
 	report := Report{
-		SchemaVersion: 1,
-		ToolVersion:   system.Version,
-		StartedAt:     start.Format(time.RFC3339),
-		Mode:          mode(opts),
-		Target:        target,
-		Status:        "failed",
-		Cycles:        []Cycle{},
+		SchemaVersion:  1,
+		ToolVersion:    system.Version,
+		StartedAt:      start.Format(time.RFC3339),
+		Mode:           mode(opts),
+		Target:         target,
+		Status:         "failed",
+		SupervisorMode: "deterministic",
+		PlanSource:     "deterministic",
+		Cycles:         []Cycle{},
 	}
 
 	engine := diagnose.NewEngine(runner, diagnose.Options{RulesDir: opts.RulesDir})
@@ -75,18 +76,49 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Report {
 		},
 		Result: "facts_collected",
 	})
-	if target == "auto" && healthy(diag, tun) {
+	brainBackend := opts.BrainBackend
+	if brainBackend == nil {
+		brainBackend = brain.NewLlamaCLIBackend(runner, opts.Home)
+	}
+	brainAvailability := brainBackend.Available(ctx)
+	report.BrainAvailable = brainAvailability.BrainPackAvailable
+	if healthy(diag, tun) {
 		report.Status = "healthy"
 		report.HumanSummary = "Network and AgentLink path look healthy. No repair was run."
 		return finish(report, opts.Home)
 	}
 
-	decision := supervise(diag, tun, target)
-	report.GemmaUsed = brain.NewLlamaCLIBackend(runner, opts.Home).Available(ctx).BrainPackAvailable
+	deterministicPlan := supervise(diag, tun, target)
+	decision := deterministicPlan
+	if report.BrainAvailable {
+		if gemmaDecision, err := gemmaSupervise(ctx, brainBackend, diag, tun, target); err == nil {
+			report.GemmaCalled = true
+			report.GemmaCallCount = 1
+			arbitrated := arbitratePlans(deterministicPlan, gemmaDecision, tun.RecommendedRepair == "tun")
+			decision = arbitrated.Decision
+			report.SupervisorMode = arbitrated.SupervisorMode
+			report.PlanSource = arbitrated.PlanSource
+			report.GemmaOverrideAccepted = arbitrated.GemmaOverrideAccepted
+			report.GemmaOverrideRejectedReason = arbitrated.GemmaOverrideRejectedReason
+			if arbitrated.Warning != "" {
+				report.Warnings = append(report.Warnings, arbitrated.Warning)
+			}
+		} else {
+			report.SupervisorMode = "deterministic"
+			report.PlanSource = "deterministic"
+			report.Warnings = append(report.Warnings, "Gemma supervisor unavailable; deterministic policy selected the rescue plan: "+err.Error())
+		}
+	}
 	validationErr := ValidatePlan(decision, tun.RecommendedRepair == "tun")
-	validateCycle := Cycle{Index: 2, State: "GemmaSupervise", FailureClasses: report.FailureClasses, SupervisorDecision: decision, PlanValidation: map[string]any{"ok": validationErr == nil}, Result: "plan_validated"}
+	validateCycle := Cycle{Index: 2, State: "SupervisorDecision", FailureClasses: report.FailureClasses, SupervisorDecision: decision, PlanValidation: map[string]any{"ok": validationErr == nil, "planSource": report.PlanSource}, Result: "plan_validated"}
+	if report.GemmaCalled {
+		validateCycle.PlanValidation["gemmaOverrideAccepted"] = report.GemmaOverrideAccepted
+		if report.GemmaOverrideRejectedReason != "" {
+			validateCycle.PlanValidation["gemmaOverrideRejectedReason"] = report.GemmaOverrideRejectedReason
+		}
+	}
 	if validationErr != nil {
-		validateCycle.PlanValidation = map[string]any{"ok": false, "error": validationErr.Error()}
+		validateCycle.PlanValidation = map[string]any{"ok": false, "error": validationErr.Error(), "planSource": report.PlanSource}
 		validateCycle.Result = "plan_refused"
 		report.Cycles = append(report.Cycles, validateCycle)
 		report.Status = "manual_action_required"
@@ -95,11 +127,53 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Report {
 		return finish(report, opts.Home)
 	}
 	report.Cycles = append(report.Cycles, validateCycle)
+	if decision.Intent != "repair" {
+		report.SelectedRecipe = decision.SelectedRecipe
+		report.RequiresAdmin = decision.RequiresAdmin
+		switch decision.Intent {
+		case "report", "probe":
+			report.Status = "manual_action_required"
+			report.HumanSummary = decision.ExplanationForUser
+			if report.HumanSummary == "" {
+				report.HumanSummary = "AgentLink did not select a writable repair."
+			}
+			report.NextAction = "agentlink support bundle"
+		case "restart_gate":
+			report.Status = "restart_required"
+			report.HumanSummary = decision.ExplanationForUser
+			if report.HumanSummary == "" {
+				report.HumanSummary = "Restart gate requested by validated supervisor decision."
+			}
+			report.NextAction = "agentlink restart-gate verify --json"
+		case "last_resort_offer":
+			report.Status = "manual_action_required"
+			report.HumanSummary = decision.ExplanationForUser
+			if report.HumanSummary == "" {
+				report.HumanSummary = "Last-resort clean network baseline reset requires explicit user consent."
+			}
+			report.NextAction = "sudo ./bin/agentlink rescue --level clean-baseline --yes --json"
+		default:
+			report.Status = "manual_action_required"
+			report.HumanSummary = decision.StopReason
+			if report.HumanSummary == "" {
+				report.HumanSummary = "No high-confidence targeted rescue plan is available."
+			}
+			report.NextAction = "agentlink support bundle"
+		}
+		return finish(report, opts.Home)
+	}
+	if decision.SelectedRecipe != "macos-clash-tun-force-repair" {
+		report.Status = "manual_action_required"
+		report.HumanSummary = "Validated repair intent selected an unknown or unsupported recipe."
+		report.NextAction = "agentlink support bundle"
+		report.Cycles = append(report.Cycles, Cycle{Index: 3, State: "ValidatePlan", Result: "unsupported_recipe", PlanValidation: map[string]any{"ok": false, "recipe": decision.SelectedRecipe}})
+		return finish(report, opts.Home)
+	}
 	report.SelectedRecipe = decision.SelectedRecipe
 	report.RequiresAdmin = decision.RequiresAdmin
 	dry := opts.DryRun || !opts.Yes
 	if !dry && decision.RequiresAdmin && !system.IsRoot() {
-		ticketReport := ticket.Create(ctx, runner, ticket.Options{Home: opts.Home, Type: "clash-tun-fix", Version: system.Version})
+		ticketReport := ticket.Create(ctx, runner, ticket.Options{Home: opts.Home, Type: "clash-tun-fix", Version: system.Version, PackageRoot: opts.PackageRoot})
 		report.Status = "ticket_created"
 		report.TerminalTicketPath = ticketReport.Directory
 		report.HumanSummary = "This repair needs administrator permission. AgentLink created a Terminal repair ticket instead of running sudo in the GUI."
@@ -127,7 +201,7 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Report {
 		report.HumanSummary = "Postflight was worse than preflight, so AgentLink automatically rolled back."
 		report.WorsenedSignals = []string{"critical postflight comparator triggered"}
 	default:
-		gate := restartgate.Prepare(ctx, runner, opts.RulesDir)
+		gate := restartgate.Prepare(ctx, runner, opts.RulesDir, restartgate.Context{TunRepairAttempted: true, AfterRestorePoint: res.RestorePointID})
 		report.RestartGate = map[string]any{"restartRequired": gate.RestartRequired, "reason": gate.Reason, "postRestartCommand": gate.PostRestartCommand}
 		if gate.RestartRequired {
 			report.Status = "restart_required"
@@ -159,6 +233,166 @@ func RescuePlan(ctx context.Context, runner command.Runner, opts Options) Rescue
 	return supervise(diag, tun, target)
 }
 
+const rescueSupervisorPrompt = `You are Cactus AgentLink Rescue Supervisor.
+You choose bounded rescue intent only. You cannot execute commands. You cannot write shell.
+Return exactly one RescuePlanDecision JSON object. No markdown. No prose. No code fences.
+Allowed intents: repair, probe, report, restart_gate, manual_action, last_resort_offer.
+Allowed repair recipe in this release: macos-clash-tun-force-repair.
+Allowed last-resort recipe: macos-clean-network-baseline-reset.
+If Clash/Mihomo TUN evidence is high-confidence, prefer macos-clash-tun-force-repair before standard/deep reset.
+Privileged repair must set requiresAdmin=true, requiresTerminalTicket=true, requiresUserConsent=true.
+If confidence is below 0.55, use probe, report, or manual_action.`
+
+func gemmaSupervise(ctx context.Context, backend brain.BrainBackend, diag diagnose.DiagnosticReport, tun diagnose.TunReport, target string) (RescuePlanDecision, error) {
+	payload := map[string]any{
+		"target": target,
+		"policy": map[string]any{
+			"gemmaCannotExecuteShell":       true,
+			"guiCannotRunSudo":              true,
+			"runnerExecutesOnlyRecipes":     true,
+			"verifierOwnsTruth":             true,
+			"rollbackRequiredForMutation":   true,
+			"cleanBaselineIsLastResortOnly": true,
+		},
+		"allowedRecipes": []string{
+			"macos-clash-tun-force-repair",
+			"macos-clean-network-baseline-reset",
+		},
+		"facts": map[string]any{
+			"classifications":     diag.Classifications,
+			"recommendedRepair":   diag.RecommendedRepairLevel,
+			"defaultRoutePresent": diag.Network.DefaultRoute.Present,
+			"defaultRouteGateway": diag.Network.DefaultRoute.Gateway,
+			"defaultRouteIface":   diag.Network.DefaultRoute.Interface,
+			"proxyDirty":          diag.Network.ProxySummary.Dirty,
+			"tunRecommended":      tun.RecommendedRepair,
+			"tunSignatures":       tun.SuspiciousSignatures,
+			"providers":           tun.Providers,
+		},
+	}
+	data, _ := json.MarshalIndent(payload, "", "  ")
+	resp, err := backend.Generate(ctx, brain.BrainRequest{
+		SystemPrompt: rescueSupervisorPrompt,
+		UserPrompt:   string(data),
+		MaxTokens:    1024,
+		Temperature:  0,
+		ContextSize:  8192,
+		Timeout:      2 * time.Minute,
+		ExpectJSON:   true,
+	})
+	if err != nil {
+		return RescuePlanDecision{}, err
+	}
+	jsonText := resp.ExtractedJSON
+	if jsonText == "" {
+		jsonText, err = brain.ExtractPlannerJSONObject(resp.RawText)
+		if err != nil {
+			return RescuePlanDecision{}, err
+		}
+	}
+	var decision RescuePlanDecision
+	if err := json.Unmarshal([]byte(jsonText), &decision); err != nil {
+		return RescuePlanDecision{}, err
+	}
+	return decision, nil
+}
+
+type arbitrationResult struct {
+	Decision                    RescuePlanDecision
+	PlanSource                  string
+	SupervisorMode              string
+	GemmaOverrideAccepted       bool
+	GemmaOverrideRejectedReason string
+	Warning                     string
+}
+
+func arbitratePlans(deterministicPlan, gemmaPlan RescuePlanDecision, tunHighConfidence bool) arbitrationResult {
+	result := arbitrationResult{
+		Decision:       deterministicPlan,
+		PlanSource:     "deterministic",
+		SupervisorMode: "deterministic_with_gemma_commentary",
+	}
+	if err := ValidatePlan(gemmaPlan, tunHighConfidence); err != nil {
+		result.GemmaOverrideRejectedReason = "Gemma plan rejected by policy validator: " + err.Error()
+		result.Warning = result.GemmaOverrideRejectedReason
+		return result
+	}
+	if isHighConfidenceSafetyCritical(deterministicPlan, tunHighConfidence) {
+		if gemmaPlan.Intent == "repair" && gemmaPlan.SelectedRecipe == deterministicPlan.SelectedRecipe {
+			result.Decision = mergeGemmaCommentary(deterministicPlan, gemmaPlan)
+			return result
+		}
+		if hasValidatedContradictoryFacts(gemmaPlan) {
+			result.Decision = gemmaPlan
+			result.PlanSource = "gemma"
+			result.SupervisorMode = "gemma"
+			result.GemmaOverrideAccepted = true
+			return result
+		}
+		result.GemmaOverrideRejectedReason = "high-confidence deterministic TUN repair retained; Gemma did not provide validated contradictory facts"
+		result.Warning = result.GemmaOverrideRejectedReason
+		return result
+	}
+	if deterministicPlan.Intent != "repair" || deterministicPlan.Confidence < 0.55 {
+		if gemmaPlan.Intent == "repair" {
+			result.Decision = gemmaPlan
+			result.PlanSource = "gemma"
+			result.SupervisorMode = "gemma"
+			result.GemmaOverrideAccepted = true
+			return result
+		}
+	}
+	if gemmaPlan.Intent == "repair" && deterministicPlan.Intent == "repair" && gemmaPlan.SelectedRecipe == deterministicPlan.SelectedRecipe && gemmaPlan.Confidence >= deterministicPlan.Confidence {
+		result.Decision = mergeGemmaCommentary(deterministicPlan, gemmaPlan)
+	}
+	return result
+}
+
+func isHighConfidenceSafetyCritical(plan RescuePlanDecision, tunHighConfidence bool) bool {
+	if plan.Intent != "repair" || plan.Confidence < 0.85 {
+		return false
+	}
+	if plan.FailureClass == classify.ClashTunActiveOrStale || plan.SelectedRecipe == "macos-clash-tun-force-repair" {
+		return true
+	}
+	return tunHighConfidence
+}
+
+func mergeGemmaCommentary(deterministicPlan, gemmaPlan RescuePlanDecision) RescuePlanDecision {
+	out := deterministicPlan
+	if gemmaPlan.ExplanationForUser != "" {
+		out.ExplanationForUser = gemmaPlan.ExplanationForUser
+	}
+	out.Evidence = appendUnique(out.Evidence, gemmaPlan.Evidence...)
+	if len(gemmaPlan.ExpectedVerifiers) > 0 {
+		out.ExpectedVerifiers = appendUnique(out.ExpectedVerifiers, gemmaPlan.ExpectedVerifiers...)
+	}
+	return out
+}
+
+func appendUnique(base []string, values ...string) []string {
+	seen := map[string]bool{}
+	for _, value := range base {
+		seen[value] = true
+	}
+	out := append([]string(nil), base...)
+	for _, value := range values {
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		out = append(out, value)
+	}
+	return out
+}
+
+func hasValidatedContradictoryFacts(_ RescuePlanDecision) bool {
+	// v0.5.0 does not let Gemma introduce new facts. Contradiction must come
+	// from AgentLink probes, not from model commentary, so no downgrade is
+	// accepted here.
+	return false
+}
+
 func supervise(diag diagnose.DiagnosticReport, tun diagnose.TunReport, target string) RescuePlanDecision {
 	if target == "network" || target == "clash-tun" || target == "auto" {
 		if tun.RecommendedRepair == "tun" {
@@ -171,6 +405,7 @@ func supervise(diag diagnose.DiagnosticReport, tun diagnose.TunReport, target st
 				Evidence:               tun.SuspiciousSignatures,
 				RequiresAdmin:          true,
 				RequiresTerminalTicket: true,
+				RequiresUserConsent:    true,
 				ExpectedVerifiers:      []string{"default_route_present", "raw_ip_ping_ok", "dns_lookup_ok", "https_baidu_ok", "stale_tun_absent_or_down", "awdl0_up"},
 				ExplanationForUser:     "Clash/Mihomo TUN signatures are present, so targeted TUN runtime repair is safer than broad standard network reset.",
 			}
@@ -233,6 +468,39 @@ func writeIncident(report Report, home string) string {
 	human := "Cactus AgentLink Rescue incident\n\nStatus: " + report.Status + "\nSummary: " + report.HumanSummary + "\nNext: " + report.NextAction + "\n"
 	_ = os.WriteFile(filepath.Join(dir, "human-report.txt"), []byte(human), 0644)
 	_ = os.WriteFile(filepath.Join(dir, "agent-dispatch.md"), []byte(human), 0644)
+	for _, cycle := range report.Cycles {
+		writeArtifact := func(name string, value any) {
+			if value == nil {
+				return
+			}
+			data, _ := json.MarshalIndent(value, "", "  ")
+			_ = os.WriteFile(filepath.Join(dir, name), data, 0644)
+		}
+		if cycle.SupervisorDecision != nil {
+			writeArtifact("supervisor-decision.json", cycle.SupervisorDecision)
+		}
+		if cycle.DryRun != nil {
+			writeArtifact("repair-result.json", cycle.DryRun)
+		}
+		if cycle.Execution != nil {
+			switch cycle.State {
+			case "PrivilegeGate":
+				writeArtifact("terminal-ticket.json", cycle.Execution)
+			default:
+				writeArtifact("repair-result.json", cycle.Execution)
+			}
+		}
+		if cycle.Verification != nil {
+			writeArtifact("network-verify.json", cycle.Verification)
+		}
+	}
+	if report.RestartGate != nil {
+		writeArtifact := func(name string, value any) {
+			data, _ := json.MarshalIndent(value, "", "  ")
+			_ = os.WriteFile(filepath.Join(dir, name), data, 0644)
+		}
+		writeArtifact("restart-gate.json", report.RestartGate)
+	}
 	return dir
 }
 

@@ -23,7 +23,7 @@ func testRegistry(t *testing.T) Registry {
 
 func TestRecipeLoadValidateAndUnknown(t *testing.T) {
 	reg := testRegistry(t)
-	if len(reg.List()) != 12 {
+	if len(reg.List()) != 13 {
 		t.Fatalf("recipe count=%d", len(reg.List()))
 	}
 	if _, ok := reg.Get("missing"); ok {

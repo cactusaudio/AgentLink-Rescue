@@ -203,7 +203,8 @@
         "https://opencode.ai/docs/"
       ],
       "warnings": [
-        "OpenCode is a local coding/report-analysis harness. It is not the AgentLink system rescue executor.",
+        "OpenCode Bridge is experimental in v0.5.0 and is not a first-class AgentLink harness.",
+        "OpenCode is not the AgentLink system rescue executor.",
         "The curl install script is copy-only in AgentLink and is never auto-run."
       ]
     }

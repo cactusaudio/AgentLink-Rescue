@@ -24,6 +24,7 @@ fi
 
 go test ./...
 go vet ./...
+GOOS=linux GOARCH=amd64 go test -exec /usr/bin/true ./...
 scripts/build.sh
 scripts/build_gui.sh
 scripts/package.sh
@@ -74,6 +75,9 @@ scripts/dogfood_autorollback.sh
 scripts/dogfood_restart_gate.sh
 scripts/dogfood_terminal_ticket.sh
 scripts/dogfood_opencode_bridge.sh
+scripts/dogfood_one_button_rescue.sh
+scripts/dogfood_developer_mode.sh
+scripts/dogfood_clean_baseline_last_resort.sh
 scripts/dogfood_gui_core.sh
 scripts/dogfood_gui_screenshots.sh
 # dogfood_gui_core.sh and dogfood_gui_brain.sh include --selftest-gui-long-output.

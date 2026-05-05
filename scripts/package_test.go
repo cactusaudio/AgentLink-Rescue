@@ -45,7 +45,7 @@ func TestReleaseCheckCoversDogfoodAndForbiddenCodexField(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(data)
-	for _, want := range []string{"dogfood_temp_home.sh", "dogfood_proxy_config.sh", "dogfood_runtime_core.sh", "dogfood_guided_rescue.sh", "dogfood_readiness.sh", "dogfood_installer_center.sh", "dogfood_brain_chat.sh", "dogfood_runtime_assets.sh", "dogfood_runtime_brain.sh", "dogfood_gui_core.sh", "dogfood_gui_brain.sh", "dogfood_gui_screenshots.sh", "dogfood_tun_detection.sh", "dogfood_tun_repair_dryrun.sh", "dogfood_autorollback.sh", "dogfood_restart_gate.sh", "dogfood_terminal_ticket.sh", "dogfood_opencode_bridge.sh", "proxyapp clean-reinstall clash-verge-rev --dry-run --json", "package_macbook_field_rescue.sh", "dogfood_macbook_field_rescue.sh", "build_gui.sh", "readiness doctor --json", "support bundle", "field macbook-network-rescue --json", "selftest-gui-long-output", "manifest.lock.json changed during package/dogfood", "brain assets missing; set AGENTLINK_ASSET_CACHE", "FORBIDDEN_FIELD", "active legacy model reference found", "Cactus-AgentLink-Rescue-v0.5.0-core.zip", "Cactus-AgentLink-Rescue-v0.5.0-core-gui.zip", "Cactus-AgentLink-Rescue-v0.5.0-macbook-field-gui-proxykit.zip", "Mach-O universal binary"} {
+	for _, want := range []string{"dogfood_temp_home.sh", "dogfood_proxy_config.sh", "dogfood_runtime_core.sh", "dogfood_guided_rescue.sh", "dogfood_readiness.sh", "dogfood_installer_center.sh", "dogfood_brain_chat.sh", "dogfood_runtime_assets.sh", "dogfood_runtime_brain.sh", "dogfood_gui_core.sh", "dogfood_gui_brain.sh", "dogfood_gui_screenshots.sh", "dogfood_tun_detection.sh", "dogfood_tun_repair_dryrun.sh", "dogfood_autorollback.sh", "dogfood_restart_gate.sh", "dogfood_terminal_ticket.sh", "dogfood_opencode_bridge.sh", "dogfood_one_button_rescue.sh", "dogfood_developer_mode.sh", "dogfood_clean_baseline_last_resort.sh", "proxyapp clean-reinstall clash-verge-rev --dry-run --json", "package_macbook_field_rescue.sh", "dogfood_macbook_field_rescue.sh", "build_gui.sh", "readiness doctor --json", "support bundle", "field macbook-network-rescue --json", "selftest-gui-long-output", "manifest.lock.json changed during package/dogfood", "brain assets missing; set AGENTLINK_ASSET_CACHE", "FORBIDDEN_FIELD", "active legacy model reference found", "Cactus-AgentLink-Rescue-v0.5.0-core.zip", "Cactus-AgentLink-Rescue-v0.5.0-core-gui.zip", "Cactus-AgentLink-Rescue-v0.5.0-macbook-field-gui-proxykit.zip", "Mach-O universal binary"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("release check missing %s", want)
 		}
@@ -66,7 +66,7 @@ func TestBrainPackageScriptRequiresAssetsAndHygiene(t *testing.T) {
 }
 
 func TestRuntimeDogfoodScriptsExist(t *testing.T) {
-	for _, name := range []string{"dogfood_runtime_core.sh", "dogfood_runtime_brain.sh", "dogfood_runtime_assets.sh", "dogfood_guided_rescue.sh", "dogfood_readiness.sh", "dogfood_installer_center.sh", "dogfood_brain_chat.sh", "dogfood_gui_core.sh", "dogfood_gui_brain.sh", "dogfood_macbook_field_rescue.sh"} {
+	for _, name := range []string{"dogfood_runtime_core.sh", "dogfood_runtime_brain.sh", "dogfood_runtime_assets.sh", "dogfood_guided_rescue.sh", "dogfood_readiness.sh", "dogfood_installer_center.sh", "dogfood_brain_chat.sh", "dogfood_gui_core.sh", "dogfood_gui_brain.sh", "dogfood_macbook_field_rescue.sh", "dogfood_one_button_rescue.sh", "dogfood_developer_mode.sh", "dogfood_clean_baseline_last_resort.sh"} {
 		data, err := os.ReadFile(name)
 		if err != nil {
 			t.Fatal(err)

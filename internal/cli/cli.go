@@ -626,7 +626,7 @@ func runOrchestrator(ctx context.Context, runner command.Runner, rulesDir string
 	if err := fs.Parse(args[1:]); err != nil {
 		return 50
 	}
-	rep := orchestrator.Run(ctx, runner, orchestrator.Options{Target: *target, DryRun: *dryRun || !*yes, Yes: *yes, MaxCycles: *maxCycles, TimeoutSeconds: *timeoutSeconds, RulesDir: rulesDir, Home: currentHome(ctx, runner)})
+	rep := orchestrator.Run(ctx, runner, orchestrator.Options{Target: *target, DryRun: *dryRun || !*yes, Yes: *yes, MaxCycles: *maxCycles, TimeoutSeconds: *timeoutSeconds, RulesDir: rulesDir, Home: currentHome(ctx, runner), PackageRoot: ticket.FindPackageRoot()})
 	if *jsonOut {
 		fmt.Fprintln(stdout, orchestrator.MarshalReport(rep))
 	} else {
@@ -1463,13 +1463,15 @@ func runRestartGate(ctx context.Context, runner command.Runner, rulesDir string,
 	fs := flag.NewFlagSet("restart-gate "+args[0], flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	jsonOut := fs.Bool("json", false, "JSON")
+	afterRestorePoint := fs.String("after-restore-point", "", "restore point ID after targeted repair")
+	incident := fs.String("incident", "", "incident ID/path after targeted repair")
 	if err := fs.Parse(args[1:]); err != nil {
 		return 50
 	}
 	var rep restartgate.Report
 	switch args[0] {
 	case "prepare":
-		rep = restartgate.Prepare(ctx, runner, rulesDir)
+		rep = restartgate.Prepare(ctx, runner, rulesDir, restartgate.Context{AfterRestorePoint: *afterRestorePoint, Incident: *incident})
 	case "verify":
 		rep = restartgate.Verify(ctx, runner, rulesDir)
 	default:
@@ -1497,11 +1499,12 @@ func runTicket(ctx context.Context, runner command.Runner, args []string, stdout
 	fs.SetOutput(stderr)
 	ticketType := fs.String("type", "", "clash-tun-fix, rollback, or verify-network")
 	id := fs.String("id", "", "restore point id")
+	packageRoot := fs.String("package-root", "", "explicit AgentLink package root")
 	jsonOut := fs.Bool("json", false, "JSON")
 	if err := fs.Parse(args[1:]); err != nil {
 		return 50
 	}
-	rep := ticket.Create(ctx, runner, ticket.Options{Home: currentHome(ctx, runner), Type: *ticketType, ID: *id, Version: system.Version})
+	rep := ticket.Create(ctx, runner, ticket.Options{Home: currentHome(ctx, runner), Type: *ticketType, ID: *id, Version: system.Version, PackageRoot: *packageRoot})
 	if *jsonOut {
 		data, _ := json.MarshalIndent(rep, "", "  ")
 		fmt.Fprintln(stdout, string(data))
@@ -1517,7 +1520,7 @@ func runTicket(ctx context.Context, runner command.Runner, args []string, stdout
 func runRescue(ctx context.Context, runner command.Runner, rulesDir string, args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("rescue", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	level := fs.String("level", repair.LevelSafe, "safe, tun, standard, standard-system-reset, or deep")
+	level := fs.String("level", repair.LevelSafe, "safe, tun, standard, clean-baseline, standard-system-reset, or deep")
 	yes := fs.Bool("yes", false, "confirm destructive steps")
 	dryRun := fs.Bool("dry-run", false, "show actions without changing system")
 	jsonOut := fs.Bool("json", false, "print JSON")
@@ -1528,6 +1531,14 @@ func runRescue(ctx context.Context, runner command.Runner, rulesDir string, args
 	}
 	if *level == repair.LevelDeep && !*yes {
 		fmt.Fprintln(stderr, "deep rescue requires --yes")
+		return 50
+	}
+	if *level == repair.LevelStandardSystemReset && !*yes {
+		fmt.Fprintln(stderr, "standard-system-reset rescue requires --yes")
+		return 50
+	}
+	if *level == repair.LevelCleanBaseline && !*dryRun && !*yes {
+		fmt.Fprintln(stderr, "clean-baseline rescue requires --yes")
 		return 50
 	}
 	if *level == repair.LevelTun && !*dryRun && !*yes {
@@ -1869,13 +1880,13 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "  agentlink proxy detect [--json]")
 	fmt.Fprintln(w, "  agentlink keys doctor [--json]")
 	fmt.Fprintln(w, "  agentlink planner validate <decision.json>")
-	fmt.Fprintln(w, "  agentlink guided rescue [--target auto|path|proxy|codex|keys|network] [--dry-run] [--yes] [--json]")
 	fmt.Fprintln(w, "  agentlink orchestrator rescue [--target auto|network|clash-tun|proxy|codex|keys|readiness] [--dry-run] [--yes] [--json]")
+	fmt.Fprintln(w, "  agentlink guided rescue [--target auto|path|proxy|codex|keys|network] [--dry-run] [--yes] [--json]  # deprecated compatibility alias")
 	fmt.Fprintln(w, "  agentlink field macbook-network-rescue [--fix-tun] [--yes] [--json]")
 	fmt.Fprintln(w, "  agentlink diagnose tun [--json]")
 	fmt.Fprintln(w, "  agentlink verify network|airdrop [--json]")
-	fmt.Fprintln(w, "  agentlink restart-gate prepare|verify [--json]")
-	fmt.Fprintln(w, "  agentlink ticket create --type clash-tun-fix|rollback|verify-network [--id ID] [--json]")
+	fmt.Fprintln(w, "  agentlink restart-gate prepare|verify [--after-restore-point ID] [--incident ID] [--json]")
+	fmt.Fprintln(w, "  agentlink ticket create --type clash-tun-fix|rollback|verify-network [--id ID] [--package-root PATH] [--json]")
 	fmt.Fprintln(w, "  agentlink brain doctor [--json]")
 	fmt.Fprintln(w, "  agentlink brain fetch [--model gemma-4-e4b-it-q4km] [--runtime llama.cpp]")
 	fmt.Fprintln(w, "  agentlink brain selftest [--json]")
@@ -1893,7 +1904,7 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "  agentlink repair --auto --brain --target path|proxy|codex|keys|network [--dry-run] [--yes] [--online] [--json]")
 	fmt.Fprintln(w, "  agentlink diagnose [--json] [--verbose]")
 	fmt.Fprintln(w, "  agentlink classify [--json]")
-	fmt.Fprintln(w, "  agentlink rescue [--level safe|tun|standard|standard-system-reset|deep] [--yes] [--dry-run] [--json]")
+	fmt.Fprintln(w, "  agentlink rescue [--level safe|tun|standard|clean-baseline|standard-system-reset|deep] [--yes] [--dry-run] [--json]")
 	fmt.Fprintln(w, "  agentlink rollback [--last | --id RESTORE_POINT_ID] [--dry-run] [--json]")
 	fmt.Fprintln(w, "  agentlink report [--latest | --id REPORT_ID] [--json]")
 	fmt.Fprintln(w, "  agentlink selftest")

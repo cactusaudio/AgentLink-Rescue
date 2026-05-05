@@ -1,12 +1,13 @@
-# Guided Rescue
+# Rescue Orchestrator
 
-Guided Rescue is the user-facing rescue loop owned by the `agentlink` CLI kernel.
+The v0.5.0 Rescue Orchestrator is the user-facing rescue loop owned by the `agentlink` CLI kernel. `agentlink guided rescue` remains as a deprecated v0.4 compatibility alias; new GUI, scripts, and docs should use `agentlink orchestrator rescue`.
 
 Command:
 
 ```bash
-agentlink guided rescue --target auto --dry-run --json
-agentlink guided rescue --target auto --yes --json
+agentlink orchestrator rescue --target auto --dry-run --json
+agentlink orchestrator rescue --target clash-tun --dry-run --json
+agentlink orchestrator rescue --target clash-tun --yes --json
 ```
 
 State machine:
@@ -15,7 +16,7 @@ State machine:
 2. CollectFacts
 3. Classify
 4. DeterministicCandidateSelection
-5. BrainPlanIfNeeded
+5. GemmaSuperviseIfAvailable
 6. ValidatePlan
 7. DryRun
 8. Snapshot
@@ -30,9 +31,11 @@ Policy:
 - `--yes` may execute only `read_only`, `safe_patch`, and `reversible_patch` recipes.
 - Writable recipes still create a snapshot before mutation.
 - Verifier failure after mutation triggers rollback where a snapshot exists.
-- Gemma can propose a recipe only through PlannerDecision JSON.
-- PlannerDecision validation rejects unknown recipes, low-confidence repairs, high-risk actions, invalid JSON, and any unsupported path.
-- Network rescue safe/standard/deep is never auto-run by Guided Rescue. It is reported as a copyable Terminal command.
+- Gemma can propose a rescue path only through RescuePlanDecision JSON.
+- RescuePlanDecision validation rejects unknown recipes, low-confidence repairs, high-risk actions, invalid JSON, raw shell, and any unsupported path.
+- Network rescue safe/standard-system-reset/deep is never auto-run by the GUI. Privileged repair is converted into a Terminal repair ticket.
+- If Clash/Mihomo TUN signatures are high-confidence, targeted `tun` repair is preferred over `standard` or `standard-system-reset`.
+- `clean-baseline` is a last-resort consent path only after targeted repair, rollback/restart gate, or support review shows no safer remaining action.
 - Privileged and destructive actions are refused.
 - No sudo, password handling, paid API smoke test, remote mutation, queue, RAG, daemon, or helper is used.
 
@@ -45,4 +48,4 @@ Loop budget:
 
 GUI boundary:
 
-The GUI calls `agentlink guided rescue ... --json` and renders the report. The GUI does not run the loop itself.
+The GUI calls `agentlink orchestrator rescue ... --json` and renders the report. The GUI does not run the loop itself. Normal mode shows one main Fix button; Developer Mode exposes Expert Console surfaces for manual diagnostics and command previews.

@@ -14,10 +14,11 @@ import (
 )
 
 type Options struct {
-	Home    string
-	Type    string
-	ID      string
-	Version string
+	Home        string
+	Type        string
+	ID          string
+	Version     string
+	PackageRoot string
 }
 
 type Report struct {
@@ -49,7 +50,10 @@ func Create(ctx context.Context, runner command.Runner, opts Options) Report {
 		report.Error = err.Error()
 		return report
 	}
-	packageRoot := findPackageRoot()
+	packageRoot := opts.PackageRoot
+	if packageRoot == "" {
+		packageRoot = FindPackageRoot()
+	}
 	switch opts.Type {
 	case "clash-tun-fix":
 		report.write(root, "Run-Clash-TUN-Fix.command", commandScript(packageRoot, []string{"sudo ./bin/agentlink rescue --level tun --yes", "./bin/agentlink verify network --json"}, "Clash/TUN repair finished. Review the output above."))
@@ -106,7 +110,7 @@ func commandScript(packageRoot string, commands []string, done string) string {
 	return b.String()
 }
 
-func findPackageRoot() string {
+func FindPackageRoot() string {
 	if exe, err := os.Executable(); err == nil {
 		dir := filepath.Dir(exe)
 		if filepath.Base(dir) == "bin" {

@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "macos-clean-network-baseline-reset",
+  "title": "macOS Clean Network Baseline Reset",
+  "description": "Last-resort terminal-assisted reset to reach a clean local online baseline after targeted repair, rollback, restart-gate verification, or support review shows no safer remaining path. Execution is implemented by agentlink rescue --level clean-baseline, not by raw shell in this recipe file.",
+  "supportedOS": ["darwin"],
+  "failureClasses": [
+    "RESTART_GATE_REQUIRED",
+    "CLASH_CLEAN_REINSTALL_REQUIRED",
+    "NO_DEFAULT_ROUTE",
+    "RAW_IP_UNREACHABLE",
+    "HTTPS_FAIL"
+  ],
+  "risk": "privileged_action",
+  "requiresRoot": true,
+  "autoAllowed": false,
+  "preconditions": [
+    {"type": "os_is", "value": "darwin"},
+    {"type": "command_exists", "command": "/usr/sbin/networksetup"},
+    {"type": "command_exists", "command": "/usr/sbin/ipconfig"},
+    {"type": "command_exists", "command": "/sbin/route"}
+  ],
+  "probes": [],
+  "patches": [],
+  "verify": [
+    {"id": "active_interface_present", "type": "managed_section_present"},
+    {"id": "default_route_present", "type": "managed_section_present"},
+    {"id": "raw_ip_ping_ok", "type": "managed_section_present"},
+    {"id": "dns_lookup_ok", "type": "managed_section_present"},
+    {"id": "https_regional_target_ok", "type": "managed_section_present"}
+  ],
+  "rollback": [
+    {"type": "restore_snapshot"}
+  ],
+  "docs": [
+    "docs/offline/RESCUE_ORCHESTRATOR.md",
+    "docs/offline/CLASH_TUN_RESCUE.md"
+  ]
+}
