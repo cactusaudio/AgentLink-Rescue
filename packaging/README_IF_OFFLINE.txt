@@ -1,10 +1,12 @@
-Cactus AgentLink Rescue 0.5.0
+Cactus AgentLink Rescue 0.5.1
 
 1. Put this folder anywhere, for example Downloads.
 2. Double-click agentlink.command.
    If you are using the GUI package, double-click Cactus AgentLink Rescue.app instead.
 3. If macOS blocks the launcher or binary because of Gatekeeper/quarantine, open Terminal and run:
    xattr -cr "/path/to/Cactus-AgentLink-Rescue"
+   ./bin/agentlink package doctor --json
+   ./bin/agentlink package repair --yes --json
    /bin/bash "/path/to/rescue.sh" diagnose
    sudo /bin/bash "/path/to/rescue.sh" safe
 4. For last-resort clean baseline or deep reset:
@@ -52,7 +54,7 @@ Core vs Brain package:
   AGENTLINK_ASSET_CACHE=/path/to/cache ./scripts/package_brain.sh
 
 MacBook Field Rescue package:
-- Use Cactus-AgentLink-Rescue-v0.5.0-macbook-field-gui-proxykit.zip when copying to a MacBook whose internet breaks after Clash Verge TUN mode.
+- Use Cactus-AgentLink-Rescue-v0.5.1-macbook-field-gui-proxykit.zip when copying to a MacBook whose internet breaks after Clash Verge TUN mode.
 - Unzip it, then double-click RUN-FIRST.command.
 - The app opens in MacBook Network Rescue mode with one primary Fix My Connection flow. Clash/TUN is checked as one possible cause; targeted repair uses Terminal tickets when applicable.
 - The GUI does not run sudo and does not enable Clash proxy/TUN automatically.
@@ -66,10 +68,10 @@ Brain package offline checks:
   ./bin/agentlink repair --auto --brain --target path --dry-run
 
 Brain mode is planner-only:
-- Gemma outputs RescuePlanDecision JSON for network rescue and PlannerDecision JSON for older recipe planning.
+- Gemma may explain or shadow-plan rescue decisions, but v0.5.1 release behavior is deterministic.
 - The deterministic runner executes only local recipes.
 - Gemma never executes arbitrary shell.
-- For Network/TUN rescue, Gemma supervises plan selection, but AgentLink validates the plan and executes only approved deterministic actions.
+- For Network/TUN rescue, deterministic failure classes and validated recipes own the repair path; Gemma output is not a gated supervisor.
 
 Installer Center:
 - Installer Center uses official sources only.
@@ -104,7 +106,7 @@ GUI mode is a shell:
 - Network rescue safe/tun/standard/clean-baseline/standard-system-reset/deep commands are shown for Terminal copy/paste inside Developer Mode.
 - The GUI does not implement its own repair engine.
 
-v0.5.0 also includes offline recipe and Brain docs:
+v0.5.1 also includes offline recipe and Brain docs:
 - docs/offline/AGENTLINK_CONSTITUTION.md
 - docs/offline/RECIPE_AUTHORING.md
 - docs/offline/PLANNER_CONTRACT.md
@@ -124,3 +126,6 @@ v0.5.0 also includes offline recipe and Brain docs:
 - docs/offline/RESTART_GATE.md
 - docs/offline/RESCUE_ORCHESTRATOR.md
 - docs/offline/OPENCODE_BRIDGE.md
+- docs/offline/CORE_RELIABILITY_MODEL.md
+- docs/offline/ROBUSTNESS_MATRIX.md
+- docs/offline/MULTI_MAC_DOGFOOD_PLAN.md

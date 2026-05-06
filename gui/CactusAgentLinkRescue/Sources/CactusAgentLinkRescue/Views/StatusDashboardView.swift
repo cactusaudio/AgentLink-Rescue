@@ -9,6 +9,7 @@ struct StatusDashboardView: View {
             VStack(alignment: .leading, spacing: 18) {
                 guidedHero
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 12)], spacing: 12) {
+                    summaryPill(title: "Package Health", value: state.packageHealthLabel, kind: packageHealthKind)
                     summaryPill(title: "AgentLink Core", value: state.selftestStatus, kind: state.selftestStatus == "OK" ? .ok : .warn)
                     summaryPill(title: "Brain Pack", value: state.brainDoctor?.brainPackAvailable == true ? "OK" : "Missing", kind: state.brainDoctor?.brainPackAvailable == true ? .ok : .warn)
                     summaryPill(title: "Network", value: state.doctor?.classifications?.contains("OK") == true ? "OK" : state.recommendationLabel, kind: state.recommendationKind)
@@ -43,9 +44,23 @@ struct StatusDashboardView: View {
                 Text(state.fieldMode?.mode == "macbook-network-rescue" ? "AgentLink diagnoses the connection, checks Clash/TUN as one possible cause, asks before writable repair, creates rollback checkpoints, and uses Terminal tickets when admin permission is needed." : "AgentLink diagnoses your network, explains the likely cause, asks before writable repair, creates rollback checkpoints, verifies after each step, and uses Terminal tickets when admin permission is needed.")
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                if state.safeModeActive {
+                    Text("Package needs local repair or is missing required resources. Safe Mode limits the main action to diagnostics until package health is restored.")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+                if state.incompleteJournalDetected {
+                    Text("Previous repair did not finish. Review journal recovery before applying another repair.")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
                 HStack(spacing: 8) {
+                    StatusBadge(text: "Package \(state.packageHealthLabel)", kind: packageHealthKind)
                     StatusBadge(text: state.packageType, kind: state.packageType == "Brain" ? .ok : .warn)
                     StatusBadge(text: state.recommendationLabel, kind: state.recommendationKind)
+                    if state.incompleteJournalDetected {
+                        StatusBadge(text: "Incomplete repair", kind: .warn)
+                    }
                     if state.isRunning {
                         StatusBadge(text: "Running", kind: .warn)
                     }
@@ -54,10 +69,14 @@ struct StatusDashboardView: View {
             Spacer(minLength: 16)
             VStack(alignment: .trailing, spacing: 12) {
                 Button {
-                    state.page = .guided
-                    Task { await state.runGuidedRescue(allowRepair: false, target: state.fieldMode?.mode == "macbook-network-rescue" ? "network" : "auto") }
+                    if state.safeModeActive {
+                        Task { await state.runDoctor() }
+                    } else {
+                        state.page = .guided
+                        Task { await state.runGuidedRescue(allowRepair: false, target: state.fieldMode?.mode == "macbook-network-rescue" ? "network" : "auto") }
+                    }
                 } label: {
-                    Label("Fix My Connection", systemImage: "sparkles.rectangle.stack")
+                    Label(state.safeModeActive ? "Diagnose Only" : "Fix My Connection", systemImage: state.safeModeActive ? "stethoscope" : "sparkles.rectangle.stack")
                         .font(.headline)
                         .frame(minWidth: 260)
                         .padding(.horizontal, 16)
@@ -69,6 +88,24 @@ struct StatusDashboardView: View {
                     Text("A rescue command is already running.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                }
+                if state.packageHealth?.status == "needs_repair" || state.packageHealth?.status == "broken" {
+                    Button {
+                        Task { await state.repairPackage() }
+                    } label: {
+                        Label("Fix Package", systemImage: "wrench.and.screwdriver")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(state.isRunning)
+                }
+                if state.incompleteJournalDetected {
+                    Button {
+                        state.page = .reports
+                    } label: {
+                        Label("Review Recovery", systemImage: "exclamationmark.arrow.triangle.2.circlepath")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(state.isRunning)
                 }
                 Button {
                     confirmSupportBundle = true
@@ -93,6 +130,9 @@ struct StatusDashboardView: View {
             Text("Connection Rescue").font(.headline)
             Text(state.versionText).foregroundStyle(.secondary)
             StatusBadge(text: state.selftestStatus, kind: state.selftestStatus == "OK" ? .ok : .warn)
+            InfoRow(label: "Package health", value: state.packageHealthLabel)
+            InfoRow(label: "Safe Mode", value: state.safeModeActive ? "On" : "Off")
+            InfoRow(label: "Journal", value: state.journalRecovery?.status ?? "unknown")
             InfoRow(label: "Package", value: state.packageType)
             InfoRow(label: "Recommended", value: state.recommendationLabel)
             ForEach((state.doctor?.classifications ?? []).prefix(4), id: \.self) { item in
@@ -129,6 +169,19 @@ struct StatusDashboardView: View {
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var packageHealthKind: StatusBadge.Kind {
+        switch state.packageHealth?.status {
+        case "ok", "warning", "repaired":
+            return .ok
+        case "needs_repair", "dry_run", "partial_repair":
+            return .warn
+        case "broken", "failed":
+            return .fail
+        default:
+            return .neutral
+        }
     }
 
     private func export(_ text: String, name: String) {

@@ -39,7 +39,7 @@ struct RescueView: View {
     private var networkAdvanced: some View {
         DisclosureGroup("Network Rescue Advanced") {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Network rescue commands may require sudo and system network changes. GUI v0.5.0 does not collect passwords and does not run sudo commands. Copy the command and run it in Terminal. Use Targeted Clash/TUN before broad system reset when Clash, Mihomo, or stale utun signatures are present.")
+                Text("Network rescue commands may require sudo and system network changes. GUI v0.5.1 does not collect passwords and does not run sudo commands. Copy the command and run it in Terminal. Use Targeted Clash/TUN before broad system reset when Clash, Mihomo, or stale utun signatures are present.")
                     .foregroundStyle(.secondary)
                 CommandPreview(title: "Safe Rescue", command: state.sudoRescueCommand(level: "safe"))
                 CommandPreview(title: "Targeted Clash/TUN Rescue", command: state.sudoRescueCommand(level: "tun"))

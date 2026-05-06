@@ -1,6 +1,6 @@
 # OpenCode Bridge
 
-OpenCode Bridge is experimental in v0.5.0. It is not a first-class AgentLink harness and is not part of the system rescue execution path.
+OpenCode Bridge is experimental in v0.5.1. It is not a first-class AgentLink harness and is not part of the system rescue execution path.
 
 AgentLink may help install OpenCode from official sources and generate a local Gemma provider template through `llama-server`, but the lab verdict is negative for this release:
 
@@ -21,7 +21,7 @@ Allowed statuses:
 - `manual_merge_required`
 - `not_verified`
 
-Do not claim OpenCode Local Agent ready, configured, verified, or working in v0.5.0.
+Do not claim OpenCode Local Agent ready, configured, verified, or working in v0.5.1.
 
 Safe commands:
 

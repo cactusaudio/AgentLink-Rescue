@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-# v0.5.0 brain-aware GUI dogfood: Brain tools move behind Developer Mode.
+# v0.5.1 brain-aware GUI dogfood: Brain tools move behind Developer Mode.
 APPSTATE="gui/CactusAgentLinkRescue/Sources/CactusAgentLinkRescue/AppState.swift"
 MAIN="gui/CactusAgentLinkRescue/Sources/CactusAgentLinkRescue/Views/MainWindow.swift"
 SETTINGS="gui/CactusAgentLinkRescue/Sources/CactusAgentLinkRescue/Views/SettingsView.swift"

@@ -2,10 +2,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BEFORE="$ROOT/docs/gui-dogfood/v0.5.0/before"
-AFTER="$ROOT/docs/gui-dogfood/v0.5.0/after"
-CORE_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.0-core-gui.zip"
-BRAIN_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.0-brain-gui-gemma4-e4b-q4km.zip"
+BEFORE="$ROOT/docs/gui-dogfood/v0.5.1/before"
+AFTER="$ROOT/docs/gui-dogfood/v0.5.1/after"
+CORE_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.1-core-gui.zip"
+BRAIN_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.1-brain-gui-gemma4-e4b-q4km.zip"
 
 mkdir -p "$BEFORE" "$AFTER"
 

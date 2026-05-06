@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BIN="$ROOT/bin/agentlink"
-# v0.5.0 brain-aware rescue dogfood: clean-baseline is a last resort, not Brain auto-execution.
+# v0.5.1 brain-aware rescue dogfood: clean-baseline is a last resort, not Brain auto-execution.
 if [ ! -x "$BIN" ]; then
   "$ROOT/scripts/build.sh"
 fi

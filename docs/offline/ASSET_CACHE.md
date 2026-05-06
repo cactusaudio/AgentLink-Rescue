@@ -28,7 +28,7 @@ models/gemma-4-E4B-it-Q4_K_M.gguf
 runtimes/llama.cpp/arm64/llama-cli
 runtimes/llama.cpp/arm64/*.dylib
 installers/clash-verge-rev/macos-arm64/*.dmg
-releases/v0.5.0/*.zip
+releases/v0.5.1/*.zip
 ASSET_MANIFEST_SHA256.txt
 ```
 

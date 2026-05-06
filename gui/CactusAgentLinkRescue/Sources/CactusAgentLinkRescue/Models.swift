@@ -428,6 +428,51 @@ struct SupportBundleReport: Codable {
     var warnings: [String]?
 }
 
+struct PackageHealthReport: Codable {
+    var schemaVersion: Int?
+    var toolVersion: String?
+    var createdAt: String?
+    var packageRoot: String?
+    var appBundleRoot: String?
+    var status: String?
+    var safeMode: Bool?
+    var checks: [PackageHealthCheck]?
+    var actions: [String]?
+    var warnings: [String]?
+    var error: String?
+}
+
+struct PackageHealthCheck: Codable, Identifiable {
+    var id: String
+    var status: String?
+    var path: String?
+    var required: Bool?
+    var message: String?
+}
+
+struct JournalRecoveryReport: Codable {
+    var schemaVersion: Int?
+    var toolVersion: String?
+    var status: String?
+    var transactions: [JournalTransaction]?
+    var warnings: [String]?
+    var nextAction: String?
+}
+
+struct JournalTransaction: Codable, Identifiable {
+    var id: String { transactionID }
+    var transactionID: String
+    var startedAt: String?
+    var endedAt: String?
+    var state: String?
+    var target: String?
+    var recipe: String?
+    var restorePoint: String?
+    var packageRoot: String?
+    var requiresAdmin: Bool?
+    var rollbackAvailable: Bool?
+}
+
 enum RescuePage: String, CaseIterable, Identifiable {
     case dashboard = "Dashboard"
     case guided = "Guided Rescue"

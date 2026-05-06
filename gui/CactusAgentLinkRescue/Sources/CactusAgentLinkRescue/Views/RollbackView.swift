@@ -10,7 +10,7 @@ struct RollbackView: View {
                     Task { await state.rollbackLast() }
                 }
                 if state.rollbackAvailable {
-                    Text("User-level restore uses AgentLink directly. If the restore point touched system paths, copy the sudo command instead; GUI v0.5.0 does not run sudo.")
+                    Text("User-level restore uses AgentLink directly. If the restore point touched system paths, copy the sudo command instead; GUI v0.5.1 does not run sudo.")
                         .foregroundStyle(.secondary)
                 } else {
                     Text("No rollbackable user-level session is currently detected. Refresh Reports or use the Expert Console command only when you know the restore point.")

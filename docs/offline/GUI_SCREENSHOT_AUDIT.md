@@ -1,6 +1,6 @@
 # GUI Screenshot Audit
 
-v0.5.0 uses screenshot-driven review for the native macOS GUI.
+v0.5.1 uses screenshot-driven review for the native macOS GUI.
 
 Audit flow:
 

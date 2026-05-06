@@ -11,7 +11,7 @@ fi
 "$ROOT/scripts/build.sh"
 
 OUT="$ROOT/dist/Cactus-AgentLink-Rescue"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.0-core.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.1-core.zip"
 mkdir -p "$ROOT/dist"
 rm -rf "$OUT"
 rm -f "$ZIP"
@@ -23,6 +23,7 @@ cp README.md LICENSE "$OUT/"
 cp rules/*.json "$OUT/rules/"
 cp recipes/*.json "$OUT/recipes/"
 cp docs/offline/*.md "$OUT/docs/offline/"
+cp docs/offline/*.json "$OUT/docs/offline/" 2>/dev/null || true
 cp packaging/agentlink.command "$OUT/agentlink.command"
 cp packaging/rescue.sh "$OUT/rescue.sh"
 cp packaging/README_IF_OFFLINE.txt "$OUT/README_IF_OFFLINE.txt"

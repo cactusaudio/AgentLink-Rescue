@@ -2,7 +2,7 @@
 
 Cactus AgentLink Rescue is an offline, portable, reversible macOS rescue tool for restoring the broken path between a Mac and AI agents such as Codex, Claude, GitHub, and API endpoints.
 
-v0.5.0 is the Rescue Orchestrator release. It replaces the button-panel rescue flow with a bounded local loop: facts collection, Gemma Rescue Supervisor, validated rescue plan, deterministic repair action, Terminal-assisted sudo ticket when needed, verifier, automatic rollback if postflight worsens, restart gate when macOS runtime state cannot be released, and a redacted incident/support report. Gemma 4 E4B-it Q4_K_M remains a planner/controller only. There is still no telemetry, daemon, privileged helper, SMAppService, RAG, queue, remote mutation, sudo execution in the GUI, or arbitrary shell execution.
+v0.5.1 is the Rescue Core reliability hardening release. It keeps the v0.5 Rescue Orchestrator shape but adds package self-healing checks, a durable transaction journal, safe-mode diagnostics, idempotence tests, command timeouts/output caps, chaos fixtures, and stronger support-bundle evidence. Gemma 4 E4B-it Q4_K_M remains explanation/shadow-only for rescue decisions; deterministic rules, policy validation, recipes, verifier, rollback, and restart gate own release behavior. There is still no telemetry, daemon, privileged helper, SMAppService, RAG, queue, remote mutation, sudo execution in the GUI, or arbitrary shell execution.
 
 ## Product Thesis
 
@@ -29,6 +29,7 @@ This is not a generic network reset tool and not a cleanup app.
 - Runs Guided Rescue as a bounded CLI workflow for non-developer users.
 - Runs the v0.5 Rescue Orchestrator for network/TUN failures with Terminal repair tickets.
 - Provides a native macOS GUI rescue operator as a thin wrapper around the CLI: one main Fix button, clear diagnosis/progress, support bundle export, and Developer Mode for expert tools.
+- Provides package doctor/repair, transaction journal recovery, and safe-mode diagnostics so copied packages can fail cleanly or repair their local wrapper state.
 - Provides Installer Center for Codex CLI, Codex App, Claude Code CLI, Gemini CLI, and Clash Verge Rev recovery from official sources.
 - Can cache a Clash Verge Rev DMG in the Brain GUI ProxyKit package without enabling proxy/TUN automatically.
 - Provides a hidden local Brain Chat Sandbox for explanation only; it cannot execute commands.
@@ -72,6 +73,8 @@ This is not a generic network reset tool and not a cleanup app.
 - Admin passwords are never accepted as arguments, stdin, or logs.
 - `sudo` uses the normal macOS password prompt.
 - Credentials in URLs, proxy env vars, git/npm/brew configs, and command logs are redacted.
+- Command execution has timeouts and capped stdout/stderr so the GUI cannot hang indefinitely on large output.
+- Mutating repairs write a durable journal under the user Application Support directory before mutation and update it through checkpoint, mutation, verification, rollback, and final status.
 - Private keys, Wi-Fi passwords, browser cookies, and shell history are not collected.
 
 ## CLI Usage
@@ -86,6 +89,10 @@ agentlink last-good list [--json]
 agentlink last-good inspect <id> [--json]
 agentlink last-good restore [--last | --id ID] [--yes] [--json]
 agentlink support bundle [--output PATH] [--json]
+agentlink package doctor|repair [--package-root PATH] [--dry-run] [--yes] [--json]
+agentlink journal list|inspect|recover [--yes] [--package-root PATH] [--json]
+agentlink chaos list|run [--root PATH] [--fixture PATH] [--json]
+agentlink --safe-mode doctor|support bundle|package doctor|journal list|journal recover
 agentlink recipe list [--json]
 agentlink recipe inspect <id> [--json]
 agentlink recipe run <id> [--dry-run] [--yes] [--json] [--param key=value]
@@ -128,7 +135,10 @@ Examples:
 
 ```bash
 ./bin/agentlink diagnose --json
+./bin/agentlink package doctor --json
+./bin/agentlink journal recover --json
 ./bin/agentlink rescue --level safe --dry-run
+./bin/agentlink chaos run --fixture testdata/chaos/network/clash-tun-19818.json --json
 ./bin/agentlink orchestrator rescue --target auto --dry-run --json
 ./bin/agentlink orchestrator rescue --target clash-tun --dry-run --json
 sudo ./bin/agentlink rescue --level tun --yes
@@ -198,7 +208,7 @@ The output folder is:
 
 ```text
 dist/Cactus-AgentLink-Rescue/
-dist/Cactus-AgentLink-Rescue-v0.5.0-core.zip
+dist/Cactus-AgentLink-Rescue-v0.5.1-core.zip
 ```
 
 It can be copied to Downloads and launched with `agentlink.command`.
@@ -213,7 +223,7 @@ To build the optional Brain package after fetching the model/runtime:
 Brain package output:
 
 ```text
-dist/Cactus-AgentLink-Rescue-v0.5.0-brain-gemma4-e4b-q4km.zip
+dist/Cactus-AgentLink-Rescue-v0.5.1-brain-gemma4-e4b-q4km.zip
 ```
 
 Native GUI packages:
@@ -226,14 +236,14 @@ Native GUI packages:
 GUI package outputs:
 
 ```text
-dist/Cactus-AgentLink-Rescue-v0.5.0-core-gui.zip
-dist/Cactus-AgentLink-Rescue-v0.5.0-brain-gui-gemma4-e4b-q4km.zip
+dist/Cactus-AgentLink-Rescue-v0.5.1-core-gui.zip
+dist/Cactus-AgentLink-Rescue-v0.5.1-brain-gui-gemma4-e4b-q4km.zip
 ```
 
 If a Clash Verge Rev DMG has been fetched, `scripts/package_gui_brain.sh` also emits:
 
 ```text
-dist/Cactus-AgentLink-Rescue-v0.5.0-brain-gui-gemma4-e4b-q4km-proxykit.zip
+dist/Cactus-AgentLink-Rescue-v0.5.1-brain-gui-gemma4-e4b-q4km-proxykit.zip
 ```
 
 For a copy-to-another-Mac Clash/TUN recovery build:
@@ -245,7 +255,7 @@ For a copy-to-another-Mac Clash/TUN recovery build:
 Field package output:
 
 ```text
-dist/Cactus-AgentLink-Rescue-v0.5.0-macbook-field-gui-proxykit.zip
+dist/Cactus-AgentLink-Rescue-v0.5.1-macbook-field-gui-proxykit.zip
 ```
 
 It unzips to `Cactus MacBook Network Rescue/` with `RUN-FIRST.command`, a short field README, emergency Terminal commands, and a GUI app that starts in MacBook Network Rescue mode. The GUI still does not run sudo, collect passwords, or enable Clash proxy/TUN automatically.
@@ -347,7 +357,7 @@ Fetch the optional Clash Verge Rev cache:
 
 ### Experimental OpenCode Bridge
 
-OpenCode Bridge is experimental in v0.5.0. Lab work showed OpenCode 1.14.33 could reach the local Gemma server, but OpenCode + Gemma failed 9/9 tasks across 18 attempts, mostly through provider/config failure and context overflow. AgentLink does not depend on OpenCode, does not claim OpenCode is configured or verified, and does not route system rescue through OpenCode. The packaged plugin is a scaffold only unless a later lab proves real loading.
+OpenCode Bridge is experimental in v0.5.1. Lab work showed OpenCode 1.14.33 could reach the local Gemma server, but OpenCode + Gemma failed 9/9 tasks across 18 attempts, mostly through provider/config failure and context overflow. AgentLink does not depend on OpenCode, does not claim OpenCode is configured or verified, and does not route system rescue through OpenCode. The packaged plugin is a scaffold only unless a later lab proves real loading.
 
 ### Brain Chat Sandbox
 

@@ -3,6 +3,7 @@
 __MACOSX/
 .AppleDouble/
 AppleDouble/
+.cactus/
 
 bin/
 dist/

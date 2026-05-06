@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.0-macbook-field-gui-proxykit.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.1-macbook-field-gui-proxykit.zip"
 if [ ! -f "$ZIP" ]; then
   "$ROOT/scripts/package_macbook_field_rescue.sh" >/dev/null
 fi
@@ -24,7 +24,7 @@ test -f "$FOLDER/README-MACBOOK-NETWORK-RESCUE.txt"
 test -f "$FOLDER/emergency-terminal-commands.txt"
 test -f "$AGENTLINK/field-mode.json"
 
-"$BIN" version | grep '0.5.0'
+"$BIN" version | grep '0.5.1'
 "$BIN" field macbook-network-rescue --json > "$TMP/field.json"
 /usr/bin/python3 -m json.tool "$TMP/field.json" >/dev/null
 /usr/bin/python3 - "$TMP/field.json" <<'PY'

@@ -59,6 +59,10 @@ final class AppState: ObservableObject {
     @Published var lastGoodResult: CommandResult?
     @Published var supportBundle: SupportBundleReport?
     @Published var supportBundleResult: CommandResult?
+    @Published var packageHealth: PackageHealthReport?
+    @Published var packageHealthResult: CommandResult?
+    @Published var journalRecovery: JournalRecoveryReport?
+    @Published var journalRecoveryResult: CommandResult?
     @Published var brainSandboxPresented = false
     @Published var brainChatPrompt = ""
     @Published var brainChatReport: BrainChatReport?
@@ -86,6 +90,18 @@ final class AppState: ObservableObject {
         brainDoctor?.brainPackAvailable == true ? "Brain" : "Core"
     }
 
+    var safeModeActive: Bool {
+        packageHealth?.safeMode == true || packageHealth?.status == "broken"
+    }
+
+    var packageHealthLabel: String {
+        packageHealth?.status ?? "unknown"
+    }
+
+    var incompleteJournalDetected: Bool {
+        journalRecovery?.status == "incomplete_transactions_found"
+    }
+
     var executeEnabled: Bool {
         guard dryRun?.status == "dry-run",
               dryRun?.target == target,
@@ -106,6 +122,8 @@ final class AppState: ObservableObject {
     }
 
     func bootstrap() async {
+        await runPackageDoctor()
+        await runJournalRecoverCheck()
         await runVersion()
         await runSelftest()
         await runDoctor()
@@ -138,6 +156,36 @@ final class AppState: ObservableObject {
             latestResult = result
             doctorResult = result
             doctor = decoded
+            appendLog(result)
+        }
+    }
+
+    func runPackageDoctor() async {
+        await runGuarded(mutating: false) {
+            let (result, decoded) = await client.runJSON(PackageHealthReport.self, args: ["package", "doctor", "--package-root", client.packageRoot.path, "--json"], timeout: 20)
+            latestResult = result
+            packageHealthResult = result
+            packageHealth = decoded
+            appendLog(result)
+        }
+    }
+
+    func repairPackage() async {
+        await runGuarded(mutating: false) {
+            let (result, decoded) = await client.runJSON(PackageHealthReport.self, args: ["package", "repair", "--package-root", client.packageRoot.path, "--yes", "--json"], timeout: 60)
+            latestResult = result
+            packageHealthResult = result
+            packageHealth = decoded
+            appendLog(result)
+        }
+    }
+
+    func runJournalRecoverCheck() async {
+        await runGuarded(mutating: false) {
+            let (result, decoded) = await client.runJSON(JournalRecoveryReport.self, args: ["journal", "recover", "--json"], timeout: 20)
+            latestResult = result
+            journalRecoveryResult = result
+            journalRecovery = decoded
             appendLog(result)
         }
     }

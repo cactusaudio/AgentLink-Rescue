@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.0-brain-gemma4-e4b-q4km.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.1-brain-gemma4-e4b-q4km.zip"
 
 if [ ! -f "$ZIP" ]; then
   "$ROOT/scripts/package_brain.sh"
@@ -32,7 +32,7 @@ BIN="$PKG/bin/agentlink"
 xattr -cr "$PKG" 2>/dev/null || true
 chmod +x "$BIN" "$PKG/rescue.sh" "$PKG/agentlink.command" "$PKG"/assets/runtimes/llama.cpp/*/llama-* 2>/dev/null || true
 
-"$BIN" version | grep '0.5.0'
+"$BIN" version | grep '0.5.1'
 HOME="$TMPHOME" "$BIN" brain doctor --json > "$TMP/brain-doctor.json"
 /usr/bin/python3 - "$TMP/brain-doctor.json" <<'PY'
 import json, sys

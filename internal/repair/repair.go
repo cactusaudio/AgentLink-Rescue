@@ -16,6 +16,7 @@ import (
 	"cactus-agentlink-rescue/internal/classify"
 	"cactus-agentlink-rescue/internal/command"
 	"cactus-agentlink-rescue/internal/diagnose"
+	"cactus-agentlink-rescue/internal/journal"
 	"cactus-agentlink-rescue/internal/safety"
 	"cactus-agentlink-rescue/internal/snapshot"
 	"cactus-agentlink-rescue/internal/system"
@@ -142,6 +143,7 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 	pre := engine.Run(ctx)
 	classify.Apply(&pre)
 	result.Preflight = append([]string(nil), pre.Classifications...)
+	planned := plannedActions(opts.Level, pre)
 
 	if opts.DryRun {
 		if opts.Level == LevelTun {
@@ -169,6 +171,16 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 		result.ExitCode = 0
 		return result
 	}
+	jm := journal.New(pre.Host.RealUserHome)
+	tx, err := jm.Start(journal.StartOptions{Home: pre.Host.RealUserHome, Target: opts.Level, Recipe: "rescue:" + opts.Level, RequiresAdmin: true})
+	if err != nil {
+		result.ExitCode = 30
+		result.Status = "transaction journal creation failed"
+		result.Error = err.Error()
+		return result
+	}
+	_ = jm.WriteJSON(tx, "preflight.json", pre)
+	_ = jm.WriteJSON(tx, "planned-actions.json", planned)
 
 	policy := system.MutationOptions{RealUserHome: pre.Host.RealUserHome, IncludeNetworkExtensionPlists: opts.IncludeNetworkExtensionPlists}
 	rp, err := snapshot.NewRestorePointWithPolicy(system.RestorePointsDir(), system.Version, policy)
@@ -181,6 +193,9 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 	result.RestorePointID = rp.Manifest.ID
 	result.RestorePointPath = rp.Path
 	result.RollbackCommand = CurrentRollbackCommand(rp.Manifest.ID)
+	tx.RestorePoint = rp.Manifest.ID
+	tx.RollbackAvailable = true
+	_ = jm.UpdateState(tx, journal.StateCheckpointed)
 	_, _ = rp.WriteJSON("preflight.json", pre)
 	if pre.Network.CurrentLocation != "" {
 		rp.Manifest.PreviousNetworkLocation = pre.Network.CurrentLocation
@@ -192,15 +207,17 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 	failures := 0
 	if opts.Level == LevelTun {
 		for _, a := range buildTunPreActions(pre) {
+			recordJournalMutation(jm, tx, a)
 			ar := runAction(ctx, runner, &rp, a, false)
 			result.Actions = append(result.Actions, ar)
 			if ar.Error != "" && !a.IgnoreFailure {
 				failures++
 			}
 		}
-		qFailures := runQuarantine(ctx, runner, &rp, opts, pre, &result)
+		qFailures := runQuarantine(ctx, runner, &rp, opts, pre, &result, jm, tx)
 		failures += qFailures
 		for _, a := range buildTunPostActions(pre) {
+			recordJournalMutation(jm, tx, a)
 			ar := runAction(ctx, runner, &rp, a, false)
 			result.Actions = append(result.Actions, ar)
 			if ar.Error != "" && !a.IgnoreFailure {
@@ -209,19 +226,21 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 		}
 	} else {
 		for _, a := range buildActions(opts.Level, pre) {
+			recordJournalMutation(jm, tx, a)
 			ar := runAction(ctx, runner, &rp, a, false)
 			result.Actions = append(result.Actions, ar)
 			if ar.Error != "" && !a.IgnoreFailure {
 				failures++
 			}
 		}
-		qFailures := runQuarantine(ctx, runner, &rp, opts, pre, &result)
+		qFailures := runQuarantine(ctx, runner, &rp, opts, pre, &result, jm, tx)
 		failures += qFailures
 	}
-	dFailures := runDeep(ctx, &rp, opts, &result)
+	dFailures := runDeep(ctx, &rp, opts, &result, jm, tx)
 	failures += dFailures
 	if opts.Reboot && opts.Level == LevelDeep {
 		a := action{ID: "deep.reboot", Description: "Reboot now", Path: "/sbin/shutdown", Args: []string{"-r", "now"}, Timeout: 5 * time.Second, IgnoreFailure: false}
+		recordJournalMutation(jm, tx, a)
 		ar := runAction(ctx, runner, &rp, a, false)
 		result.Actions = append(result.Actions, ar)
 		if ar.Error != "" {
@@ -230,11 +249,14 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 	}
 	networkMutations := InferNetworkMutationsFromActions(result.Actions)
 	_, _ = rp.WriteJSON("network-mutations.json", networkMutations)
+	_ = jm.WriteJSON(tx, "mutation-summary.json", networkMutations)
+	_ = jm.UpdateState(tx, journal.StateVerifying)
 
 	post := engine.Run(ctx)
 	classify.Apply(&post)
 	result.Postflight = append([]string(nil), post.Classifications...)
 	_, _ = rp.WriteJSON("postflight.json", post)
+	_ = jm.WriteJSON(tx, "verifier.json", post)
 	worsened := criticalWorsened(pre, post)
 	_, _ = rp.WriteJSON("postflight-comparator.json", map[string]any{"criticalWorsened": worsened, "preflightClasses": pre.Classifications, "postflightClasses": post.Classifications})
 	result.ReportPath = rp.Manifest.HumanReportPath
@@ -251,12 +273,15 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 			result.FileRollbackStatus = "restored"
 			result.NetworkRollbackStatus = restoreNetworkSnapshotWithMutations(ctx, runner, networkSnapshot, networkMutations, &result)
 			_, _ = rp.WriteJSON("network-rollback.json", map[string]any{"status": result.NetworkRollbackStatus, "actions": result.NetworkRollbackActions, "warnings": result.PartialRollbackWarnings})
+			_ = jm.WriteJSON(tx, "rollback.json", map[string]any{"fileRollbackStatus": result.FileRollbackStatus, "networkRollbackStatus": result.NetworkRollbackStatus, "actions": result.NetworkRollbackActions, "warnings": result.PartialRollbackWarnings})
 			if result.NetworkRollbackStatus == "restored" || result.NetworkRollbackStatus == "skipped" {
 				result.ExitCode = 20
 				result.Status = "rolled_back_after_worsening"
+				_ = jm.UpdateState(tx, journal.StateRolledBack)
 			} else {
 				result.ExitCode = 30
 				result.Status = "partial_rollback_failed"
+				_ = jm.UpdateState(tx, journal.StatePartialRollback)
 			}
 			rollbackDiag := engine.Run(ctx)
 			classify.Apply(&rollbackDiag)
@@ -266,6 +291,14 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 	if opts.Level == LevelDeep {
 		result.Warnings = append(result.Warnings, "reboot is recommended after deep rescue")
 	}
+	if !worsened {
+		if result.ExitCode == 0 {
+			_ = jm.UpdateState(tx, journal.StateSucceeded)
+		} else {
+			_ = jm.UpdateState(tx, journal.StateFailed)
+		}
+	}
+	_ = jm.WriteJSON(tx, "status.json", result)
 	_ = rp.WriteHumanReport(HumanResult(result, pre, post))
 	_ = rp.Save()
 	return result
@@ -273,6 +306,28 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 
 func validLevel(level string) bool {
 	return level == LevelSafe || level == LevelTun || level == LevelStandard || level == LevelCleanBaseline || level == LevelStandardSystemReset || level == LevelDeep
+}
+
+func plannedActions(level string, pre diagnose.DiagnosticReport) []ActionResult {
+	var out []ActionResult
+	if level == LevelTun {
+		for _, a := range buildTunPreActions(pre) {
+			out = append(out, dryAction(a))
+		}
+		out = append(out, buildQuarantinePlan(pre, level)...)
+		for _, a := range buildTunPostActions(pre) {
+			out = append(out, dryAction(a))
+		}
+		return out
+	}
+	for _, a := range buildActions(level, pre) {
+		out = append(out, dryAction(a))
+	}
+	out = append(out, buildQuarantinePlan(pre, level)...)
+	if level == LevelDeep {
+		out = append(out, buildDeepPlan(Options{Level: level}, nil)...)
+	}
+	return out
 }
 
 func CurrentRollbackCommand(id string) string {
@@ -603,7 +658,7 @@ func runSafeDefaultRouteFromDHCP(ctx context.Context, runner command.Runner, rp 
 	return ar
 }
 
-func runQuarantine(ctx context.Context, runner command.Runner, rp *snapshot.RestorePoint, opts Options, pre diagnose.DiagnosticReport, result *Result) int {
+func runQuarantine(ctx context.Context, runner command.Runner, rp *snapshot.RestorePoint, opts Options, pre diagnose.DiagnosticReport, result *Result, jm journal.Manager, tx *journal.Transaction) int {
 	if opts.Level == LevelSafe {
 		return 0
 	}
@@ -620,14 +675,17 @@ func runQuarantine(ctx context.Context, runner command.Runner, rp *snapshot.Rest
 	for _, item := range items {
 		if opts.Level != LevelTun && item.Kind == "launchDaemon" {
 			a := action{ID: "quarantine.bootout.system." + sanitizeID(filepath.Base(item.Path)), Description: "Boot out launch daemon " + item.Path, Path: "/bin/launchctl", Args: []string{"bootout", "system", item.Path}, IgnoreFailure: true}
+			recordJournalMutation(jm, tx, a)
 			result.Actions = append(result.Actions, runAction(ctx, runner, rp, a, false))
 		}
 		if opts.Level != LevelTun && item.Kind == "launchAgent" {
 			a := action{ID: "quarantine.bootout.user." + sanitizeID(filepath.Base(item.Path)), Description: "Boot out launch agent " + item.Path, Path: "/bin/launchctl", Args: []string{"bootout", "gui/" + uid, item.Path}, IgnoreFailure: true}
+			recordJournalMutation(jm, tx, a)
 			result.Actions = append(result.Actions, runAction(ctx, runner, rp, a, false))
 		}
 		desc := "Quarantine " + item.Path
 		ar := ActionResult{ID: "quarantine.path." + sanitizeID(filepath.Base(item.Path)), Stage: "3_quarantine_residue", Description: desc, RollbackAvailable: true}
+		recordJournalMutation(jm, tx, action{ID: ar.ID, Stage: ar.Stage, Description: desc, Path: "snapshot.QuarantinePath", Args: []string{item.Path}})
 		if _, err := rp.QuarantinePath(item.Path); err != nil {
 			ar.Error = err.Error()
 			failures++
@@ -639,13 +697,14 @@ func runQuarantine(ctx context.Context, runner command.Runner, rp *snapshot.Rest
 	if opts.Level != LevelTun {
 		for _, name := range []string{"Clash Verge", "clash-verge", "verge-mihomo", "mihomo", "clash-meta", "clash"} {
 			a := action{ID: "quarantine.pkill." + sanitizeID(name), Description: "Stop process " + name, Path: "/usr/bin/pkill", Args: []string{"-x", name}, IgnoreFailure: true}
+			recordJournalMutation(jm, tx, a)
 			result.Actions = append(result.Actions, runAction(ctx, runner, rp, a, false))
 		}
 	}
 	return failures
 }
 
-func runDeep(ctx context.Context, rp *snapshot.RestorePoint, opts Options, result *Result) int {
+func runDeep(ctx context.Context, rp *snapshot.RestorePoint, opts Options, result *Result, jm journal.Manager, tx *journal.Transaction) int {
 	if opts.Level != LevelDeep {
 		return 0
 	}
@@ -655,6 +714,7 @@ func runDeep(ctx context.Context, rp *snapshot.RestorePoint, opts Options, resul
 			continue
 		}
 		ar := ActionResult{ID: "deep.quarantine." + sanitizeID(filepath.Base(path)), Description: "Backup and remove " + path, RollbackAvailable: true}
+		recordJournalMutation(jm, tx, action{ID: ar.ID, Description: ar.Description, Path: "snapshot.QuarantinePath", Args: []string{path}})
 		if _, err := rp.QuarantinePath(path); err != nil {
 			ar.Error = err.Error()
 			failures++
@@ -663,6 +723,20 @@ func runDeep(ctx context.Context, rp *snapshot.RestorePoint, opts Options, resul
 	}
 	_ = ctx
 	return failures
+}
+
+func recordJournalMutation(jm journal.Manager, tx *journal.Transaction, a action) {
+	if tx == nil || a.ID == "" {
+		return
+	}
+	_ = jm.UpdateState(tx, journal.StateMutating)
+	cmd := ""
+	if a.Path != "" {
+		cmd = command.Render(a.Path, a.Args...)
+	} else if a.Dynamic != "" {
+		cmd = "dynamic " + a.Dynamic + " " + strings.Join(a.Args, " ")
+	}
+	_ = jm.AppendMutation(tx, journal.MutationEntry{ActionID: a.ID, Stage: a.Stage, Command: cmd, State: journal.StateMutating})
 }
 
 func buildQuarantinePlan(pre diagnose.DiagnosticReport, level string) []ActionResult {

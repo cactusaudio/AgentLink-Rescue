@@ -6,7 +6,7 @@ BIN="$ROOT/bin/agentlink"
 FALLBACK="$ROOT/rescue.sh"
 
 clear
-echo "Cactus AgentLink Rescue 0.5.0"
+echo "Cactus AgentLink Rescue 0.5.1"
 echo
 
 xattr -cr "$ROOT" 2>/dev/null || true

@@ -66,16 +66,20 @@ enum GUISelftest {
         let runner = CommandRunner()
         let start = Date()
         let version = runner.runSync(executable: client.binaryURL, args: ["version"], timeout: 10)
+        let packageDoctor = runner.runSync(executable: client.binaryURL, args: ["package", "doctor", "--package-root", client.packageRoot.path, "--json"], timeout: 20)
+        let journalRecover = runner.runSync(executable: client.binaryURL, args: ["journal", "recover", "--json"], timeout: 20)
         let doctor = runner.runSync(executable: client.binaryURL, args: ["doctor", "--json"], timeout: 30)
         let brain = runner.runSync(executable: client.binaryURL, args: ["brain", "doctor", "--json"], timeout: 30)
         let guided = runner.runSync(executable: client.binaryURL, args: ["guided", "rescue", "--target", "auto", "--dry-run", "--json"], timeout: 120)
         let installer = runner.runSync(executable: client.binaryURL, args: ["installer", "doctor", "--json"], timeout: 30)
         let readiness = runner.runSync(executable: client.binaryURL, args: ["readiness", "doctor", "--json"], timeout: 90)
         let summary: [String: Any] = [
-            "ok": version.succeeded && doctor.succeeded && brain.succeeded && guided.succeeded && installer.succeeded && readiness.succeeded,
+            "ok": version.succeeded && (packageDoctor.exitCode == 0 || packageDoctor.exitCode == 20) && (journalRecover.exitCode == 0 || journalRecover.exitCode == 20) && doctor.succeeded && brain.succeeded && guided.succeeded && installer.succeeded && readiness.succeeded,
             "packageRoot": client.packageRoot.path,
             "binaryPath": client.binaryURL.path,
             "versionExitCode": version.exitCode,
+            "packageDoctorExitCode": packageDoctor.exitCode,
+            "journalRecoverExitCode": journalRecover.exitCode,
             "doctorExitCode": doctor.exitCode,
             "brainDoctorExitCode": brain.exitCode,
             "guidedExitCode": guided.exitCode,
@@ -83,6 +87,8 @@ enum GUISelftest {
             "readinessExitCode": readiness.exitCode,
             "durationMs": Int(Date().timeIntervalSince(start) * 1000),
             "version": version.stdout.trimmingCharacters(in: .whitespacesAndNewlines),
+            "packageDoctor": jsonObject(packageDoctor.stdout) ?? packageDoctor.stdout,
+            "journalRecover": jsonObject(journalRecover.stdout) ?? journalRecover.stdout,
             "brainDoctor": jsonObject(brain.stdout) ?? brain.stdout,
             "guidedRescue": jsonObject(guided.stdout) ?? guided.stdout,
             "installerDoctor": jsonObject(installer.stdout) ?? installer.stdout,
@@ -92,7 +98,7 @@ enum GUISelftest {
         if let data, let text = String(data: data, encoding: .utf8) {
             print(redact(text))
         }
-        return (version.succeeded && doctor.succeeded && brain.succeeded && guided.succeeded && installer.succeeded && readiness.succeeded) ? 0 : 1
+        return (version.succeeded && (packageDoctor.exitCode == 0 || packageDoctor.exitCode == 20) && (journalRecover.exitCode == 0 || journalRecover.exitCode == 20) && doctor.succeeded && brain.succeeded && guided.succeeded && installer.succeeded && readiness.succeeded) ? 0 : 1
     }
 
     private static func jsonObject(_ text: String) -> Any? {

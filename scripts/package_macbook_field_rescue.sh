@@ -2,9 +2,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="0.5.0"
+VERSION="0.5.1"
 FIELD_ROOT="$ROOT/dist/Cactus MacBook Network Rescue"
-FIELD_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.0-macbook-field-gui-proxykit.zip"
+FIELD_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.1-macbook-field-gui-proxykit.zip"
 APP_NAME="Cactus AgentLink Rescue.app"
 APP="$FIELD_ROOT/$APP_NAME"
 PROXYKIT_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v${VERSION}-brain-gui-gemma4-e4b-q4km-proxykit.zip"
@@ -37,6 +37,10 @@ xattr -cr "$DIR" 2>/dev/null || true
 chmod +x "$APP/Contents/MacOS/CactusAgentLinkRescue" 2>/dev/null || true
 chmod +x "$AGENTLINK/bin/agentlink" "$AGENTLINK/rescue.sh" "$AGENTLINK/agentlink.command" 2>/dev/null || true
 find "$AGENTLINK/assets/runtimes/llama.cpp" -type f \( -name 'llama-*' -o -name '*.dylib' \) -exec chmod +x {} \; 2>/dev/null || true
+if [ -x "$AGENTLINK/bin/agentlink" ]; then
+  "$AGENTLINK/bin/agentlink" package doctor --package-root "$AGENTLINK" --json >/dev/null 2>&1 || \
+    "$AGENTLINK/bin/agentlink" package repair --package-root "$AGENTLINK" --yes --json >/dev/null 2>&1 || true
+fi
 open "$APP" || {
   echo "If the app is blocked, run:"
   echo "xattr -cr \"$DIR\""
@@ -77,6 +81,9 @@ cat > "$FIELD_ROOT/emergency-terminal-commands.txt" <<'TXT'
 cd "<path-to-this-folder>/Cactus AgentLink Rescue.app/Contents/Resources/agentlink"
 
 ./bin/agentlink version
+./bin/agentlink package doctor --json
+./bin/agentlink package repair --dry-run --json
+./bin/agentlink journal recover --json
 ./bin/agentlink diagnose
 ./bin/agentlink diagnose tun
 ./bin/agentlink field macbook-network-rescue
@@ -122,6 +129,7 @@ if unzip -l "$FIELD_ZIP" | grep -E '__MACOSX|\.DS_Store|AppleDouble|/\._' >/dev/
   echo "field rescue zip contains Finder metadata" >&2
   exit 1
 fi
+rm -rf "$ROOT/dist/field-staging"
 
 echo "field rescue folder: $FIELD_ROOT"
 echo "field rescue zip: $FIELD_ZIP"

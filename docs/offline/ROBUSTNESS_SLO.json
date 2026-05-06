@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "toolVersion": "0.5.1",
+  "core": {
+    "packageDoctorP95Seconds": 5,
+    "doctorWorksWithoutBrainAssets": true,
+    "dryRunMutatesSystem": false,
+    "supportBundleClearFailureRequired": true,
+    "guiIndefiniteRunningAllowed": false
+  },
+  "network": {
+    "highConfidenceTunChoosesStandardFirst": false,
+    "standardBroadResetAllowed": false,
+    "postflightWorsenedAutoRollbackRequired": true,
+    "suspiciousTunRouteRestoreAllowed": false
+  },
+  "rollback": {
+    "rollbackIdUsesDurableSnapshot": true,
+    "corruptedRestorePointFailsCleanly": true,
+    "partialRollbackLabelRequired": true
+  },
+  "package": {
+    "coreZipMayContainModel": false,
+    "coreZipMayContainRuntime": false,
+    "zipFinderMetadataAllowed": false,
+    "largeAssetsInSourceAllowed": false
+  },
+  "ux": {
+    "mainPathOneButton": true,
+    "advancedHiddenUnderDeveloperMode": true,
+    "disabledActionsRequireReason": true,
+    "sudoViaTerminalTicket": true
+  }
+}

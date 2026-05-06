@@ -1,6 +1,6 @@
 # Rescue Orchestrator
 
-The v0.5.0 Rescue Orchestrator is the user-facing rescue loop owned by the `agentlink` CLI kernel. `agentlink guided rescue` remains as a deprecated v0.4 compatibility alias; new GUI, scripts, and docs should use `agentlink orchestrator rescue`.
+The v0.5.1 Rescue Orchestrator is the user-facing rescue loop owned by the `agentlink` CLI kernel. `agentlink guided rescue` remains as a deprecated v0.4 compatibility alias; new GUI, scripts, and docs should use `agentlink orchestrator rescue`.
 
 Command:
 

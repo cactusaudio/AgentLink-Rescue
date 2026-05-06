@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-# v0.5.0 brain-aware GUI dogfood: main rescue stays one-button while Brain/Gemma details remain secondary.
+# v0.5.1 brain-aware GUI dogfood: main rescue stays one-button while Brain/Gemma details remain secondary.
 DASH="gui/CactusAgentLinkRescue/Sources/CactusAgentLinkRescue/Views/StatusDashboardView.swift"
 
 grep -q 'Fix My Connection' "$DASH"

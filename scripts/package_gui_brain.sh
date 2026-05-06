@@ -3,8 +3,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP="$ROOT/dist/Cactus AgentLink Rescue.app"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.0-brain-gui-gemma4-e4b-q4km.zip"
-PROXYKIT_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.0-brain-gui-gemma4-e4b-q4km-proxykit.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.1-brain-gui-gemma4-e4b-q4km.zip"
+PROXYKIT_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.1-brain-gui-gemma4-e4b-q4km-proxykit.zip"
 INFO="$ROOT/gui/CactusAgentLinkRescue/Sources/CactusAgentLinkRescue/Resources/Info.plist"
 . "$ROOT/scripts/lib/asset_cache.sh"
 
@@ -77,6 +77,7 @@ if [ -n "$CLASH_DMG_DIR" ]; then
     echo "proxykit GUI zip contains Finder metadata" >&2
     exit 1
   fi
+  rm -rf "$STAGE"
   echo "proxykit GUI zip: $PROXYKIT_ZIP"
   /usr/bin/shasum -a 256 "$PROXYKIT_ZIP"
 fi

@@ -15,6 +15,8 @@ import (
 	"cactus-agentlink-rescue/internal/devdoctor"
 	"cactus-agentlink-rescue/internal/facts"
 	"cactus-agentlink-rescue/internal/installer"
+	"cactus-agentlink-rescue/internal/journal"
+	"cactus-agentlink-rescue/internal/packagehealth"
 	"cactus-agentlink-rescue/internal/readiness"
 	"cactus-agentlink-rescue/internal/safety"
 	"cactus-agentlink-rescue/internal/session"
@@ -63,6 +65,10 @@ func Create(ctx context.Context, runner command.Runner, home, output string, cat
 			"readiness reports",
 			"brain/runtime status",
 			"installer status",
+			"package health",
+			"journal summary",
+			"latest incident summary",
+			"latest rollback status",
 			"latest session metadata",
 		},
 	}
@@ -82,6 +88,8 @@ func Create(ctx context.Context, runner command.Runner, home, output string, cat
 	writeJSON(&rep, tmp, "facts.json", facts.Collect(ctx, runner, home, true))
 	writeJSON(&rep, tmp, "brain-doctor.json", brain.Doctor(ctx, runner, home))
 	writeJSON(&rep, tmp, "installer-doctor.json", installer.Doctor(ctx, runner, catalog, system.Version))
+	writeJSON(&rep, tmp, "package-doctor.json", packagehealth.Doctor(ctx, runner, packagehealth.Options{}))
+	writeJSON(&rep, tmp, "journal-summary.json", journal.New(home).Recover(true))
 	writeJSON(&rep, tmp, "dev-essentials.json", devdoctor.Run(ctx, runner, system.Version))
 	writeJSON(&rep, tmp, "offline-readiness.json", readiness.Run(ctx, runner, home, catalog))
 	if sess, err := session.NewStore(home).Latest(); err == nil {
@@ -90,6 +98,16 @@ func Create(ctx context.Context, runner command.Runner, home, output string, cat
 		writeText(&rep, tmp, "latest-agent-dispatch.json", session.AgentDispatch(sess))
 	} else {
 		rep.Warnings = append(rep.Warnings, "latest session unavailable: "+safety.RedactSensitive(err.Error()))
+	}
+	if latestIncident, err := latestDir(filepath.Join(home, "Library", "Application Support", system.AppName, "incidents")); err == nil {
+		writeText(&rep, tmp, "latest-incident.txt", latestIncident)
+	} else {
+		rep.Warnings = append(rep.Warnings, "latest incident unavailable: "+safety.RedactSensitive(err.Error()))
+	}
+	if latestRestore, err := latestDir(system.UserRestorePointsDir(home)); err == nil {
+		writeText(&rep, tmp, "latest-rollback.txt", latestRestore)
+	} else {
+		rep.Warnings = append(rep.Warnings, "latest rollback unavailable: "+safety.RedactSensitive(err.Error()))
 	}
 	manifest := Manifest{
 		SchemaVersion: 1,
@@ -108,6 +126,23 @@ func Create(ctx context.Context, runner command.Runner, home, output string, cat
 		return rep
 	}
 	return rep
+}
+
+func latestDir(root string) (string, error) {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return "", err
+	}
+	latest := ""
+	for _, entry := range entries {
+		if entry.IsDir() && entry.Name() > latest {
+			latest = entry.Name()
+		}
+	}
+	if latest == "" {
+		return "", os.ErrNotExist
+	}
+	return filepath.Join(root, latest), nil
 }
 
 const Disclosure = "This support bundle contains redacted local diagnostics, including tool presence, local paths, network/proxy status, readiness reports, and latest session metadata. It does not include private keys, browser cookies, shell history, Wi-Fi passwords, or full API keys."

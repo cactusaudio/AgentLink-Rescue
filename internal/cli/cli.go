@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"cactus-agentlink-rescue/internal/brain"
+	"cactus-agentlink-rescue/internal/chaos"
 	"cactus-agentlink-rescue/internal/classify"
 	"cactus-agentlink-rescue/internal/command"
 	"cactus-agentlink-rescue/internal/devdoctor"
@@ -21,10 +22,12 @@ import (
 	"cactus-agentlink-rescue/internal/field"
 	"cactus-agentlink-rescue/internal/guided"
 	"cactus-agentlink-rescue/internal/installer"
+	"cactus-agentlink-rescue/internal/journal"
 	"cactus-agentlink-rescue/internal/lastgood"
 	"cactus-agentlink-rescue/internal/networkverify"
 	"cactus-agentlink-rescue/internal/opencode"
 	"cactus-agentlink-rescue/internal/orchestrator"
+	"cactus-agentlink-rescue/internal/packagehealth"
 	"cactus-agentlink-rescue/internal/planner"
 	"cactus-agentlink-rescue/internal/proxyapp"
 	"cactus-agentlink-rescue/internal/readiness"
@@ -47,7 +50,20 @@ func Main(args []string, stdout io.Writer, stderr io.Writer) int {
 		usage(stdout)
 		return 50
 	}
+	safeMode := false
+	if args[0] == "--safe-mode" {
+		safeMode = true
+		args = args[1:]
+		if len(args) == 0 {
+			fmt.Fprintln(stderr, "--safe-mode requires a command")
+			return 50
+		}
+	}
 	cmd := args[0]
+	if safeMode && !safeModeAllowed(cmd, args[1:]) {
+		fmt.Fprintf(stderr, "safe mode allows only doctor, support bundle, package doctor, and journal list/recover; refused: %s\n", cmd)
+		return 50
+	}
 	if cmd != "version" && cmd != "selftest" && !system.IsDarwin() {
 		fmt.Fprintln(stderr, "unsupported platform: agentlink supports macOS only")
 		return 60
@@ -62,6 +78,12 @@ func Main(args []string, stdout io.Writer, stderr io.Writer) int {
 		return runLastGood(ctx, runner, args[1:], stdout, stderr)
 	case "support":
 		return runSupport(ctx, runner, args[1:], stdout, stderr)
+	case "package":
+		return runPackage(ctx, runner, args[1:], stdout, stderr)
+	case "journal":
+		return runJournal(ctx, runner, args[1:], stdout, stderr)
+	case "chaos":
+		return runChaos(args[1:], stdout, stderr)
 	case "dev":
 		return runDev(ctx, runner, args[1:], stdout, stderr)
 	case "guided":
@@ -126,6 +148,21 @@ func Main(args []string, stdout io.Writer, stderr io.Writer) int {
 	}
 }
 
+func safeModeAllowed(cmd string, args []string) bool {
+	switch cmd {
+	case "version", "doctor", "selftest":
+		return true
+	case "support":
+		return len(args) > 0 && args[0] == "bundle"
+	case "package":
+		return len(args) > 0 && args[0] == "doctor"
+	case "journal":
+		return len(args) > 0 && (args[0] == "list" || args[0] == "recover" || args[0] == "inspect")
+	default:
+		return false
+	}
+}
+
 func runDoctor(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("doctor", flag.ContinueOnError)
 	fs.SetOutput(stderr)
@@ -161,8 +198,8 @@ func runReadiness(ctx context.Context, runner command.Runner, args []string, std
 	}
 	catalog, err := installer.LoadCatalog(installer.FindCatalogPath())
 	if err != nil {
-		fmt.Fprintln(stderr, err)
-		return 30
+		catalog = installer.Catalog{SchemaVersion: 1}
+		fmt.Fprintln(stderr, "installer catalog unavailable; readiness will continue in degraded mode:", err)
 	}
 	rep := readiness.Run(ctx, runner, currentHome(ctx, runner), catalog)
 	if *jsonOut {
@@ -322,8 +359,8 @@ func runSupport(ctx context.Context, runner command.Runner, args []string, stdou
 	}
 	catalog, err := installer.LoadCatalog(installer.FindCatalogPath())
 	if err != nil {
-		fmt.Fprintln(stderr, err)
-		return 30
+		catalog = installer.Catalog{SchemaVersion: 1}
+		fmt.Fprintln(stderr, "installer catalog unavailable; support bundle will continue in degraded mode:", err)
 	}
 	rep := supportbundle.Create(ctx, runner, currentHome(ctx, runner), *output, catalog)
 	if *jsonOut {
@@ -339,6 +376,246 @@ func runSupport(ctx context.Context, runner command.Runner, args []string, stdou
 		return 30
 	}
 	return 0
+}
+
+func runPackage(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		fmt.Fprintln(stderr, "package requires doctor or repair")
+		return 50
+	}
+	fs := flag.NewFlagSet("package "+args[0], flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	jsonOut := fs.Bool("json", false, "print JSON")
+	packageRoot := fs.String("package-root", "", "explicit AgentLink package root")
+	dryRun := fs.Bool("dry-run", false, "show package repair actions without changing files")
+	yes := fs.Bool("yes", false, "apply package-local repairs")
+	if err := fs.Parse(args[1:]); err != nil {
+		return 50
+	}
+	opts := packagehealth.Options{PackageRoot: *packageRoot, DryRun: *dryRun, Yes: *yes}
+	var rep packagehealth.Report
+	switch args[0] {
+	case "doctor":
+		rep = packagehealth.Doctor(ctx, runner, opts)
+	case "repair":
+		if !*dryRun && !*yes {
+			*dryRun = true
+			opts.DryRun = true
+		}
+		rep = packagehealth.Repair(ctx, runner, opts)
+	default:
+		fmt.Fprintln(stderr, "package requires doctor or repair")
+		return 50
+	}
+	if *jsonOut {
+		fmt.Fprintln(stdout, packagehealth.Marshal(rep))
+	} else {
+		fmt.Fprintf(stdout, "Package %s: %s\nRoot: %s\n", args[0], rep.Status, rep.PackageRoot)
+		for _, check := range rep.Checks {
+			line := fmt.Sprintf("- %s: %s", check.ID, check.Status)
+			if check.Path != "" {
+				line += " " + check.Path
+			}
+			if check.Message != "" {
+				line += " (" + check.Message + ")"
+			}
+			fmt.Fprintln(stdout, line)
+		}
+		if len(rep.Actions) > 0 {
+			fmt.Fprintln(stdout, "\nActions:")
+			for _, action := range rep.Actions {
+				fmt.Fprintf(stdout, "- %s\n", action)
+			}
+		}
+	}
+	switch rep.Status {
+	case "ok", "warning", "dry_run", "repaired":
+		return 0
+	case "needs_repair", "partial_repair":
+		return 20
+	default:
+		if rep.Error != "" {
+			fmt.Fprintln(stderr, rep.Error)
+		}
+		return 30
+	}
+}
+
+func runJournal(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		fmt.Fprintln(stderr, "journal requires list, inspect, or recover")
+		return 50
+	}
+	home := currentHome(ctx, runner)
+	mgr := journal.New(home)
+	switch args[0] {
+	case "list":
+		fs := flag.NewFlagSet("journal list", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		jsonOut := fs.Bool("json", false, "print JSON")
+		if err := fs.Parse(args[1:]); err != nil {
+			return 50
+		}
+		list, err := mgr.List()
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			return 30
+		}
+		if *jsonOut {
+			data, _ := json.MarshalIndent(list, "", "  ")
+			fmt.Fprintln(stdout, string(data))
+		} else {
+			for _, tx := range list {
+				fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\n", tx.TransactionID, tx.State, tx.Target, tx.RestorePoint)
+			}
+		}
+		return 0
+	case "inspect":
+		fs := flag.NewFlagSet("journal inspect", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		jsonOut := fs.Bool("json", false, "print JSON")
+		parseArgs := args[1:]
+		id := ""
+		if len(parseArgs) > 0 && !strings.HasPrefix(parseArgs[0], "-") {
+			id = parseArgs[0]
+			parseArgs = parseArgs[1:]
+		}
+		if err := fs.Parse(parseArgs); err != nil {
+			return 50
+		}
+		if id == "" && fs.NArg() == 1 {
+			id = fs.Arg(0)
+		}
+		if id == "" {
+			fmt.Fprintln(stderr, "journal inspect requires id")
+			return 50
+		}
+		tx, err := mgr.Load(id)
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			return 30
+		}
+		if *jsonOut {
+			data, _ := json.MarshalIndent(tx, "", "  ")
+			fmt.Fprintln(stdout, string(data))
+		} else {
+			fmt.Fprintf(stdout, "Transaction: %s\nState: %s\nTarget: %s\nRestore point: %s\n", tx.TransactionID, tx.State, tx.Target, tx.RestorePoint)
+		}
+		return 0
+	case "recover":
+		fs := flag.NewFlagSet("journal recover", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		jsonOut := fs.Bool("json", false, "print JSON")
+		yes := fs.Bool("yes", false, "mark no-mutation transactions abandoned and create rollback tickets for mutated transactions")
+		packageRoot := fs.String("package-root", "", "explicit AgentLink package root for generated tickets")
+		if err := fs.Parse(args[1:]); err != nil {
+			return 50
+		}
+		rep := mgr.Recover(!*yes)
+		if *yes {
+			root := *packageRoot
+			if root == "" {
+				root = packagehealth.FindPackageRoot()
+			}
+			for _, tx := range rep.Transactions {
+				if mgr.HasMutations(tx.TransactionID) && tx.RollbackAvailable && tx.RestorePoint != "" {
+					t := ticket.Create(ctx, runner, ticket.Options{Home: home, Type: "rollback", ID: tx.RestorePoint, Version: system.Version, PackageRoot: root})
+					if t.Status == "created" {
+						rep.Warnings = append(rep.Warnings, "rollback terminal ticket created: "+t.Directory)
+						rep.NextAction = "run rollback terminal ticket: " + t.Directory
+					} else {
+						rep.Status = "failed"
+						rep.Warnings = append(rep.Warnings, "rollback ticket failed: "+t.Error)
+					}
+				}
+			}
+		}
+		if *jsonOut {
+			data, _ := json.MarshalIndent(rep, "", "  ")
+			fmt.Fprintln(stdout, string(data))
+		} else {
+			fmt.Fprintf(stdout, "Journal recover: %s\n", rep.Status)
+			for _, tx := range rep.Transactions {
+				fmt.Fprintf(stdout, "- %s %s %s\n", tx.TransactionID, tx.State, tx.RestorePoint)
+			}
+			for _, warning := range rep.Warnings {
+				fmt.Fprintf(stdout, "Warning: %s\n", warning)
+			}
+			if rep.NextAction != "" {
+				fmt.Fprintf(stdout, "Next: %s\n", rep.NextAction)
+			}
+		}
+		if rep.Status == "failed" {
+			return 30
+		}
+		if rep.Status == "incomplete_transactions_found" {
+			return 20
+		}
+		return 0
+	default:
+		fmt.Fprintln(stderr, "journal requires list, inspect, or recover")
+		return 50
+	}
+}
+
+func runChaos(args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		fmt.Fprintln(stderr, "chaos requires list or run")
+		return 50
+	}
+	switch args[0] {
+	case "list":
+		fs := flag.NewFlagSet("chaos list", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		root := fs.String("root", filepath.Join("testdata", "chaos"), "fixture root")
+		jsonOut := fs.Bool("json", false, "print JSON")
+		if err := fs.Parse(args[1:]); err != nil {
+			return 50
+		}
+		list, err := chaos.List(*root)
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			return 30
+		}
+		if *jsonOut {
+			data, _ := json.MarshalIndent(list, "", "  ")
+			fmt.Fprintln(stdout, string(data))
+		} else {
+			for _, path := range list {
+				fmt.Fprintln(stdout, path)
+			}
+		}
+		return 0
+	case "run":
+		fs := flag.NewFlagSet("chaos run", flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		fixture := fs.String("fixture", "", "fixture JSON path")
+		jsonOut := fs.Bool("json", false, "print JSON")
+		if err := fs.Parse(args[1:]); err != nil {
+			return 50
+		}
+		if *fixture == "" {
+			fmt.Fprintln(stderr, "chaos run requires --fixture")
+			return 50
+		}
+		rep := chaos.Run(*fixture)
+		if *jsonOut {
+			data, _ := json.MarshalIndent(rep, "", "  ")
+			fmt.Fprintln(stdout, string(data))
+		} else {
+			fmt.Fprintf(stdout, "Chaos %s: %s\n", rep.ID, rep.Status)
+			for _, warning := range rep.Warnings {
+				fmt.Fprintf(stdout, "- %s\n", warning)
+			}
+		}
+		if rep.Status != "passed" {
+			return 30
+		}
+		return 0
+	default:
+		fmt.Fprintln(stderr, "chaos requires list or run")
+		return 50
+	}
 }
 
 func runSnapshot(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
@@ -1868,6 +2145,10 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "  agentlink last-good save [--name NAME] [--json]")
 	fmt.Fprintln(w, "  agentlink last-good list|inspect|restore [--id ID] [--last] [--yes] [--json]")
 	fmt.Fprintln(w, "  agentlink support bundle [--output PATH] [--json]")
+	fmt.Fprintln(w, "  agentlink package doctor|repair [--package-root PATH] [--dry-run] [--yes] [--json]")
+	fmt.Fprintln(w, "  agentlink journal list|inspect|recover [--yes] [--package-root PATH] [--json]")
+	fmt.Fprintln(w, "  agentlink chaos list|run [--root PATH] [--fixture PATH] [--json]")
+	fmt.Fprintln(w, "  agentlink --safe-mode doctor|support bundle|package doctor|journal list|journal recover")
 	fmt.Fprintln(w, "  agentlink dev doctor [--json]")
 	fmt.Fprintln(w, "  agentlink snapshot")
 	fmt.Fprintln(w, "  agentlink diff [--snapshot ID]")

@@ -1,6 +1,6 @@
 # Rescue Orchestrator
 
-v0.5.0 turns AgentLink from a feature panel into a bounded local rescue orchestrator.
+v0.5.1 turns AgentLink from a feature panel into a bounded local rescue orchestrator.
 
 Flow:
 

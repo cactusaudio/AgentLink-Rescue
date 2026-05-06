@@ -55,7 +55,7 @@ fi
 scripts/build.sh
 
 OUT="$ROOT/dist/Cactus-AgentLink-Rescue"
-ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.0-brain-gemma4-e4b-q4km.zip"
+ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.1-brain-gemma4-e4b-q4km.zip"
 mkdir -p "$ROOT/dist"
 rm -rf "$OUT"
 rm -f "$ZIP"

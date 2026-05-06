@@ -31,13 +31,13 @@ scripts/package.sh
 
 PKG="$ROOT/dist/Cactus-AgentLink-Rescue"
 BIN="$PKG/bin/agentlink"
-CORE_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.0-core.zip"
-BRAIN_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.0-brain-gemma4-e4b-q4km.zip"
-CORE_GUI_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.0-core-gui.zip"
-BRAIN_GUI_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.0-brain-gui-gemma4-e4b-q4km.zip"
-FIELD_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.0-macbook-field-gui-proxykit.zip"
+CORE_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.1-core.zip"
+BRAIN_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.1-brain-gemma4-e4b-q4km.zip"
+CORE_GUI_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.1-core-gui.zip"
+BRAIN_GUI_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.1-brain-gui-gemma4-e4b-q4km.zip"
+FIELD_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.1-macbook-field-gui-proxykit.zip"
 
-"$BIN" version | grep '0.5.0'
+"$BIN" version | grep '0.5.1'
 "$BIN" selftest
 "$BIN" doctor --json > /tmp/agentlink-release-doctor.json
 /usr/bin/python3 -m json.tool /tmp/agentlink-release-doctor.json >/dev/null
@@ -45,6 +45,28 @@ FIELD_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.0-macbook-field-gui-proxykit.
 /usr/bin/python3 -m json.tool /tmp/agentlink-release-readiness.json >/dev/null
 "$BIN" dev doctor --json > /tmp/agentlink-release-dev.json
 /usr/bin/python3 -m json.tool /tmp/agentlink-release-dev.json >/dev/null
+set +e
+"$BIN" package doctor --json > /tmp/agentlink-release-package-doctor.json
+PACKAGE_DOCTOR_CODE=$?
+set -e
+if [ "$PACKAGE_DOCTOR_CODE" -ne 0 ] && [ "$PACKAGE_DOCTOR_CODE" -ne 20 ]; then
+  echo "package doctor failed with exit $PACKAGE_DOCTOR_CODE" >&2
+  exit "$PACKAGE_DOCTOR_CODE"
+fi
+/usr/bin/python3 -m json.tool /tmp/agentlink-release-package-doctor.json >/dev/null
+"$BIN" package repair --dry-run --json > /tmp/agentlink-release-package-repair.json
+/usr/bin/python3 -m json.tool /tmp/agentlink-release-package-repair.json >/dev/null
+"$BIN" journal list --json > /tmp/agentlink-release-journal-list.json
+/usr/bin/python3 -m json.tool /tmp/agentlink-release-journal-list.json >/dev/null
+set +e
+"$BIN" journal recover --json > /tmp/agentlink-release-journal-recover.json
+JOURNAL_RECOVER_CODE=$?
+set -e
+if [ "$JOURNAL_RECOVER_CODE" -ne 0 ] && [ "$JOURNAL_RECOVER_CODE" -ne 20 ]; then
+  echo "journal recover failed with exit $JOURNAL_RECOVER_CODE" >&2
+  exit "$JOURNAL_RECOVER_CODE"
+fi
+/usr/bin/python3 -m json.tool /tmp/agentlink-release-journal-recover.json >/dev/null
 "$BIN" support bundle --json > /tmp/agentlink-release-support-bundle.json
 /usr/bin/python3 -m json.tool /tmp/agentlink-release-support-bundle.json >/dev/null
 "$BIN" brain doctor --json > /tmp/agentlink-release-brain-doctor.json
@@ -56,6 +78,11 @@ FIELD_ZIP="$ROOT/dist/Cactus-AgentLink-Rescue-v0.5.0-macbook-field-gui-proxykit.
 "$BIN" recipe list
 "$BIN" recipe inspect codex-deepseek-provider-config
 "$BIN" recipe run codex-deepseek-provider-config --dry-run
+"$BIN" chaos list --json > /tmp/agentlink-release-chaos-list.json
+/usr/bin/python3 -m json.tool /tmp/agentlink-release-chaos-list.json >/dev/null
+"$BIN" chaos run --fixture testdata/chaos/network/clash-tun-19818.json --json > /tmp/agentlink-release-chaos-tun.json
+/usr/bin/python3 -m json.tool /tmp/agentlink-release-chaos-tun.json >/dev/null
+grep '"status": "passed"' /tmp/agentlink-release-chaos-tun.json >/dev/null
 
 DEEPSEEK_API_KEY='sk-test-THIS_SHOULD_NOT_LEAK-release-check' "$BIN" keys doctor > /tmp/agentlink-release-keys.txt
 if grep -R 'THIS_SHOULD_NOT_LEAK' /tmp/agentlink-release-keys.txt "$HOME/Library/Application Support/Cactus AgentLink Rescue" 2>/dev/null; then
@@ -78,6 +105,7 @@ scripts/dogfood_opencode_bridge.sh
 scripts/dogfood_one_button_rescue.sh
 scripts/dogfood_developer_mode.sh
 scripts/dogfood_clean_baseline_last_resort.sh
+scripts/release_check_chaos.sh
 scripts/dogfood_gui_core.sh
 scripts/dogfood_gui_screenshots.sh
 # dogfood_gui_core.sh and dogfood_gui_brain.sh include --selftest-gui-long-output.
@@ -137,17 +165,17 @@ fi
 file "$BIN" | grep 'Mach-O universal binary'
 
 FORBIDDEN_FIELD="api_""key_env"
-if find README.md docs packaging recipes internal scripts testdata "$PKG" -type f ! -name agentlink -print0 | xargs -0 grep -n "$FORBIDDEN_FIELD"; then
+if find README.md docs/offline packaging recipes internal scripts testdata "$PKG" -type f ! -name agentlink -print0 | xargs -0 grep -n "$FORBIDDEN_FIELD"; then
   echo "forbidden legacy Codex TOML key field found" >&2
   exit 1
 fi
 LEGACY_MODEL_PATTERN="Q""wen\\|q""wen\\|Q""WEN"
-if grep -R "$LEGACY_MODEL_PATTERN" -n README.md docs packaging recipes internal scripts assets/manifests assets/README.md --exclude-dir=assets/models --exclude-dir=assets/runtimes --exclude='*.zip'; then
+if grep -R "$LEGACY_MODEL_PATTERN" -n README.md docs/offline packaging recipes internal scripts assets/manifests assets/README.md --exclude-dir=assets/models --exclude-dir=assets/runtimes --exclude='*.zip'; then
   echo "active legacy model reference found" >&2
   exit 1
 fi
 FORBIDDEN_GEMINI_PACKAGE="npm install -g gem""ini"
-if grep -R "$FORBIDDEN_GEMINI_PACKAGE" -n README.md docs packaging recipes internal scripts assets/installers --exclude='*.zip'; then
+if grep -R "$FORBIDDEN_GEMINI_PACKAGE" -n README.md docs/offline packaging recipes internal scripts assets/installers --exclude='*.zip'; then
   echo "unofficial Gemini package name found" >&2
   exit 1
 fi
