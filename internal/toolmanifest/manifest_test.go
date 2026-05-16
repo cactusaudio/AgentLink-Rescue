@@ -87,31 +87,32 @@ func TestNoForbiddenRawSurfaceInCatalog(t *testing.T) {
 		if strings.Contains(strings.ToLower(c.ExampleGoodCall), "sudo ") {
 			t.Errorf("%s exampleGoodCall must not contain sudo", c.ID)
 		}
-		// every host_txn tool must mutate ONLY through an AgentLink
-		// transaction envelope: either `recipe ... --via-envelope`, or a
-		// recognized AgentLink transactional subcommand (rollback /
-		// journal recover / last-good restore / package repair — all
-		// journal+snapshot-backed). Never a raw --yes auto-execute.
+		// Model-facing execution is BOUNDED: a host_txn tool's argv must
+		// be EITHER `recipe run <id> --dry-run --json` (model can ONLY
+		// dry-run; real apply is a user-approved ticket) OR a recognized
+		// AgentLink transactional subcommand (rollback / journal recover
+		// / last-good restore / package repair — journal+snapshot-backed,
+		// no --yes). NEVER a raw --yes/-y auto-execute.
 		if c.MutationClass == MutationHostTxn {
 			txnCLI := map[string]bool{"rollback": true, "journal": true,
 				"last-good": true, "package": true}
-			viaEnvelope := false
+			bounded := false
 			if len(c.Argv) >= 2 && c.Argv[0] == "recipe" && c.Argv[1] == "run" {
 				for _, a := range c.Argv {
-					if a == "--via-envelope" {
-						viaEnvelope = true
+					if a == "--dry-run" {
+						bounded = true
 					}
 				}
 			} else if len(c.Argv) >= 1 && txnCLI[c.Argv[0]] {
-				viaEnvelope = true // AgentLink's own transactional command
+				bounded = true // AgentLink's own journaled transactional command
 			}
 			for _, a := range c.Argv {
 				if a == "--yes" || a == "-y" {
 					t.Errorf("%s execution tool exposes raw auto-execute %q", c.ID, a)
 				}
 			}
-			if !viaEnvelope {
-				t.Errorf("%s host_txn tool must execute via recipe --via-envelope OR an AgentLink transactional subcommand; argv=%v", c.ID, c.Argv)
+			if !bounded {
+				t.Errorf("%s host_txn tool must be model-dry-run (recipe run <id> --dry-run) OR an AgentLink transactional subcommand; argv=%v", c.ID, c.Argv)
 			}
 		}
 	}

@@ -62,6 +62,13 @@ func (r Registry) SupportedList() []Recipe {
 
 func FindRecipesDir() string {
 	candidates := []string{}
+	// Deployment override: a binary placed away from its source tree
+	// (e.g. an asset-cache/app-bundle install) cannot resolve recipes
+	// via cwd/exe-relative paths. AGENTLINK_RECIPES_DIR makes the
+	// recipe surface deterministic for embedders (V0300 product).
+	if d := os.Getenv("AGENTLINK_RECIPES_DIR"); d != "" {
+		candidates = append(candidates, d)
+	}
 	if cwd, err := os.Getwd(); err == nil {
 		candidates = append(candidates, filepath.Join(cwd, "recipes"))
 	}

@@ -116,7 +116,7 @@ func argvUnsafe(argv []string) string {
 	for _, a := range argv {
 		switch a {
 		case "--yes", "-y":
-			return "argv contains auto-execute flag " + a + " (use --via-envelope)"
+			return "argv contains auto-execute flag " + a + " (model execution is dry-run only; real apply via approval ticket)"
 		case "sudo":
 			return "argv contains sudo"
 		}
@@ -263,7 +263,7 @@ func planningTools() []ToolCard {
 			AutonomousAllowed: true, RecommendAllowed: true},
 		{ID: "agentlink.recipe_dry_run", Family: "planning",
 			Description:   "Dry-run a recipe: render exactly what WOULD change, no mutation.",
-			Argv:          []string{"recipe", "dry-run", "<recipe_id>", "--json"},
+			Argv:          []string{"recipe", "run", "<recipe_id>", "--dry-run", "--json"},
 			InputSchema: obj(map[string]any{"type": "object", "required": []string{"recipe_id"},
 				"properties": obj(map[string]any{"recipe_id": obj(map[string]any{"type": "string"})})}),
 			OutputSchema:  jsonResult(),
@@ -374,19 +374,19 @@ func executionTools() []ToolCard {
 	cards := []ToolCard{
 		execCard("agentlink.execute_recipe",
 			"Execute a named bounded repair recipe inside an AgentLink transaction envelope (snapshot→preflight→mutate→postverify→journal, auto-rollback on failure). recipe_id MUST come from agentlink.recipe_list.",
-			[]string{"recipe", "run", "<recipe_id>", "--via-envelope", "--json"}, RiskReversible, true),
+			[]string{"recipe", "run", "<recipe_id>", "--dry-run", "--json"}, RiskReversible, true),
 		execCard("agentlink.clean_stale_proxy_baseline",
 			"Clean stale shell proxy env residue (recipe proxy-clean-stale-env, reversible).",
-			[]string{"recipe", "run", "proxy-clean-stale-env", "--via-envelope", "--json"}, RiskReversible, true),
+			[]string{"recipe", "run", "proxy-clean-stale-env", "--dry-run", "--json"}, RiskReversible, true),
 		execCard("agentlink.network_baseline_reset",
 			"Reset macOS network to a clean baseline (recipe macos-clean-network-baseline-reset; PRIVILEGED, root — user-approved ticket).",
-			[]string{"recipe", "run", "macos-clean-network-baseline-reset", "--via-envelope", "--json"}, RiskPrivileged, true),
+			[]string{"recipe", "run", "macos-clean-network-baseline-reset", "--dry-run", "--json"}, RiskPrivileged, true),
 		execCard("agentlink.remove_tun_residue",
 			"Force-repair stale Clash/TUN/route ownership residue (recipe macos-clash-tun-force-repair; PRIVILEGED).",
-			[]string{"recipe", "run", "macos-clash-tun-force-repair", "--via-envelope", "--json"}, RiskPrivileged, true),
+			[]string{"recipe", "run", "macos-clash-tun-force-repair", "--dry-run", "--json"}, RiskPrivileged, true),
 		execCard("agentlink.clean_npm_git_proxy",
 			"Resolve npm/git proxy conflict residue (recipe npm-git-proxy-conflict-repair, reversible).",
-			[]string{"recipe", "run", "npm-git-proxy-conflict-repair", "--via-envelope", "--json"}, RiskReversible, true),
+			[]string{"recipe", "run", "npm-git-proxy-conflict-repair", "--dry-run", "--json"}, RiskReversible, true),
 		execCard("agentlink.restore_last_good",
 			"Restore the last-good saved network profile (AgentLink transactional restore).",
 			CLIBackedExecTools["agentlink.restore_last_good"], RiskNetwork, true),
