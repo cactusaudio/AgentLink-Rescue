@@ -34,7 +34,7 @@ func runManifest(args []string, stdout, stderr io.Writer) int {
 	fs.SetOutput(stderr)
 	jsonOut := fs.Bool("json", false, "print full JSON catalog")
 	family := fs.String("family", "", "filter by family (diagnosis|planning|execution|reporting)")
-	edition := fs.String("edition", "", "filter by edition (qwen|gemma)")
+	edition := fs.String("edition", "", "filter by edition (autonomous|recommend)")
 	if err := fs.Parse(args); err != nil {
 		return 50
 	}
@@ -45,10 +45,10 @@ func runManifest(args []string, stdout, stderr io.Writer) int {
 			if *family != "" && t.Family != *family {
 				continue
 			}
-			if *edition == "qwen" && !t.QwenAutonomousOK {
+			if *edition == "autonomous" && !t.AutonomousAllowed {
 				continue
 			}
-			if *edition == "gemma" && !t.GemmaRecommendOK {
+			if *edition == "recommend" && !t.RecommendAllowed {
 				continue
 			}
 			keep = append(keep, t)
@@ -78,9 +78,9 @@ func runManifest(args []string, stdout, stderr io.Writer) int {
 		if t.HumanApproval {
 			appr = " (user-approval)"
 		}
-		fmt.Fprintf(stdout, "  %-38s risk=%-16s mut=%-12s qwen=%v gemma=%v%s\n    %s\n",
-			t.ID, t.RiskClass, t.MutationClass, t.QwenAutonomousOK,
-			t.GemmaRecommendOK, appr, t.Description)
+		fmt.Fprintf(stdout, "  %-38s risk=%-16s mut=%-12s auton=%v recommend=%v%s\n    %s\n",
+			t.ID, t.RiskClass, t.MutationClass, t.AutonomousAllowed,
+			t.RecommendAllowed, appr, t.Description)
 	}
 	return 0
 }

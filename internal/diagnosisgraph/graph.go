@@ -2,9 +2,9 @@
 // COMPACT, redacted, structured graph (V0300 Layer 3).
 //
 // Design constraints:
-//   - small enough for a Gemma 4-class small-memory model (no raw dumps,
+//   - small enough for a small-memory model (no raw dumps,
 //     booleans + short tokens + a few tool ids);
-//   - precise enough for Qwen/OpenCode (failure class, confidence,
+//   - precise enough for an autonomous operator (failure class, confidence,
 //     recommended next tool ids, forbidden next tools, reasons);
 //   - pure + deterministic (test-stable from fixtures, no host access);
 //   - recommended/forbidden tool ids are validated against the W2 typed
@@ -66,8 +66,8 @@ var classRoute = map[string][]ToolRef{
 		{"agentlink.clean_stale_proxy_baseline", "execute after approval"}},
 	classify.DNSFail: {{"agentlink.dns_snapshot", "inspect resolvers/scoped DNS"},
 		{"agentlink.verify_network", "confirm DNS-layer failure"},
-		{"agentlink.recipe_dry_run", "dry-run dns-resolver-baseline"},
-		{"agentlink.repair_dns_baseline", "execute after approval"}},
+		{"agentlink.recipe_dry_run", "dry-run macos-clean-network-baseline-reset"},
+		{"agentlink.network_baseline_reset", "execute after approval (privileged)"}},
 	classify.ClashTunActiveOrStale: {{"agentlink.tun_snapshot", "inspect TUN/route ownership"},
 		{"agentlink.recipe_dry_run", "dry-run tun-residue-clean"},
 		{"agentlink.approval_ticket_create", "user-approved clash-tun-fix ticket"}},
@@ -80,8 +80,8 @@ var classRoute = map[string][]ToolRef{
 	classify.NetworkExtensionSessionStale: {{"agentlink.network_extension_snapshot", "inspect stale NE session"},
 		{"agentlink.recommend_recipes", "rank safe options"}},
 	classify.KnownAgentResidue: {{"agentlink.app_residue_snapshot", "enumerate known-agent residue"},
-		{"agentlink.recipe_dry_run", "dry-run app-residue-clean"},
-		{"agentlink.clean_app_residue", "execute after approval"}},
+		{"agentlink.recommend_recipes", "rank bounded residue-clean options"},
+		{"agentlink.approval_ticket_create", "user-approved residue-clean ticket"}},
 	classify.NoActiveInterface: {{"agentlink.doctor", "full read-only diagnosis"},
 		{"agentlink.verify_network", "confirm no usable interface"},
 		{"agentlink.approval_ticket_create", "user-approved network bring-up ticket"}},

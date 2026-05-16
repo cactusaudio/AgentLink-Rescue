@@ -49,11 +49,11 @@ func reportWithClass(classes []string) diagnose.DiagnosticReport {
 
 func TestProjectionRoutesByPrimaryClass(t *testing.T) {
 	cases := map[string]string{
-		classify.SystemProxyDirty:        "agentlink.clean_stale_proxy_baseline",
-		classify.DNSFail:                 "agentlink.repair_dns_baseline",
-		classify.ClashTunActiveOrStale:   "agentlink.approval_ticket_create",
-		classify.KnownAgentResidue:       "agentlink.clean_app_residue",
-		classify.OK:                      "agentlink.verify_network",
+		classify.SystemProxyDirty:      "agentlink.clean_stale_proxy_baseline",
+		classify.DNSFail:               "agentlink.network_baseline_reset",
+		classify.ClashTunActiveOrStale: "agentlink.approval_ticket_create",
+		classify.KnownAgentResidue:     "agentlink.approval_ticket_create",
+		classify.OK:                    "agentlink.verify_network",
 	}
 	for class, wantTool := range cases {
 		g := Build(reportWithClass([]string{class}), true)
@@ -75,7 +75,7 @@ func TestProjectionRoutesByPrimaryClass(t *testing.T) {
 func TestForbiddenIncludesExecutionAndRaw(t *testing.T) {
 	g := Build(reportWithClass([]string{classify.DNSFail}), true)
 	joined := strings.Join(g.ForbiddenNextTools, " | ")
-	if !strings.Contains(joined, "agentlink.repair_dns_baseline") {
+	if !strings.Contains(joined, "agentlink.network_baseline_reset") {
 		t.Errorf("forbidden must list host_txn execution tools before dry-run/approval; got %s", joined)
 	}
 	if !strings.Contains(joined, "RAW:") || !strings.Contains(joined, "sudo") {

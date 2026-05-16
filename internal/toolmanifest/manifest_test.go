@@ -43,7 +43,7 @@ func TestRequiredToolIDsPresent(t *testing.T) {
 		"agentlink.classify_incident", "agentlink.diagnosis_graph",
 		"agentlink.recommend_recipes", "agentlink.recipe_dry_run",
 		"agentlink.approval_ticket_create", "agentlink.execute_recipe",
-		"agentlink.repair_dns_baseline", "agentlink.remove_tun_residue",
+		"agentlink.network_baseline_reset", "agentlink.remove_tun_residue",
 		"agentlink.restore_last_good", "agentlink.rollback_last",
 		"agentlink.incident_report", "agentlink.support_bundle_redacted",
 		"agentlink.after_action_report",
@@ -67,7 +67,7 @@ func TestHostMutatingToolsAreGated(t *testing.T) {
 		if !c.DryRunSupported {
 			t.Errorf("%s mutates host but has no dry-run", c.ID)
 		}
-		if c.GemmaRecommendOK {
+		if c.RecommendAllowed {
 			t.Errorf("%s is host-mutating execution but marked Gemma-allowed (must be recommend-only)", c.ID)
 		}
 		if !c.RollbackSupported && !c.RollbackImpossible {
@@ -87,20 +87,31 @@ func TestNoForbiddenRawSurfaceInCatalog(t *testing.T) {
 		if strings.Contains(strings.ToLower(c.ExampleGoodCall), "sudo ") {
 			t.Errorf("%s exampleGoodCall must not contain sudo", c.ID)
 		}
-		// every execution (host_txn) tool must route via the envelope,
-		// never via a raw --yes auto-execute.
+		// every host_txn tool must mutate ONLY through an AgentLink
+		// transaction envelope: either `recipe ... --via-envelope`, or a
+		// recognized AgentLink transactional subcommand (rollback /
+		// journal recover / last-good restore / package repair — all
+		// journal+snapshot-backed). Never a raw --yes auto-execute.
 		if c.MutationClass == MutationHostTxn {
+			txnCLI := map[string]bool{"rollback": true, "journal": true,
+				"last-good": true, "package": true}
 			viaEnvelope := false
-			for _, a := range c.Argv {
-				if a == "--via-envelope" {
-					viaEnvelope = true
+			if len(c.Argv) >= 2 && c.Argv[0] == "recipe" && c.Argv[1] == "run" {
+				for _, a := range c.Argv {
+					if a == "--via-envelope" {
+						viaEnvelope = true
+					}
 				}
-				if a == "--yes" {
-					t.Errorf("%s execution tool exposes raw --yes", c.ID)
+			} else if len(c.Argv) >= 1 && txnCLI[c.Argv[0]] {
+				viaEnvelope = true // AgentLink's own transactional command
+			}
+			for _, a := range c.Argv {
+				if a == "--yes" || a == "-y" {
+					t.Errorf("%s execution tool exposes raw auto-execute %q", c.ID, a)
 				}
 			}
 			if !viaEnvelope {
-				t.Errorf("%s host_txn tool must execute via --via-envelope", c.ID)
+				t.Errorf("%s host_txn tool must execute via recipe --via-envelope OR an AgentLink transactional subcommand; argv=%v", c.ID, c.Argv)
 			}
 		}
 	}

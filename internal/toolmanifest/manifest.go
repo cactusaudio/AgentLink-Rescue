@@ -4,7 +4,7 @@
 // Commercial product principle (V0300 goal): models decide from
 // structured, indexed, low-entropy AgentLink evidence; they NEVER
 // improvise raw system repair. This catalog is the single coherent
-// surface a Qwen/OpenCode autonomous operator or a Gemma small-memory
+// surface an autonomous tool-loop operator edition or a small-memory
 // recommender is allowed to see. Raw sudo/networksetup/route/ifconfig/
 // launchctl and `rescue --yes` are intentionally NOT in this catalog.
 package toolmanifest
@@ -65,8 +65,8 @@ type ToolCard struct {
 	WhenNotToUse        string         `json:"whenNotToUse"`
 	RelatedTools        []string       `json:"relatedTools"`
 	HumanApproval       bool           `json:"humanApprovalRequired"`
-	QwenAutonomousOK    bool           `json:"qwenAutonomousAllowed"`
-	GemmaRecommendOK    bool           `json:"gemmaRecommendationAllowed"`
+	AutonomousAllowed   bool           `json:"autonomousAllowed"`
+	RecommendAllowed    bool           `json:"recommendAllowed"`
 }
 
 // Manifest is the top-level catalog document.
@@ -170,7 +170,7 @@ func readOnlyTools() []ToolCard {
 			TimeoutSeconds:  secs,
 			WhenNotToUse:    "Do not use to mutate state; read-only diagnosis only.",
 			RelatedTools:    related, HumanApproval: false,
-			QwenAutonomousOK: true, GemmaRecommendOK: true}
+			AutonomousAllowed: true, RecommendAllowed: true}
 	}
 	return []ToolCard{
 		ro("agentlink.version", "diagnosis", "Print AgentLink version + capability summary.", []string{"version"}, 15, []string{"agentlink.doctor"}),
@@ -206,9 +206,9 @@ func planningTools() []ToolCard {
 			PossibleErrors:  []string{"insufficient_evidence", "timeout"},
 			TimeoutSeconds:  45, WhenNotToUse: "Not for execution; selection input only.",
 			RelatedTools:    []string{"agentlink.recommend_recipes", "agentlink.diagnosis_graph"},
-			QwenAutonomousOK: true, GemmaRecommendOK: true},
+			AutonomousAllowed: true, RecommendAllowed: true},
 		{ID: "agentlink.diagnosis_graph", Family: "planning",
-			Description:   "Compact structured diagnosis graph (symptoms, facts, confidence, recommended + forbidden next tools). Small enough for Gemma, precise for Qwen.",
+			Description:   "Compact structured diagnosis graph (symptoms, facts, confidence, recommended + forbidden next tools). Small enough for a small-memory model, precise for an autonomous operator.",
 			Argv:          []string{"diagnose-graph", "--json"},
 			InputSchema:   noInput(), OutputSchema: jsonResult(),
 			RiskClass:     RiskReadOnly, MutationClass: MutationNone,
@@ -219,7 +219,7 @@ func planningTools() []ToolCard {
 			PossibleErrors:  []string{"timeout", "malformed_json"},
 			TimeoutSeconds:  60, WhenNotToUse: "Do not use as an execution surface.",
 			RelatedTools:    []string{"agentlink.classify_incident", "agentlink.recommend_recipes"},
-			QwenAutonomousOK: true, GemmaRecommendOK: true},
+			AutonomousAllowed: true, RecommendAllowed: true},
 		{ID: "agentlink.recommend_recipes", Family: "planning",
 			Description:   "Rank candidate repair recipes for the classified incident with short reasons.",
 			Argv:          []string{"orchestrator", "rescue", "--dry-run", "--json"},
@@ -232,7 +232,7 @@ func planningTools() []ToolCard {
 			PossibleErrors:  []string{"no_candidate_recipe", "timeout"},
 			TimeoutSeconds:  90, WhenNotToUse: "Never pass --yes; this is planning only.",
 			RelatedTools:    []string{"agentlink.recipe_inspect", "agentlink.recipe_dry_run"},
-			QwenAutonomousOK: true, GemmaRecommendOK: true},
+			AutonomousAllowed: true, RecommendAllowed: true},
 		{ID: "agentlink.recipe_list", Family: "planning",
 			Description:   "List bounded repair recipes (id, title, risk, failure classes).",
 			Argv:          []string{"recipe", "list", "--json"},
@@ -245,7 +245,7 @@ func planningTools() []ToolCard {
 			PossibleErrors:  []string{"recipes_dir_missing"},
 			TimeoutSeconds:  30, WhenNotToUse: "Not execution.",
 			RelatedTools:    []string{"agentlink.recipe_inspect"},
-			QwenAutonomousOK: true, GemmaRecommendOK: true},
+			AutonomousAllowed: true, RecommendAllowed: true},
 		{ID: "agentlink.recipe_inspect", Family: "planning",
 			Description:   "Inspect one recipe: preconditions, patches, verify, rollback, docs.",
 			Argv:          []string{"recipe", "inspect", "<recipe_id>", "--json"},
@@ -260,7 +260,7 @@ func planningTools() []ToolCard {
 			PossibleErrors:  []string{"recipe_not_found"},
 			TimeoutSeconds:  30, WhenNotToUse: "Not execution.",
 			RelatedTools:    []string{"agentlink.recipe_dry_run"},
-			QwenAutonomousOK: true, GemmaRecommendOK: true},
+			AutonomousAllowed: true, RecommendAllowed: true},
 		{ID: "agentlink.recipe_dry_run", Family: "planning",
 			Description:   "Dry-run a recipe: render exactly what WOULD change, no mutation.",
 			Argv:          []string{"recipe", "dry-run", "<recipe_id>", "--json"},
@@ -275,7 +275,7 @@ func planningTools() []ToolCard {
 			PossibleErrors:  []string{"recipe_not_found", "precondition_failed"},
 			TimeoutSeconds:  60, WhenNotToUse: "Not for actual repair.",
 			RelatedTools:    []string{"agentlink.execute_recipe"},
-			QwenAutonomousOK: true, GemmaRecommendOK: true},
+			AutonomousAllowed: true, RecommendAllowed: true},
 		{ID: "agentlink.repair_plan_validate", Family: "planning",
 			Description:   "Validate a planner/brain JSON decision against the safety contract.",
 			Argv:          []string{"planner", "validate", "--json"},
@@ -290,7 +290,7 @@ func planningTools() []ToolCard {
 			PossibleErrors:  []string{"malformed_decision", "schema_violation"},
 			TimeoutSeconds:  20, WhenNotToUse: "Not execution.",
 			RelatedTools:    []string{"agentlink.recommend_recipes"},
-			QwenAutonomousOK: true, GemmaRecommendOK: false},
+			AutonomousAllowed: true, RecommendAllowed: false},
 		{ID: "agentlink.risk_score", Family: "planning",
 			Description:   "Return the deterministic risk class + confidence for a candidate recipe.",
 			Argv:          []string{"recipe", "inspect", "<recipe_id>", "--json"},
@@ -305,7 +305,7 @@ func planningTools() []ToolCard {
 			PossibleErrors:  []string{"recipe_not_found"},
 			TimeoutSeconds:  30, WhenNotToUse: "Not execution.",
 			RelatedTools:    []string{"agentlink.recipe_inspect"},
-			QwenAutonomousOK: true, GemmaRecommendOK: true},
+			AutonomousAllowed: true, RecommendAllowed: true},
 		{ID: "agentlink.approval_ticket_create", Family: "planning",
 			Description:   "Create a terminal repair ticket (.command) for a user-approved privileged repair. The USER runs it; the model never does.",
 			Argv:          []string{"ticket", "--type", "<ticket_type>"},
@@ -321,48 +321,86 @@ func planningTools() []ToolCard {
 			PossibleErrors:  []string{"unknown_ticket_type"},
 			TimeoutSeconds:  20, WhenNotToUse: "Do not auto-run the ticket; user approval is mandatory.",
 			RelatedTools:    []string{"agentlink.execute_recipe"},
-			HumanApproval:   true, QwenAutonomousOK: true, GemmaRecommendOK: true},
+			HumanApproval:   true, AutonomousAllowed: true, RecommendAllowed: true},
 	}
 }
 
+// RecipeBackedExecTools maps execution tool id -> the REAL recipe id it
+// runs. Asserted against the live recipe registry by W4 tests (no
+// dangling). CLI-backed execution tools (rollback/journal-recover/
+// last-good/package) are listed in CLIBackedExecTools.
+var RecipeBackedExecTools = map[string]string{
+	"agentlink.clean_stale_proxy_baseline": "proxy-clean-stale-env",
+	"agentlink.network_baseline_reset":     "macos-clean-network-baseline-reset",
+	"agentlink.remove_tun_residue":         "macos-clash-tun-force-repair",
+	"agentlink.clean_npm_git_proxy":        "npm-git-proxy-conflict-repair",
+}
+
+// CLIBackedExecTools maps execution tool id -> its real AgentLink
+// transactional subcommand argv (journal/snapshot-backed, not a recipe).
+var CLIBackedExecTools = map[string][]string{
+	"agentlink.restore_last_good":          {"last-good", "restore", "--json"},
+	"agentlink.rollback_last":              {"rollback", "--json"},
+	"agentlink.recover_interrupted_journal": {"journal", "recover", "--json"},
+	"agentlink.repair_package_runtime":     {"package", "repair", "--json"},
+}
+
+func execCard(id, desc string, argv []string, risk string, rollback bool) ToolCard {
+	return ToolCard{ID: id, Family: "execution", Description: desc, Argv: argv,
+		InputSchema: obj(map[string]any{"type": "object",
+			"required": []string{"confirmed_dry_run", "user_approved"},
+			"properties": obj(map[string]any{
+				"confirmed_dry_run": obj(map[string]any{"type": "boolean"}),
+				"user_approved":     obj(map[string]any{"type": "boolean"})})}),
+		OutputSchema:       jsonResult(),
+		RiskClass:          risk, MutationClass: MutationHostTxn,
+		DryRunSupported:    true, RollbackSupported: rollback,
+		RollbackImpossible: !rollback,
+		Preconditions: []string{"dry-run inspected first", "snapshot captured",
+			"user approval obtained", "incident class matches"},
+		Postconditions: []string{"post-verify passed OR automatic rollback",
+			"journal entry written"},
+		ExampleGoodCall: "after dry-run + approval: agentlink " + joinArgv(argv),
+		ExampleBadCall:  "agentlink " + joinArgv(argv) + " --yes  # raw --yes is never model-facing",
+		PossibleErrors: []string{"precondition_failed", "postverify_failed_rolled_back",
+			"timeout_safe_abort", "rollback_failed_fail_closed"},
+		TimeoutSeconds: 180,
+		WhenNotToUse:   "Never without a prior dry-run + explicit user approval.",
+		RelatedTools:   []string{"agentlink.recipe_dry_run", "agentlink.rollback_last"},
+		HumanApproval:  true, AutonomousAllowed: true, RecommendAllowed: false}
+}
+
 func executionTools() []ToolCard {
-	exec := func(id, desc, recipe string, risk string, rollback bool) ToolCard {
-		return ToolCard{ID: id, Family: "execution",
-			Description: desc,
-			Argv:        []string{"recipe", "run", recipe, "--via-envelope", "--json"},
-			InputSchema: obj(map[string]any{"type": "object",
-				"required": []string{"confirmed_dry_run", "user_approved"},
-				"properties": obj(map[string]any{
-					"confirmed_dry_run": obj(map[string]any{"type": "boolean"}),
-					"user_approved":     obj(map[string]any{"type": "boolean"})})}),
-			OutputSchema:      jsonResult(),
-			RiskClass:         risk, MutationClass: MutationHostTxn,
-			DryRunSupported:   true, RollbackSupported: rollback,
-			RollbackImpossible: !rollback,
-			Preconditions: []string{"dry-run inspected first", "snapshot captured",
-				"user approval obtained", "incident class matches recipe"},
-			Postconditions: []string{"post-verify passed OR automatic rollback",
-				"journal entry written"},
-			ExampleGoodCall: "after dry-run + approval: agentlink recipe run " + recipe + " --via-envelope --json",
-			ExampleBadCall:  "agentlink recipe run " + recipe + " --yes  # raw --yes is never model-facing",
-			PossibleErrors: []string{"precondition_failed", "postverify_failed_rolled_back",
-				"timeout_safe_abort", "rollback_failed_fail_closed"},
-			TimeoutSeconds: 180,
-			WhenNotToUse:   "Never without a prior dry-run + explicit user approval.",
-			RelatedTools:   []string{"agentlink.recipe_dry_run", "agentlink.rollback_last"},
-			HumanApproval:  true, QwenAutonomousOK: true, GemmaRecommendOK: false}
+	cards := []ToolCard{
+		execCard("agentlink.execute_recipe",
+			"Execute a named bounded repair recipe inside an AgentLink transaction envelope (snapshot→preflight→mutate→postverify→journal, auto-rollback on failure). recipe_id MUST come from agentlink.recipe_list.",
+			[]string{"recipe", "run", "<recipe_id>", "--via-envelope", "--json"}, RiskReversible, true),
+		execCard("agentlink.clean_stale_proxy_baseline",
+			"Clean stale shell proxy env residue (recipe proxy-clean-stale-env, reversible).",
+			[]string{"recipe", "run", "proxy-clean-stale-env", "--via-envelope", "--json"}, RiskReversible, true),
+		execCard("agentlink.network_baseline_reset",
+			"Reset macOS network to a clean baseline (recipe macos-clean-network-baseline-reset; PRIVILEGED, root — user-approved ticket).",
+			[]string{"recipe", "run", "macos-clean-network-baseline-reset", "--via-envelope", "--json"}, RiskPrivileged, true),
+		execCard("agentlink.remove_tun_residue",
+			"Force-repair stale Clash/TUN/route ownership residue (recipe macos-clash-tun-force-repair; PRIVILEGED).",
+			[]string{"recipe", "run", "macos-clash-tun-force-repair", "--via-envelope", "--json"}, RiskPrivileged, true),
+		execCard("agentlink.clean_npm_git_proxy",
+			"Resolve npm/git proxy conflict residue (recipe npm-git-proxy-conflict-repair, reversible).",
+			[]string{"recipe", "run", "npm-git-proxy-conflict-repair", "--via-envelope", "--json"}, RiskReversible, true),
+		execCard("agentlink.restore_last_good",
+			"Restore the last-good saved network profile (AgentLink transactional restore).",
+			CLIBackedExecTools["agentlink.restore_last_good"], RiskNetwork, true),
+		execCard("agentlink.rollback_last",
+			"Roll back the last AgentLink transaction from the durable journal.",
+			CLIBackedExecTools["agentlink.rollback_last"], RiskReversible, true),
+		execCard("agentlink.recover_interrupted_journal",
+			"Recover an interrupted repair journal to a consistent state (journal-driven).",
+			CLIBackedExecTools["agentlink.recover_interrupted_journal"], RiskReversible, true),
+		execCard("agentlink.repair_package_runtime",
+			"Repair AgentLink package/runtime integrity (package doctor→repair).",
+			CLIBackedExecTools["agentlink.repair_package_runtime"], RiskSafePatch, true),
 	}
-	return []ToolCard{
-		exec("agentlink.execute_recipe", "Execute a named bounded repair recipe inside an AgentLink transaction envelope (snapshot→preflight→mutate→postverify→journal, auto-rollback on failure). Generic typed executor.", "<recipe_id>", RiskReversible, true),
-		exec("agentlink.clean_stale_proxy_baseline", "Clean stale proxy env/baseline residue via the audited recipe.", "proxy-clean-stale-env", RiskReversible, true),
-		exec("agentlink.repair_dns_baseline", "Restore a sane DNS resolver baseline via the audited recipe.", "dns-resolver-baseline", RiskReversible, true),
-		exec("agentlink.remove_tun_residue", "Remove stale TUN/VPN route+interface residue via the audited recipe.", "tun-residue-clean", RiskNetwork, true),
-		exec("agentlink.restore_last_good", "Restore the last-good network profile via the audited recipe.", "restore-last-good", RiskNetwork, true),
-		exec("agentlink.clean_app_residue", "Clean local proxy-app residue (no vendor choice) via the audited recipe.", "app-residue-clean", RiskReversible, true),
-		exec("agentlink.repair_package_runtime", "Repair AgentLink package/runtime state via the audited recipe.", "package-runtime-repair", RiskSafePatch, true),
-		exec("agentlink.recover_interrupted_journal", "Recover an interrupted repair journal to a consistent state.", "journal-recover", RiskReversible, true),
-		exec("agentlink.rollback_last", "Roll back the last AgentLink transaction from the journal.", "rollback-last", RiskReversible, true),
-	}
+	return cards
 }
 
 func reportingTools() []ToolCard {
@@ -377,7 +415,7 @@ func reportingTools() []ToolCard {
 			PossibleErrors:  []string{"no_session", "timeout"},
 			TimeoutSeconds:  45, WhenNotToUse: "Not execution.",
 			RelatedTools:    []string{"agentlink.support_bundle_redacted"},
-			QwenAutonomousOK: true, GemmaRecommendOK: gemma}
+			AutonomousAllowed: true, RecommendAllowed: gemma}
 	}
 	return []ToolCard{
 		rep("agentlink.incident_report", "Generate a structured incident report (human or codex form).", []string{"report", "--for-human"}, true),
@@ -454,7 +492,7 @@ func Validate(m Manifest) []string {
 			add(t.ID, "missing whenNotToUse")
 		}
 		// Safety invariants: host-mutating tools MUST require approval,
-		// support dry-run, and NOT be Gemma-autonomous-executable.
+		// support dry-run, and NOT be recommend-edition executable.
 		if t.MutationClass == MutationHostTxn {
 			if !t.HumanApproval {
 				add(t.ID, "host_txn tool must require human approval")
@@ -462,8 +500,8 @@ func Validate(m Manifest) []string {
 			if !t.DryRunSupported {
 				add(t.ID, "host_txn tool must support dry-run")
 			}
-			if t.GemmaRecommendOK {
-				add(t.ID, "host_txn execution must NOT be Gemma-allowed (recommend-only)")
+			if t.RecommendAllowed {
+				add(t.ID, "host_txn execution must NOT be recommend-edition allowed (recommend-only)")
 			}
 			if !t.RollbackSupported && !t.RollbackImpossible {
 				add(t.ID, "host_txn tool must declare rollback support or impossibility")
