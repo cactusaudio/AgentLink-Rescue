@@ -138,6 +138,8 @@ func Main(args []string, stdout io.Writer, stderr io.Writer) int {
 		return runReport(ctx, runner, args[1:], stdout, stderr)
 	case "selftest":
 		return runSelftest(stdout, stderr)
+	case "manifest":
+		return runManifest(args[1:], stdout, stderr)
 	case "version":
 		fmt.Fprintf(stdout, "agentlink %s\n", system.Version)
 		return 0
