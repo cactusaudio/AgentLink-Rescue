@@ -97,6 +97,15 @@ func (b LlamaCLIBackend) Generate(ctx context.Context, req BrainRequest) (BrainR
 	if req.MaxTokens <= 0 {
 		req.MaxTokens = manifest.DefaultMaxTokens
 	}
+	// Opt-in override: Gemma 4 E4B is a reasoning model ("[Start
+	// thinking]…"); the 1024 default can truncate it mid-reasoning
+	// before it emits the answer. Zero default-behavior change — only
+	// honored when explicitly set (e.g. the Tier-A recommender harness).
+	if v := os.Getenv("AGENTLINK_BRAIN_MAX_TOKENS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 8192 {
+			req.MaxTokens = n
+		}
+	}
 	if req.ContextSize <= 0 {
 		req.ContextSize = manifest.DefaultContext
 	}
@@ -121,7 +130,10 @@ func (b LlamaCLIBackend) Generate(ctx context.Context, req BrainRequest) (BrainR
 		raw += "\n" + safety.RedactSensitive(res.Stderr)
 	}
 	out := BrainResponse{
-		RawText:      raw,
+		RawText: raw,
+		// answer-isolated: strip the llama-cli banner/preamble + trailing
+		// chrome (raw is already RedactSensitive'd above).
+		Answer:       stripLlamaTrailer(stripLlamaBanner(llamaAssistantOutput(raw))),
 		DurationMs:   time.Since(start).Milliseconds(),
 		Backend:      b.Name(),
 		ModelPath:    avail.ModelPath,
@@ -148,6 +160,61 @@ func llamaAssistantOutput(raw string) string {
 	return raw
 }
 
+// stripLlamaTrailer removes llama-cli's trailing chrome (perf line,
+// Exiting..., llama_perf, [end of text], Gemma <end_of_turn>) so an
+// answer-isolated consumer sees ONLY the model generation. Cuts at the
+// earliest trailing marker. Used for BrainResponse.Answer.
+func stripLlamaTrailer(s string) string {
+	for _, m := range []string{
+		"<end_of_turn>", "[ Prompt:", "\n[ Prompt", "[end of text]",
+		"\nExiting...", "Exiting...", "\nllama_perf", "llama_perf_",
+	} {
+		if i := strings.Index(s, m); i >= 0 {
+			s = s[:i]
+		}
+	}
+	return strings.TrimSpace(s)
+}
+
+// stripLlamaBanner is the FALLBACK for when the Gemma turn marker is
+// absent (large prompts / truncated format) and llamaAssistantOutput
+// returned raw-with-banner. It drops leading llama-cli banner/system
+// lines until the first line of real model content. Banner lines are
+// deterministic chrome; a rescue answer (agentlink.* / 中文 / "recommend")
+// never matches these patterns, so real text is preserved.
+func stripLlamaBanner(s string) string {
+	bannerish := func(ln string) bool {
+		t := strings.TrimSpace(ln)
+		if t == "" {
+			return true
+		}
+		// pure box-drawing / ascii-art line
+		nonArt := strings.TrimLeft(t, "▄▀█ \t")
+		if nonArt == "" {
+			return true
+		}
+		for _, p := range []string{
+			"Loading model", "build      :", "build :", "model      :",
+			"model :", "modalities :", "main:", "system info", "system_info",
+			"available commands", "/exit", "/regen", "/help", "/clear",
+			"llama_", "ggml_", "register_backend", "load:", "print_info",
+			"common_init", "sampler", "generate:", "srv ", "warming up",
+			"build:", "n_ctx", "init:", "<start_of_turn>", "<bos>",
+		} {
+			if strings.HasPrefix(t, p) || strings.Contains(t, p) {
+				return true
+			}
+		}
+		return false
+	}
+	lines := strings.Split(s, "\n")
+	i := 0
+	for i < len(lines) && bannerish(lines[i]) {
+		i++
+	}
+	return strings.TrimSpace(strings.Join(lines[i:], "\n"))
+}
+
 func LlamaCLIArgs(modelPath, prompt string, maxTokens, contextSize int, temperature float64) []string {
 	return []string{
 		"-m", modelPath,
@@ -155,9 +222,19 @@ func LlamaCLIArgs(modelPath, prompt string, maxTokens, contextSize int, temperat
 		"-n", strconv.Itoa(maxTokens),
 		"-c", strconv.Itoa(contextSize),
 		"--temp", strconv.FormatFloat(temperature, 'f', -1, 64),
+		// -no-cnv: one-shot completion. Without it llama-cli runs in
+		// interactive CONVERSATION mode — prints the REPL banner, echoes
+		// the prompt, and emits no stable <start_of_turn>model marker, so
+		// answer-isolation leaks the banner + echoed prompt (incl. any
+		// sentinels) and truncates the model's real answer. This is the
+		// true source of the v0.3.x Gemma answer-isolation fragility:
+		// fix it at the backend so the Tier-A recommender surface is
+		// clean for the product, not just for harnesses.
+		"-no-cnv",
 		"-st",
 		"--no-display-prompt",
 		"--simple-io",
+		"--no-warmup",
 	}
 }
 

@@ -1179,10 +1179,17 @@ func runBrain(ctx context.Context, runner command.Runner, rulesDir string, args 
 			return 30
 		}
 		if *jsonOut {
+			// resp now carries answer-isolated `answer` (banner stripped)
 			data, _ := json.MarshalIndent(resp, "", "  ")
 			fmt.Fprintln(stdout, string(data))
 		} else {
-			fmt.Fprint(stdout, resp.RawText)
+			// emit the model answer ONLY (banner-free); fall back to
+			// RawText only if extraction yielded nothing.
+			if strings.TrimSpace(resp.Answer) != "" {
+				fmt.Fprintln(stdout, resp.Answer)
+			} else {
+				fmt.Fprint(stdout, resp.RawText)
+			}
 		}
 		return 0
 	case "chat":

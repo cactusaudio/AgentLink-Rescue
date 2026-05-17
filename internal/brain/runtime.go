@@ -48,7 +48,13 @@ type BrainRequest struct {
 }
 
 type BrainResponse struct {
-	RawText       string `json:"rawText"`
+	RawText string `json:"rawText"`
+	// Answer is the model generation ONLY (llama-cli banner/preamble +
+	// trailing perf/exit chrome stripped via the same llamaAssistantOutput
+	// extractor `brain chat` uses, then redacted). Answer-isolated
+	// consumers MUST use this, not RawText (RawText carries the banner —
+	// the v0.3.0 transcript-level caveat root cause).
+	Answer        string `json:"answer"`
 	ExtractedJSON string `json:"extractedJSON,omitempty"`
 	DurationMs    int64  `json:"durationMs"`
 	Backend       string `json:"backend"`
