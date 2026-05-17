@@ -6,14 +6,15 @@
     "profile": "gemma-4-e4b-it-q4km",
     "path": "assets/models/gemma-4-E4B-it-Q4_K_M.gguf",
     "filename": "gemma-4-E4B-it-Q4_K_M.gguf",
-    "sha256": "dff0ffba4c90b4082d70214d53ce9504a28d4d8d998276dcb3b8881a656c742a",
-    "sizeBytes": 4977169088
+    "sha256": "519b9793ed6ce0ff530f1b7c96e848e08e49e7af4d57bb97f76215963a54146d",
+    "sizeBytes": 4977169568,
+    "provenance": "HF unsloth/gemma-4-E4B-it-GGUF (AgentLink-canonical URL); downloaded+verified 2026-05-17; clean (NOT the cracked T7 Gemma-4-31B); weights on /Volumes/T7 4T/AI Models, never in git"
   },
   "runtime": {
     "backend": "llama.cpp",
     "path": "assets/runtimes/llama.cpp/arm64/llama-cli",
     "binary": "llama-cli",
-    "sha256": "88503cd788dbd304a01c9cbfebb8c17ed9c7f84acb69c7547d0db653f531055e",
+    "sha256": "75213daa54de675616f917814b1f5ec5c02ad532c2a2ac9b62ef8f2691acd8b5",
     "arch": "arm64"
   }
 }
