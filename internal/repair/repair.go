@@ -143,6 +143,18 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 	pre := engine.Run(ctx)
 	classify.Apply(&pre)
 	result.Preflight = append([]string(nil), pre.Classifications...)
+	if protectedTopologyBoundary(pre) {
+		result.Warnings = append(result.Warnings, "protected topology repair boundary detected; refusing mutating rescue to preserve protected interfaces/services")
+		if opts.DryRun {
+			result.ExitCode = 0
+			result.Status = "protected_topology_report_only"
+			return result
+		}
+		result.ExitCode = 50
+		result.Status = "protected_topology_refused"
+		result.Error = "protected topology repair boundary detected; use a support bundle / incident report before any route, DHCP, proxy, TUN, clean-baseline, or VLAN mutation"
+		return result
+	}
 	planned := plannedActions(opts.Level, pre)
 
 	if opts.DryRun {
@@ -310,6 +322,9 @@ func validLevel(level string) bool {
 
 func plannedActions(level string, pre diagnose.DiagnosticReport) []ActionResult {
 	var out []ActionResult
+	if protectedTopologyBoundary(pre) {
+		return out
+	}
 	if level == LevelTun {
 		for _, a := range buildTunPreActions(pre) {
 			out = append(out, dryAction(a))
@@ -358,6 +373,9 @@ func shellQuote(s string) string {
 }
 
 func buildActions(level string, pre diagnose.DiagnosticReport) []action {
+	if protectedTopologyBoundary(pre) {
+		return nil
+	}
 	if level == LevelTun {
 		return buildTunActions(pre)
 	}
@@ -439,6 +457,18 @@ func buildTunActions(pre diagnose.DiagnosticReport) []action {
 	actions := append([]action{}, buildTunPreActions(pre)...)
 	actions = append(actions, buildTunPostActions(pre)...)
 	return actions
+}
+
+func protectedTopologyBoundary(report diagnose.DiagnosticReport) bool {
+	if !diagnose.RepairCorridorAllowsMutation(report) {
+		return true
+	}
+	for _, class := range report.Classifications {
+		if class == classify.ProtectedAudioVLANRouteTrap || class == classify.ProtectedTopologyConstraint {
+			return true
+		}
+	}
+	return false
 }
 
 func buildCleanBaselineActions(pre diagnose.DiagnosticReport) []action {

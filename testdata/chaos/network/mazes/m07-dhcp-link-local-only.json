@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "maze-m07-dhcp-link-local-only",
+  "category": "network-maze",
+  "description": "Wi-Fi is active but only has a 169.254 address and no DHCP lease.",
+  "diagnostic": {
+    "schemaVersion": 1,
+    "network": {
+      "hardwarePorts": [{"port": "Wi-Fi", "device": "en0"}],
+      "interfaces": [{"name": "en0", "status": "active", "ipv4": ["169.254.8.12"], "linkLocalOnly": true}],
+      "defaultRoute": {"present": false},
+      "dhcp": [{"device": "en0", "ipv4": "169.254.8.12", "hasLease": false, "linkLocalOnly": true}],
+      "proxySummary": {"dirty": false}
+    },
+    "reachability": {
+      "gateway": {"target": "", "ok": false},
+      "rawIPs": {"1.1.1.1": {"target": "1.1.1.1", "ok": false}},
+      "dnsNames": {"www.baidu.com": {"target": "www.baidu.com", "ok": false}},
+      "httpsTargets": {"https://www.baidu.com": {"target": "https://www.baidu.com", "ok": false}},
+      "agentTargets": {}
+    }
+  },
+  "expected": {
+    "failureClass": "LINK_LOCAL_ONLY",
+    "recommendedRepairLevel": "standard"
+  }
+}

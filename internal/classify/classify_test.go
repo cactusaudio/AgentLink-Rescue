@@ -139,6 +139,86 @@ func TestDefaultRouteHardwareWithRoutableIPAndNoStatusIsConnected(t *testing.T) 
 	}
 }
 
+func TestProtectedAudioVLANRouteTrap(t *testing.T) {
+	r := healthyReport()
+	r.Network.DefaultRoute = diagnose.DefaultRoute{Present: true, Gateway: "192.168.0.1", Interface: "en0"}
+	r.Network.HardwarePorts = []diagnose.HardwarePort{
+		{Port: "Ethernet", Device: "en0"},
+		{Port: "USB LAN", Device: "en1"},
+	}
+	r.Network.Interfaces = []diagnose.NetworkInterface{
+		{Name: "en0", Status: "active", IPv4: []string{"192.168.0.103"}},
+		{Name: "en1", Status: "active", IPv4: []string{"192.168.0.104"}},
+		{Name: "utun4", Status: "active", IPv4: []string{"198.18.0.1"}, IsUTun: true},
+	}
+	r.Reachability.Gateway = diagnose.ProbeResult{Target: "192.168.0.1", OK: false}
+	r.Reachability.RawIPs = map[string]diagnose.ProbeResult{"1.1.1.1": {Target: "1.1.1.1", OK: false}}
+	r.Reachability.DNSNames = map[string]diagnose.ProbeResult{"apple.com": {Target: "apple.com", OK: false}}
+	r.Reachability.HTTPSTargets = map[string]diagnose.ProbeResult{"https://www.apple.com/": {Target: "https://www.apple.com/", OK: false}}
+	r.Raw = map[string]string{
+		"protectedInterface.en0": "en0 is Mac built-in Ethernet on Cisco gi5 VLAN2 DANTE_AUDIO for Dante Virtual Soundcard",
+		"audio.mdns":             "_netaudio-arc and _netaudio-cmc records for MTRXst-03317b are on en0",
+	}
+	classes := Classify(r)
+	if !has(classes, ProtectedAudioVLANRouteTrap) {
+		t.Fatalf("missing protected route trap: %v", classes)
+	}
+	if got := RecommendedRepairLevel(classes); got != "safe" {
+		t.Fatalf("level=%s classes=%v", got, classes)
+	}
+}
+
+func TestProtectedAudioVLANRouteTrapFromStructuredTopologyWithoutRaw(t *testing.T) {
+	r := protectedRouteTrapBase()
+	r.Raw = nil
+	r.Topology.Interfaces = []diagnose.TopologyInterface{{
+		Name:           "en0",
+		Roles:          []string{"protected_media"},
+		RoleEvidence:   []string{"AES67 / RAVENNA audio VLAN"},
+		RoleConfidence: 0.9,
+		Protected:      true,
+	}}
+	classes := Classify(r)
+	if !has(classes, ProtectedAudioVLANRouteTrap) {
+		t.Fatalf("structured topology did not protect route trap: %v topology=%+v", classes, r.Topology)
+	}
+	if has(classes, ClashTunActiveOrStale) {
+		t.Fatalf("TUN should be red herring under protected topology: %v", classes)
+	}
+}
+
+func TestUnboundRawAudioSignalDoesNotCreateProtectedTrap(t *testing.T) {
+	r := protectedRouteTrapBase()
+	r.Raw = map[string]string{
+		"route.en0":   "default route interface en0 gateway 192.168.0.1 unreachable",
+		"audio.en3":   "Dante Virtual Soundcard appears on unrelated en3 lab network",
+		"notes.en999": "MTRX text that is not bound to en0",
+	}
+	classes := Classify(r)
+	if has(classes, ProtectedAudioVLANRouteTrap) || has(classes, ProtectedTopologyConstraint) {
+		t.Fatalf("unbound raw signal false-positive protected topology: %v", classes)
+	}
+}
+
+func protectedRouteTrapBase() diagnose.DiagnosticReport {
+	r := healthyReport()
+	r.Network.DefaultRoute = diagnose.DefaultRoute{Present: true, Gateway: "192.168.0.1", Interface: "en0"}
+	r.Network.HardwarePorts = []diagnose.HardwarePort{
+		{Port: "Ethernet", Device: "en0"},
+		{Port: "USB LAN", Device: "en1"},
+	}
+	r.Network.Interfaces = []diagnose.NetworkInterface{
+		{Name: "en0", Status: "active", IPv4: []string{"192.168.0.103"}},
+		{Name: "en1", Status: "active", IPv4: []string{"192.168.0.104"}},
+		{Name: "utun4", Status: "active", IPv4: []string{"198.18.0.1"}, IsUTun: true},
+	}
+	r.Reachability.Gateway = diagnose.ProbeResult{Target: "192.168.0.1", OK: false}
+	r.Reachability.RawIPs = map[string]diagnose.ProbeResult{"1.1.1.1": {Target: "1.1.1.1", OK: false}}
+	r.Reachability.DNSNames = map[string]diagnose.ProbeResult{"apple.com": {Target: "apple.com", OK: false}}
+	r.Reachability.HTTPSTargets = map[string]diagnose.ProbeResult{"https://www.apple.com/": {Target: "https://www.apple.com/", OK: false}}
+	return r
+}
+
 func healthyReport() diagnose.DiagnosticReport {
 	return diagnose.DiagnosticReport{
 		Network: diagnose.NetworkInfo{

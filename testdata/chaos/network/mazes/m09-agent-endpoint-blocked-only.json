@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "maze-m09-agent-endpoint-blocked-only",
+  "category": "network-maze",
+  "description": "General internet works but AI/tooling endpoints are blocked or filtered.",
+  "diagnostic": {
+    "schemaVersion": 1,
+    "network": {
+      "hardwarePorts": [{"port": "Wi-Fi", "device": "en0"}],
+      "interfaces": [{"name": "en0", "status": "active", "ipv4": ["192.168.1.24"]}],
+      "defaultRoute": {"present": true, "gateway": "192.168.1.1", "interface": "en0"},
+      "proxySummary": {"dirty": false}
+    },
+    "reachability": {
+      "gateway": {"target": "192.168.1.1", "ok": true},
+      "rawIPs": {"1.1.1.1": {"target": "1.1.1.1", "ok": true}},
+      "dnsNames": {"www.baidu.com": {"target": "www.baidu.com", "ok": true}},
+      "httpsTargets": {"https://www.baidu.com": {"target": "https://www.baidu.com", "ok": true}},
+      "agentTargets": {"https://api.openai.com": {"target": "https://api.openai.com", "ok": false, "httpStatus": "403"}}
+    }
+  },
+  "expected": {
+    "failureClass": "GENERAL_INTERNET_OK_AGENT_ENDPOINT_BLOCKED",
+    "recommendedRepairLevel": "none"
+  }
+}

@@ -37,18 +37,22 @@ type ToolRef struct {
 }
 
 type Graph struct {
-	SchemaVersion        int          `json:"schemaVersion"`
-	Note                 string       `json:"note"`
-	PrimaryClass         string       `json:"primaryClass"`
-	FailureClasses       []string     `json:"failureClasses"`
-	Confidence           float64      `json:"confidence"`
-	Symptoms             []string     `json:"symptoms"`
-	Facts                []FactBullet `json:"facts"`
-	Checks               []Check      `json:"checks"`
-	RecommendedNextTools []ToolRef    `json:"recommendedNextTools"`
-	ForbiddenNextTools   []string     `json:"forbiddenNextTools"`
-	Reasons              []string     `json:"reasons"`
-	Redacted             bool         `json:"redacted"`
+	SchemaVersion        int                           `json:"schemaVersion"`
+	Note                 string                        `json:"note"`
+	PrimaryClass         string                        `json:"primaryClass"`
+	FailureClasses       []string                      `json:"failureClasses"`
+	Confidence           float64                       `json:"confidence"`
+	Symptoms             []string                      `json:"symptoms"`
+	Facts                []FactBullet                  `json:"facts"`
+	Checks               []Check                       `json:"checks"`
+	RecommendedNextTools []ToolRef                     `json:"recommendedNextTools"`
+	ForbiddenNextTools   []string                      `json:"forbiddenNextTools"`
+	RootCauseCandidates  []diagnose.TopologyCandidate  `json:"rootCauseCandidates,omitempty"`
+	ProtectedConstraints []diagnose.TopologyConstraint `json:"protectedConstraints,omitempty"`
+	RedHerrings          []diagnose.TopologyRedHerring `json:"redHerrings,omitempty"`
+	RepairCorridor       diagnose.RepairCorridor       `json:"repairCorridor,omitempty"`
+	Reasons              []string                      `json:"reasons"`
+	Redacted             bool                          `json:"redacted"`
 }
 
 const note = "Compact diagnosis graph. Decide ONLY from this evidence. " +
@@ -92,6 +96,12 @@ var classRoute = map[string][]ToolRef{
 		{"agentlink.verify_network", "confirm gateway unreachable"}},
 	classify.MDMProfileSuspected: {{"agentlink.app_residue_snapshot", "inspect profiles (detect-only)"},
 		{"agentlink.incident_report", "report; profile changes need user/admin"}},
+	classify.ProtectedAudioVLANRouteTrap: {{"agentlink.route_snapshot", "inspect route/interface ownership"},
+		{"agentlink.network_snapshot", "confirm alternate path and protected audio interface"},
+		{"agentlink.incident_report", "report protected-audio route trap; no broad network reset"}},
+	classify.ProtectedTopologyConstraint: {{"agentlink.route_snapshot", "inspect route/interface ownership"},
+		{"agentlink.network_snapshot", "confirm protected topology constraints"},
+		{"agentlink.incident_report", "report protected topology boundary; no broad network reset"}},
 	classify.OK: {{"agentlink.verify_network", "confirm healthy; no repair needed"}},
 }
 
@@ -112,17 +122,12 @@ func rd(redact bool, s string) string {
 // Build is the pure projection. If redact is true (default in product
 // use) all free-text is run through safety.RedactSensitive.
 func Build(r diagnose.DiagnosticReport, redact bool) Graph {
+	diagnose.AnalyzeTopology(&r)
 	classes := r.Classifications
 	if len(classes) == 0 {
 		classes = classify.Classify(r)
 	}
-	primary := classify.OK
-	for _, c := range classes {
-		if c != classify.OK {
-			primary = c
-			break
-		}
-	}
+	primary := primaryClass(classes)
 	if len(classes) == 0 {
 		primary = ""
 	}
@@ -155,6 +160,9 @@ func Build(r diagnose.DiagnosticReport, redact bool) Graph {
 		{"proxyDirty", boolStr(net.ProxySummary.Dirty), boolSig(!net.ProxySummary.Dirty)},
 		{"utunInterfaces", itoa(utun), boolSig(utun == 0)},
 		{"residueItems", itoa(resTotal), boolSig(resTotal == 0)},
+		{"defaultRouteInterface", rd(redact, net.DefaultRoute.Interface), ""},
+		{"protectedConstraints", itoa(len(r.Topology.ProtectedConstraints)), boolSig(len(r.Topology.ProtectedConstraints) == 0)},
+		{"repairMutationAllowed", boolStr(r.Topology.RepairCorridor.MutationAllowed), boolSig(r.Topology.RepairCorridor.MutationAllowed || len(r.Topology.ProtectedConstraints) == 0)},
 		{"recommendedRepairLevel", rd(redact, r.RecommendedRepairLevel), ""},
 	}
 	checks := []Check{
@@ -209,6 +217,9 @@ func Build(r diagnose.DiagnosticReport, redact bool) Graph {
 		reasons = append(reasons, "no deterministic failure class; stay read-only and gather more evidence")
 	} else if primary == classify.OK {
 		reasons = append(reasons, "network healthy by deterministic checks; recommend no repair")
+	} else if primary == classify.ProtectedAudioVLANRouteTrap || primary == classify.ProtectedTopologyConstraint {
+		reasons = append(reasons, "protected topology constraint; stay read-only and preserve protected interfaces/services")
+		reasons = append(reasons, "do not run TUN cleanup, DHCP renew, route flush, proxy reset, clean baseline, or switch/VLAN mutation")
 	} else {
 		reasons = append(reasons, "primary class "+primary+" routed to bounded AgentLink recipe path")
 		reasons = append(reasons, "execution requires dry-run + user approval; rollback captured by envelope")
@@ -224,14 +235,45 @@ func Build(r diagnose.DiagnosticReport, redact bool) Graph {
 		}
 	}
 	forb = append(forb, "RAW: "+joinStr(toolmanifest.ForbiddenRawSurfaces)+" (never model-facing)")
+	for _, f := range r.Topology.RepairCorridor.GlobalForbidden {
+		forb = append(forb, "CORRIDOR: "+f)
+	}
 
 	return Graph{
 		SchemaVersion: 1, Note: note,
 		PrimaryClass: primary, FailureClasses: classes, Confidence: conf,
 		Symptoms: symptoms, Facts: facts, Checks: checks,
 		RecommendedNextTools: rec, ForbiddenNextTools: forb,
-		Reasons: reasons, Redacted: redact,
+		RootCauseCandidates:  r.Topology.RootCauseCandidates,
+		ProtectedConstraints: r.Topology.ProtectedConstraints,
+		RedHerrings:          r.Topology.RedHerrings,
+		RepairCorridor:       r.Topology.RepairCorridor,
+		Reasons:              reasons, Redacted: redact,
 	}
+}
+
+func primaryClass(classes []string) string {
+	if containsClass(classes, classify.ProtectedAudioVLANRouteTrap) {
+		return classify.ProtectedAudioVLANRouteTrap
+	}
+	if containsClass(classes, classify.ProtectedTopologyConstraint) {
+		return classify.ProtectedTopologyConstraint
+	}
+	for _, c := range classes {
+		if c != classify.OK {
+			return c
+		}
+	}
+	return classify.OK
+}
+
+func containsClass(classes []string, target string) bool {
+	for _, c := range classes {
+		if c == target {
+			return true
+		}
+	}
+	return false
 }
 
 func min(a, b int) int {

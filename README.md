@@ -26,6 +26,7 @@ This is not a generic network reset tool and not a cleanup app.
 - Runs bounded JSON recipes with snapshot-first mutation and verifier-driven repair.
 - Runs optional local Gemma 4 E4B planning through `llama-cli`.
 - Validates Brain planner JSON before dry-run or execution.
+- Preserves protected local topologies such as Dante/AES67, NDI/video, ATEM/PTZ, Art-Net/sACN, NAS/iSCSI, lab/PLC, VM bridge, USB management, and MDM/policy-owned networks by turning them into deterministic repair-corridor boundaries.
 - Runs Guided Rescue as a bounded CLI workflow for non-developer users.
 - Runs the v0.5 Rescue Orchestrator for network/TUN failures with Terminal repair tickets.
 - Provides a native macOS GUI rescue operator as a thin wrapper around the CLI: one main Fix button, clear diagnosis/progress, support bundle export, and Developer Mode for expert tools.
@@ -75,6 +76,7 @@ This is not a generic network reset tool and not a cleanup app.
 - Credentials in URLs, proxy env vars, git/npm/brew configs, and command logs are redacted.
 - Command execution has timeouts and capped stdout/stderr so the GUI cannot hang indefinitely on large output.
 - Mutating repairs write a durable journal under the user Application Support directory before mutation and update it through checkpoint, mutation, verification, rollback, and final status.
+- Protected topology constraints force report-only behavior until route/interface ownership is proven; models and GUI surfaces cannot relax that boundary.
 - Private keys, Wi-Fi passwords, browser cookies, and shell history are not collected.
 
 ## CLI Usage
@@ -162,6 +164,8 @@ sudo ./bin/agentlink rollback --last
 `standard-system-reset` requires `--yes`. It is the explicit broad clean-location / route-flush / all-service DHCP reset path and is not the default for Clash/TUN signatures.
 
 `deep` requires `--yes`. It includes safe and standard repair, quarantines eligible known residue, backs up selected network configuration plists, removes them by moving them into the restore point quarantine, and recommends reboot.
+
+Protected topology note: if AgentLink detects a protected topology constraint, mutating rescue levels are refused and the next action is route/network snapshot, support bundle, or incident report. See `docs/offline/PROTECTED_TOPOLOGY_SAFETY.md`.
 
 ## Build
 

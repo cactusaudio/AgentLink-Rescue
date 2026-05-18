@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "maze-m05-https-only-captive-portal",
+  "category": "network-maze",
+  "description": "Gateway, raw IP, and DNS are reachable but HTTPS fails, matching captive portal or TLS interception symptoms.",
+  "diagnostic": {
+    "schemaVersion": 1,
+    "network": {
+      "hardwarePorts": [{"port": "Wi-Fi", "device": "en0"}],
+      "interfaces": [{"name": "en0", "status": "active", "ipv4": ["10.0.0.42"]}],
+      "defaultRoute": {"present": true, "gateway": "10.0.0.1", "interface": "en0"},
+      "proxySummary": {"dirty": false}
+    },
+    "reachability": {
+      "gateway": {"target": "10.0.0.1", "ok": true},
+      "rawIPs": {"1.1.1.1": {"target": "1.1.1.1", "ok": true}},
+      "dnsNames": {"www.baidu.com": {"target": "www.baidu.com", "ok": true}},
+      "httpsTargets": {"https://www.baidu.com": {"target": "https://www.baidu.com", "ok": false, "error": "TLS handshake timeout"}},
+      "agentTargets": {}
+    }
+  },
+  "expected": {
+    "failureClass": "HTTPS_FAIL",
+    "recommendedRepairLevel": "safe"
+  }
+}

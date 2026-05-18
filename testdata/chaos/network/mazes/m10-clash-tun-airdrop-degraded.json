@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "id": "maze-m10-clash-tun-airdrop-degraded",
+  "category": "network-maze",
+  "description": "Stale Clash/Mihomo TUN owns the default route and AirDrop discovery is degraded.",
+  "diagnostic": {
+    "schemaVersion": 1,
+    "network": {
+      "hardwarePorts": [{"port": "Wi-Fi", "device": "en0"}],
+      "interfaces": [
+        {"name": "en0", "status": "active", "ipv4": ["192.168.1.25"]},
+        {"name": "awdl0", "status": "inactive"},
+        {"name": "utun3", "status": "active", "ipv4": ["198.18.0.1"], "ipv6": ["fdfe:dcba:9876::1"], "isUTun": true}
+      ],
+      "defaultRoute": {"present": true, "gateway": "198.18.0.1", "interface": "utun3"},
+      "proxySummary": {"dirty": false}
+    },
+    "reachability": {
+      "gateway": {"target": "198.18.0.1", "ok": false},
+      "rawIPs": {"1.1.1.1": {"target": "1.1.1.1", "ok": false}},
+      "dnsNames": {"www.baidu.com": {"target": "www.baidu.com", "ok": false}},
+      "httpsTargets": {"https://www.baidu.com": {"target": "https://www.baidu.com", "ok": false}},
+      "agentTargets": {}
+    },
+    "residues": {
+      "launchAgents": [{
+        "ruleId": "io.github.clash-verge-rev.clash-verge-rev",
+        "displayName": "Clash Verge Rev LaunchAgent",
+        "risk": "network_proxy_tun_residue",
+        "path": "/Users/test/Library/LaunchAgents/io.github.clash-verge-rev.clash-verge-rev.plist",
+        "kind": "launchAgent",
+        "autoQuarantineAllowed": true
+      }]
+    }
+  },
+  "expected": {
+    "failureClass": "CLASH_TUN_ACTIVE_OR_STALE",
+    "recommendedRepair": "tun",
+    "recommendedRepairLevel": "tun"
+  }
+}

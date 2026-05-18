@@ -23,7 +23,7 @@ struct MainWindow: View {
                 case .settings: SettingsView()
                 }
             }
-            .navigationTitle(state.page.rawValue)
+            .navigationTitle(state.page == .dashboard ? "Rescue" : state.page.rawValue)
         }
         .sheet(isPresented: $state.brainSandboxPresented) {
             BrainSandboxView()
@@ -42,23 +42,15 @@ struct SidebarView: View {
         List(selection: $state.page) {
             Section("Main") {
                 ForEach(mainPages) { page in
-                    Label(page.rawValue, systemImage: icon(for: page))
+                    Label(title(for: page), systemImage: icon(for: page))
                         .tag(page)
                 }
             }
             if state.developerModeEnabled {
                 Section("Developer Mode") {
                     ForEach(developerPages) { page in
-                        Label(page.rawValue, systemImage: icon(for: page))
+                        Label(title(for: page), systemImage: icon(for: page))
                             .tag(page)
-                    }
-                }
-            } else {
-                Section {
-                    Button {
-                        state.page = .settings
-                    } label: {
-                        Label("Enable Developer Mode in Settings", systemImage: "slider.horizontal.3")
                     }
                 }
             }
@@ -71,9 +63,16 @@ struct SidebarView: View {
         }
     }
 
+    private func title(for page: RescuePage) -> String {
+        switch page {
+        case .dashboard: return "Rescue"
+        default: return page.rawValue
+        }
+    }
+
     private func icon(for page: RescuePage) -> String {
         switch page {
-        case .dashboard: return "gauge.with.dots.needle.50percent"
+        case .dashboard: return "lifepreserver"
         case .guided: return "sparkles.rectangle.stack"
         case .installer: return "square.and.arrow.down.on.square"
         case .readiness: return "checklist.checked"

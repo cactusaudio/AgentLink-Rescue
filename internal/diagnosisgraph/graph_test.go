@@ -72,6 +72,64 @@ func TestProjectionRoutesByPrimaryClass(t *testing.T) {
 	}
 }
 
+func TestProtectedAudioVLANRouteTrapDominatesGraphRouting(t *testing.T) {
+	g := Build(reportWithClass([]string{classify.DNSFail, classify.ProtectedAudioVLANRouteTrap}), true)
+	if g.PrimaryClass != classify.ProtectedAudioVLANRouteTrap {
+		t.Fatalf("primaryClass=%s, want %s", g.PrimaryClass, classify.ProtectedAudioVLANRouteTrap)
+	}
+	joined := ""
+	for _, tr := range g.RecommendedNextTools {
+		joined += tr.ID + " "
+	}
+	for _, want := range []string{"agentlink.route_snapshot", "agentlink.network_snapshot", "agentlink.incident_report"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("protected route trap missing recommended tool %s: %v", want, g.RecommendedNextTools)
+		}
+	}
+	for _, forbidden := range []string{"agentlink.network_baseline_reset", "agentlink.remove_tun_residue", "agentlink.clean_stale_proxy_baseline"} {
+		if strings.Contains(joined, forbidden) {
+			t.Fatalf("protected route trap recommended mutating/broad tool %s: %v", forbidden, g.RecommendedNextTools)
+		}
+	}
+}
+
+func TestProtectedTopologyConstraintExposesRepairCorridor(t *testing.T) {
+	r := reportWithClass([]string{classify.ProtectedTopologyConstraint, classify.DNSFail})
+	r.Topology.ProtectedConstraints = []diagnose.TopologyConstraint{{ID: "protected-policy-mdm", Class: diagnose.TopologyClassProtectedPolicy, Confidence: 0.9}}
+	r.Topology.RepairCorridor = diagnose.RepairCorridor{MutationAllowed: false, GlobalForbidden: []string{"route_flush", "clean_baseline"}, AllowedNext: []string{"agentlink.route_snapshot"}}
+	g := Build(r, true)
+	if g.PrimaryClass != classify.ProtectedTopologyConstraint {
+		t.Fatalf("primaryClass=%s", g.PrimaryClass)
+	}
+	if len(g.ProtectedConstraints) == 0 || g.RepairCorridor.MutationAllowed {
+		t.Fatalf("missing protected corridor: %+v", g)
+	}
+	joined := strings.Join(g.ForbiddenNextTools, " | ")
+	if !strings.Contains(joined, "CORRIDOR: route_flush") || !strings.Contains(joined, "CORRIDOR: clean_baseline") {
+		t.Fatalf("corridor forbiddens missing: %s", joined)
+	}
+}
+
+func TestStructuredTopologyWithoutRawRoutesSafely(t *testing.T) {
+	r := diagnose.DiagnosticReport{
+		Network: diagnose.NetworkInfo{
+			Interfaces:   []diagnose.NetworkInterface{{Name: "en0", Status: "active", IPv4: []string{"10.67.0.10"}}, {Name: "en1", Status: "active", IPv4: []string{"192.168.50.20"}}},
+			DefaultRoute: diagnose.DefaultRoute{Present: true, Gateway: "10.67.0.1", Interface: "en0"},
+		},
+		Reachability: diagnose.ReachabilityInfo{Gateway: diagnose.ProbeResult{Target: "10.67.0.1", OK: false}},
+		Topology:     diagnose.TopologyInfo{Interfaces: []diagnose.TopologyInterface{{Name: "en0", Protected: true, Roles: []string{"protected_media"}, RoleEvidence: []string{"AES67 PTP audio VLAN"}}}},
+	}
+	g := Build(r, true)
+	if g.PrimaryClass != classify.ProtectedAudioVLANRouteTrap {
+		t.Fatalf("primaryClass=%s classes=%v graph=%+v", g.PrimaryClass, g.FailureClasses, g)
+	}
+	for _, tr := range g.RecommendedNextTools {
+		if tr.ID == "agentlink.network_baseline_reset" || tr.ID == "agentlink.remove_tun_residue" {
+			t.Fatalf("protected topology recommended broad repair: %+v", g.RecommendedNextTools)
+		}
+	}
+}
+
 func TestForbiddenIncludesExecutionAndRaw(t *testing.T) {
 	g := Build(reportWithClass([]string{classify.DNSFail}), true)
 	joined := strings.Join(g.ForbiddenNextTools, " | ")

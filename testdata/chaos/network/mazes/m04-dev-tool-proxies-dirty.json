@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "maze-m04-dev-tool-proxies-dirty",
+  "category": "network-maze",
+  "description": "Git, npm, and Homebrew proxy configs are polluted while base network probes pass.",
+  "diagnostic": {
+    "schemaVersion": 1,
+    "network": {
+      "hardwarePorts": [{"port": "Wi-Fi", "device": "en0"}],
+      "interfaces": [{"name": "en0", "status": "active", "ipv4": ["192.168.1.23"]}],
+      "defaultRoute": {"present": true, "gateway": "192.168.1.1", "interface": "en0"},
+      "proxySummary": {"dirty": false}
+    },
+    "reachability": {
+      "gateway": {"target": "192.168.1.1", "ok": true},
+      "rawIPs": {"1.1.1.1": {"target": "1.1.1.1", "ok": true}},
+      "dnsNames": {"www.baidu.com": {"target": "www.baidu.com", "ok": true}},
+      "httpsTargets": {"https://www.baidu.com": {"target": "https://www.baidu.com", "ok": true}},
+      "agentTargets": {}
+    },
+    "userConfig": {
+      "envProxy": {},
+      "gitProxy": {"http.proxy": "http://127.0.0.1:7890"},
+      "npmProxy": {"proxy": "http://127.0.0.1:7890"},
+      "brewProxy": {"all_proxy": "socks5://127.0.0.1:7891"}
+    }
+  },
+  "expected": {
+    "failureClass": "GIT_PROXY_DIRTY",
+    "recommendedRepairLevel": "safe"
+  }
+}

@@ -8,6 +8,10 @@ if ! command -v go >/dev/null 2>&1 && [ -x /tmp/agentlink-go-current/go/bin/go ]
   export PATH="/tmp/agentlink-go-current/go/bin:$PATH"
 fi
 
+if ! command -v go >/dev/null 2>&1 && [ -x "$HOME/CactusLocalAgent/.asset-cache/Cactus-Local-Agent-Pro/runtimes/go/bin/go" ]; then
+  export PATH="$HOME/CactusLocalAgent/.asset-cache/Cactus-Local-Agent-Pro/runtimes/go/bin:$PATH"
+fi
+
 if ! command -v go >/dev/null 2>&1; then
   echo "go is required to build agentlink" >&2
   exit 1

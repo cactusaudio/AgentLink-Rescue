@@ -64,8 +64,8 @@ func Main(args []string, stdout io.Writer, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "safe mode allows only doctor, support bundle, package doctor, and journal list/recover; refused: %s\n", cmd)
 		return 50
 	}
-	if cmd != "version" && cmd != "selftest" && !system.IsDarwin() {
-		fmt.Fprintln(stderr, "unsupported platform: agentlink supports macOS only")
+	if !system.IsDarwin() && !nonDarwinCloudAllowed(cmd, args[1:]) {
+		fmt.Fprintln(stderr, "unsupported platform: this AgentLink command requires macOS; Linux cloud allows only fixture, read-only, and dry-run gates")
 		return 60
 	}
 	ctx := context.Background()
@@ -165,6 +165,84 @@ func safeModeAllowed(cmd string, args []string) bool {
 	default:
 		return false
 	}
+}
+
+func nonDarwinCloudAllowed(cmd string, args []string) bool {
+	switch cmd {
+	case "version", "selftest", "doctor", "manifest", "diagnose":
+		return true
+	case "chaos":
+		return len(args) > 0 && (args[0] == "list" || args[0] == "run")
+	case "diagnose-graph":
+		return flagHasValue(args, "--from")
+	case "recipe":
+		if len(args) == 0 {
+			return false
+		}
+		switch args[0] {
+		case "list", "inspect":
+			return true
+		case "run":
+			return !flagPresent(args[1:], "--yes")
+		default:
+			return false
+		}
+	case "support":
+		return len(args) > 0 && args[0] == "bundle"
+	case "package":
+		if len(args) == 0 {
+			return false
+		}
+		if args[0] == "doctor" {
+			return true
+		}
+		return args[0] == "repair" && flagPresent(args[1:], "--dry-run") && !flagPresent(args[1:], "--yes")
+	case "journal":
+		if len(args) == 0 {
+			return false
+		}
+		switch args[0] {
+		case "list", "inspect":
+			return true
+		case "recover":
+			return !flagPresent(args[1:], "--yes")
+		default:
+			return false
+		}
+	case "readiness":
+		return true
+	case "dev":
+		return len(args) > 0 && args[0] == "doctor"
+	case "rollback":
+		return flagPresent(args, "--dry-run")
+	case "last-good":
+		return len(args) > 0 && (args[0] == "list" || args[0] == "inspect")
+	case "brain":
+		return len(args) > 0 && args[0] == "doctor"
+	default:
+		return false
+	}
+}
+
+func flagPresent(args []string, name string) bool {
+	for _, arg := range args {
+		if arg == name {
+			return true
+		}
+	}
+	return false
+}
+
+func flagHasValue(args []string, name string) bool {
+	for i, arg := range args {
+		if arg == name {
+			return i+1 < len(args) && args[i+1] != "" && (args[i+1] == "-" || !strings.HasPrefix(args[i+1], "-"))
+		}
+		if strings.HasPrefix(arg, name+"=") {
+			return strings.TrimPrefix(arg, name+"=") != ""
+		}
+	}
+	return false
 }
 
 func runDoctor(ctx context.Context, runner command.Runner, args []string, stdout, stderr io.Writer) int {
@@ -510,11 +588,13 @@ func runJournal(ctx context.Context, runner command.Runner, args []string, stdou
 		fs := flag.NewFlagSet("journal recover", flag.ContinueOnError)
 		fs.SetOutput(stderr)
 		jsonOut := fs.Bool("json", false, "print JSON")
+		dry := fs.Bool("dry", false, "dry recovery scan; accepted for cloud harness compatibility")
 		yes := fs.Bool("yes", false, "mark no-mutation transactions abandoned and create rollback tickets for mutated transactions")
 		packageRoot := fs.String("package-root", "", "explicit AgentLink package root for generated tickets")
 		if err := fs.Parse(args[1:]); err != nil {
 			return 50
 		}
+		_ = dry
 		rep := mgr.Recover(!*yes)
 		if *yes {
 			root := *packageRoot
@@ -770,7 +850,11 @@ func runRecipe(ctx context.Context, runner command.Runner, args []string, stdout
 			fmt.Fprintln(stderr, "recipe run requires id")
 			return 50
 		}
-		return executeRecipe(ctx, runner, reg, id, recipe.RunOptions{Home: currentHome(ctx, runner), DryRun: *dryRun, Yes: *yes, JSON: *jsonOut, Params: params.values, CommandLine: append([]string{"recipe", "run", id}, args[1:]...)}, *jsonOut, stdout, stderr)
+		effectiveDryRun := *dryRun
+		if !system.IsDarwin() && !*yes {
+			effectiveDryRun = true
+		}
+		return executeRecipe(ctx, runner, reg, id, recipe.RunOptions{Home: currentHome(ctx, runner), DryRun: effectiveDryRun, Yes: *yes, JSON: *jsonOut, Params: params.values, CommandLine: append([]string{"recipe", "run", id}, args[1:]...)}, *jsonOut, stdout, stderr)
 	default:
 		fmt.Fprintln(stderr, "unknown recipe subcommand")
 		return 50

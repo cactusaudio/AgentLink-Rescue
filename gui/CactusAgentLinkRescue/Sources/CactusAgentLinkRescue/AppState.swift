@@ -260,7 +260,7 @@ final class AppState: ObservableObject {
             guidedResult = nil
             guidedReport = nil
 
-            var args = ["orchestrator", "rescue", "--target", rescueTarget == "network" ? "clash-tun" : rescueTarget, "--json"]
+            var args = ["guided", "rescue", "--target", rescueTarget == "network" ? "clash-tun" : rescueTarget, "--json"]
             if allowRepair {
                 args.append("--yes")
             } else {

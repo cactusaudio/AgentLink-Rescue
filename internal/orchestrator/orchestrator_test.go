@@ -73,6 +73,45 @@ func TestDeterministicTunDecisionRequiresConsent(t *testing.T) {
 	}
 }
 
+func TestDeterministicProtectedAudioVLANTrapRefusesRepair(t *testing.T) {
+	decision := supervise(diagnose.DiagnosticReport{Classifications: []string{classify.ProtectedAudioVLANRouteTrap}}, diagnose.TunReport{RecommendedRepair: "tun"}, "network")
+	if decision.Intent == "repair" || decision.SelectedRecipe != "" {
+		t.Fatalf("protected route trap selected repair: %+v", decision)
+	}
+	if decision.FailureClass != classify.ProtectedAudioVLANRouteTrap || decision.StopReason == "" {
+		t.Fatalf("protected route trap decision missing class/stop reason: %+v", decision)
+	}
+}
+
+func TestDeterministicProtectedTopologyConstraintRefusesRepair(t *testing.T) {
+	diag := diagnose.DiagnosticReport{
+		Network: diagnose.NetworkInfo{
+			DefaultRoute: diagnose.DefaultRoute{Present: true, Gateway: "192.168.0.1", Interface: "en0"},
+			Interfaces:   []diagnose.NetworkInterface{{Name: "en0", Status: "active", IPv4: []string{"192.168.0.103"}}, {Name: "en1", Status: "active", IPv4: []string{"192.168.0.104"}}},
+		},
+		Reachability: diagnose.ReachabilityInfo{Gateway: diagnose.ProbeResult{Target: "192.168.0.1", OK: false}},
+		Topology: diagnose.TopologyInfo{Interfaces: []diagnose.TopologyInterface{{
+			Name: "en0", Protected: true, Roles: []string{"protected_media"}, RoleEvidence: []string{"AES67 audio VLAN"},
+		}}},
+	}
+	decision := supervise(diag, diagnose.TunReport{RecommendedRepair: "tun"}, "network")
+	if decision.Intent == "repair" || decision.FailureClass != classify.ProtectedAudioVLANRouteTrap {
+		t.Fatalf("protected topology selected repair: %+v", decision)
+	}
+}
+
+func TestArbitrationRejectsGemmaRepairAcrossProtectedBoundary(t *testing.T) {
+	deterministic := RescuePlanDecision{SchemaVersion: 1, Intent: "manual_action", FailureClass: classify.ProtectedTopologyConstraint, Confidence: 0.9}
+	gemma := RescuePlanDecision{SchemaVersion: 1, Intent: "repair", FailureClass: classify.ClashTunActiveOrStale, Confidence: 0.9, SelectedRecipe: "macos-clash-tun-force-repair", RequiresAdmin: true, RequiresTerminalTicket: true, RequiresUserConsent: true}
+	got := arbitratePlans(deterministic, gemma, true)
+	if got.Decision.Intent == "repair" || got.GemmaOverrideAccepted {
+		t.Fatalf("Gemma relaxed protected boundary: %+v", got)
+	}
+	if got.GemmaOverrideRejectedReason == "" {
+		t.Fatalf("missing protected-boundary rejection: %+v", got)
+	}
+}
+
 func TestGemmaSupervisorDecisionParses(t *testing.T) {
 	decision, err := gemmaSupervise(context.Background(), fakeBrainBackend{available: true, json: `{"schemaVersion":1,"intent":"repair","failureClass":"CLASH_TUN_ACTIVE_OR_STALE","confidence":0.91,"selectedRecipe":"macos-clash-tun-force-repair","evidence":["utun0 198.18.0.1"],"requiresAdmin":true,"requiresTerminalTicket":true,"requiresUserConsent":true,"expectedVerifiers":["raw_ip_ping_ok"],"explanationForUser":"Targeted TUN repair is appropriate."}`}, diagnose.DiagnosticReport{Classifications: []string{classify.ClashTunActiveOrStale}}, diagnose.TunReport{RecommendedRepair: "tun"}, "clash-tun")
 	if err != nil {

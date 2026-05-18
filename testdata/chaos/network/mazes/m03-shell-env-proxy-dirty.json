@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "maze-m03-shell-env-proxy-dirty",
+  "category": "network-maze",
+  "description": "Shell proxy environment points at a dead local proxy while system network is otherwise healthy.",
+  "diagnostic": {
+    "schemaVersion": 1,
+    "network": {
+      "hardwarePorts": [{"port": "Wi-Fi", "device": "en0"}],
+      "interfaces": [{"name": "en0", "status": "active", "ipv4": ["192.168.1.22"]}],
+      "defaultRoute": {"present": true, "gateway": "192.168.1.1", "interface": "en0"},
+      "proxySummary": {"dirty": false}
+    },
+    "reachability": {
+      "gateway": {"target": "192.168.1.1", "ok": true},
+      "rawIPs": {"1.1.1.1": {"target": "1.1.1.1", "ok": true}},
+      "dnsNames": {"www.baidu.com": {"target": "www.baidu.com", "ok": true}},
+      "httpsTargets": {"https://www.baidu.com": {"target": "https://www.baidu.com", "ok": true}},
+      "agentTargets": {}
+    },
+    "userConfig": {
+      "envProxy": {"HTTPS_PROXY": "http://127.0.0.1:7890"},
+      "gitProxy": {},
+      "npmProxy": {},
+      "brewProxy": {}
+    }
+  },
+  "expected": {
+    "failureClass": "USER_PROXY_DIRTY",
+    "recommendedRepairLevel": "safe"
+  }
+}

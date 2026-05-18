@@ -9,6 +9,7 @@ type DiagnosticReport struct {
 	Reachability           ReachabilityInfo  `json:"reachability"`
 	UserConfig             UserConfigInfo    `json:"userConfig"`
 	Residues               ResidueInfo       `json:"residues"`
+	Topology               TopologyInfo      `json:"topology,omitempty"`
 	Classifications        []string          `json:"classifications"`
 	RecommendedRepairLevel string            `json:"recommendedRepairLevel"`
 	Warnings               []string          `json:"warnings"`
@@ -138,4 +139,79 @@ type ResidueMatch struct {
 	AutoQuarantineAllowed bool   `json:"autoQuarantineAllowed"`
 	DetectOnly            bool   `json:"detectOnly"`
 	Raw                   string `json:"raw,omitempty"`
+}
+
+type TopologyInfo struct {
+	SchemaVersion        int                  `json:"schemaVersion,omitempty"`
+	Interfaces           []TopologyInterface  `json:"interfaces,omitempty"`
+	Routes               TopologyRoutes       `json:"routes,omitempty"`
+	RootCauseCandidates  []TopologyCandidate  `json:"rootCauseCandidates,omitempty"`
+	ProtectedConstraints []TopologyConstraint `json:"protectedConstraints,omitempty"`
+	RedHerrings          []TopologyRedHerring `json:"redHerrings,omitempty"`
+	RepairCorridor       RepairCorridor       `json:"repairCorridor,omitempty"`
+}
+
+type TopologyInterface struct {
+	Name                string           `json:"name"`
+	HardwarePort        string           `json:"hardwarePort,omitempty"`
+	NetworkService      string           `json:"networkService,omitempty"`
+	Status              string           `json:"status,omitempty"`
+	Addresses           []string         `json:"addresses,omitempty"`
+	Roles               []string         `json:"roles,omitempty"`
+	RoleConfidence      float64          `json:"roleConfidence,omitempty"`
+	RoleEvidence        []string         `json:"roleEvidence,omitempty"`
+	InternetCandidate   bool             `json:"internetCandidate,omitempty"`
+	ManagementCandidate bool             `json:"managementCandidate,omitempty"`
+	Protected           bool             `json:"protected,omitempty"`
+	ProtectionPolicy    ProtectionPolicy `json:"protectionPolicy,omitempty"`
+}
+
+type ProtectionPolicy struct {
+	ForbiddenActions []string `json:"forbiddenActions,omitempty"`
+	AllowedActions   []string `json:"allowedActions,omitempty"`
+	ApprovalRequired []string `json:"approvalRequiredFor,omitempty"`
+	ApproverHint     string   `json:"approverHint,omitempty"`
+}
+
+type TopologyRoutes struct {
+	DefaultRoute    TopologyRoute   `json:"defaultRoute,omitempty"`
+	AlternateRoutes []TopologyRoute `json:"alternateRoutes,omitempty"`
+}
+
+type TopologyRoute struct {
+	Interface        string `json:"interface,omitempty"`
+	Gateway          string `json:"gateway,omitempty"`
+	Reachable        bool   `json:"reachable,omitempty"`
+	RawIPReachable   bool   `json:"rawIpReachable,omitempty"`
+	DNSReachable     bool   `json:"dnsReachable,omitempty"`
+	HTTPSReachable   bool   `json:"httpsReachable,omitempty"`
+	GatewayReachable bool   `json:"gatewayReachable,omitempty"`
+	ProbeMode        string `json:"probeMode,omitempty"`
+}
+
+type TopologyCandidate struct {
+	Class      string   `json:"class"`
+	Interface  string   `json:"interface,omitempty"`
+	Confidence float64  `json:"confidence,omitempty"`
+	Evidence   []string `json:"evidence,omitempty"`
+}
+
+type TopologyConstraint struct {
+	ID         string   `json:"id"`
+	Class      string   `json:"class"`
+	Interface  string   `json:"interface,omitempty"`
+	Confidence float64  `json:"confidence,omitempty"`
+	Evidence   []string `json:"evidence,omitempty"`
+}
+
+type TopologyRedHerring struct {
+	Class  string `json:"class"`
+	Reason string `json:"reason,omitempty"`
+}
+
+type RepairCorridor struct {
+	MutationAllowed bool     `json:"mutationAllowed"`
+	AllowedNext     []string `json:"allowedNext,omitempty"`
+	GlobalForbidden []string `json:"globalForbidden,omitempty"`
+	Reason          string   `json:"reason,omitempty"`
 }

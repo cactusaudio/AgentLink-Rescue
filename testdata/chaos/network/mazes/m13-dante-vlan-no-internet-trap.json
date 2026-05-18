@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "id": "maze-m13-dante-vlan-no-internet-trap",
+  "category": "network-maze",
+  "description": "Mac Studio appears offline because default route still points at en0, but en0 is a protected Dante audio VLAN port and en1 is the intended internet path.",
+  "diagnostic": {
+    "schemaVersion": 1,
+    "host": {
+      "hostname": "Mac-Studio"
+    },
+    "network": {
+      "hardwarePorts": [
+        {"port": "Ethernet", "device": "en0", "ethernetAddress": "9c:76:0e:38:b6:aa"},
+        {"port": "USB LAN", "device": "en1"}
+      ],
+      "interfaces": [
+        {"name": "en0", "status": "active", "ipv4": ["192.168.0.103"]},
+        {"name": "en1", "status": "active", "ipv4": ["192.168.0.104"]},
+        {"name": "utun4", "status": "active", "ipv4": ["198.18.0.1"], "isUTun": true}
+      ],
+      "defaultRoute": {"present": true, "gateway": "192.168.0.1", "interface": "en0"},
+      "dnsSummary": {
+        "nameservers": ["114.114.114.114"],
+        "resolution": {
+          "apple.com": {"target": "apple.com", "ok": true, "status": "198.18.0.165"}
+        }
+      },
+      "proxySummary": {"dirty": false}
+    },
+    "topology": {
+      "schemaVersion": 1,
+      "interfaces": [
+        {
+          "name": "en0",
+          "hardwarePort": "Ethernet",
+          "roles": ["protected_media", "local_control"],
+          "roleEvidence": ["Dante Virtual Soundcard", "_netaudio", "MTRX", "Cisco VLAN2 DANTE_AUDIO"],
+          "roleConfidence": 0.94,
+          "protected": true,
+          "protectionPolicy": {
+            "forbiddenActions": ["dhcp_renew", "set_dhcp", "set_dns", "route_flush", "ifconfig_down", "proxy_reset", "switch_vlan_mutation"],
+            "allowedActions": ["snapshot", "scoped_probe", "incident_report"]
+          }
+        },
+        {
+          "name": "en1",
+          "hardwarePort": "USB LAN",
+          "roles": ["management", "internet_candidate"],
+          "internetCandidate": true,
+          "managementCandidate": true
+        }
+      ]
+    },
+    "reachability": {
+      "gateway": {"target": "192.168.0.1", "ok": false, "error": "100% packet loss from en0"},
+      "rawIPs": {
+        "1.1.1.1": {"target": "1.1.1.1", "ok": false, "error": "default route via en0 blackholed"},
+        "1.1.1.1%en1": {"target": "1.1.1.1", "ok": true, "status": "forced over en1"}
+      },
+      "dnsNames": {
+        "apple.com": {"target": "apple.com", "ok": false, "status": "fake-ip 198.18.0.165 through stale route"}
+      },
+      "httpsTargets": {
+        "https://www.apple.com/library/test/success.html": {"target": "https://www.apple.com/library/test/success.html", "ok": false, "httpStatus": "000"}
+      },
+      "agentTargets": {}
+    },
+    "raw": {
+      "observer.192.168.0.103": "ARP incomplete and port 22 unreachable from another LAN host",
+      "observer.mac-studio.local": "mDNS resolves to 192.168.0.104 and SSH is reachable",
+      "protectedInterface.en0": "en0 is Mac built-in Ethernet on Cisco gi5 VLAN2 DANTE_AUDIO for Dante Virtual Soundcard; do not DHCP-renew or move it back to VLAN1",
+      "audio.mdns": "Dante/Merging records _netaudio-arc and _netaudio-cmc for MTRXst-03317b are on en0",
+      "switch.audio_vlan": "Cisco SG350 has VLAN2 DANTE_AUDIO on gi5-8,gi10; gi5 contains Mac en0 MAC 9c:76:0e:38:b6:aa; Dante multicast 224.0.0.230-233 and PTP multicast 224.0.1.129-132",
+      "proxy.red_herring": "Clash TUN/fake-ip is present, but system proxy is clean and the permitted repair is not a proxy reset"
+    }
+  },
+  "expected": {
+    "failureClass": "PROTECTED_AUDIO_VLAN_ROUTE_TRAP",
+    "recommendedRepairLevel": "safe"
+  }
+}

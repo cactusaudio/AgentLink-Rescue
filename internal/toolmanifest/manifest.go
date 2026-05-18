@@ -45,28 +45,28 @@ var validMutation = map[string]bool{
 // carries enough semantic load that a small/weak model can choose
 // safely WITHOUT reading long docs first (V0300 Layer 2).
 type ToolCard struct {
-	ID                  string         `json:"id"`
-	Family              string         `json:"family"`
-	Description         string         `json:"description"`
-	Argv                []string       `json:"argv"` // exact AgentLink invocation (no shell)
-	InputSchema         map[string]any `json:"inputSchema"`
-	OutputSchema        map[string]any `json:"outputSchema"`
-	RiskClass           string         `json:"riskClass"`
-	MutationClass       string         `json:"mutationClass"`
-	DryRunSupported     bool           `json:"dryRunSupported"`
-	RollbackSupported   bool           `json:"rollbackSupported"`
-	RollbackImpossible  bool           `json:"rollbackImpossible"`
-	Preconditions       []string       `json:"preconditions"`
-	Postconditions      []string       `json:"postconditions"`
-	ExampleGoodCall     string         `json:"exampleGoodCall"`
-	ExampleBadCall      string         `json:"exampleBadCall"`
-	PossibleErrors      []string       `json:"possibleErrors"`
-	TimeoutSeconds      int            `json:"timeoutSeconds"`
-	WhenNotToUse        string         `json:"whenNotToUse"`
-	RelatedTools        []string       `json:"relatedTools"`
-	HumanApproval       bool           `json:"humanApprovalRequired"`
-	AutonomousAllowed   bool           `json:"autonomousAllowed"`
-	RecommendAllowed    bool           `json:"recommendAllowed"`
+	ID                 string         `json:"id"`
+	Family             string         `json:"family"`
+	Description        string         `json:"description"`
+	Argv               []string       `json:"argv"` // exact AgentLink invocation (no shell)
+	InputSchema        map[string]any `json:"inputSchema"`
+	OutputSchema       map[string]any `json:"outputSchema"`
+	RiskClass          string         `json:"riskClass"`
+	MutationClass      string         `json:"mutationClass"`
+	DryRunSupported    bool           `json:"dryRunSupported"`
+	RollbackSupported  bool           `json:"rollbackSupported"`
+	RollbackImpossible bool           `json:"rollbackImpossible"`
+	Preconditions      []string       `json:"preconditions"`
+	Postconditions     []string       `json:"postconditions"`
+	ExampleGoodCall    string         `json:"exampleGoodCall"`
+	ExampleBadCall     string         `json:"exampleBadCall"`
+	PossibleErrors     []string       `json:"possibleErrors"`
+	TimeoutSeconds     int            `json:"timeoutSeconds"`
+	WhenNotToUse       string         `json:"whenNotToUse"`
+	RelatedTools       []string       `json:"relatedTools"`
+	HumanApproval      bool           `json:"humanApprovalRequired"`
+	AutonomousAllowed  bool           `json:"autonomousAllowed"`
+	RecommendAllowed   bool           `json:"recommendAllowed"`
 }
 
 // Manifest is the top-level catalog document.
@@ -162,8 +162,8 @@ func readOnlyTools() []ToolCard {
 			InputSchema: noInput(), OutputSchema: jsonResult(),
 			RiskClass: RiskReadOnly, MutationClass: MutationNone,
 			DryRunSupported: false, RollbackSupported: false,
-			Preconditions:  []string{"agentlink binary discoverable"},
-			Postconditions: []string{"no host state changed"},
+			Preconditions:   []string{"agentlink binary discoverable"},
+			Postconditions:  []string{"no host state changed"},
 			ExampleGoodCall: "agentlink " + joinArgv(argv) + " --json",
 			ExampleBadCall:  "sudo agentlink " + joinArgv(argv) + "  # never prefix with sudo",
 			PossibleErrors:  []string{"binary_not_found", "timeout", "malformed_json"},
@@ -195,133 +195,133 @@ func readOnlyTools() []ToolCard {
 func planningTools() []ToolCard {
 	return []ToolCard{
 		{ID: "agentlink.classify_incident", Family: "planning",
-			Description:   "Classify the current network failure into a deterministic failure class.",
-			Argv:          []string{"classify", "--json"},
-			InputSchema:   noInput(), OutputSchema: jsonResult(),
-			RiskClass:     RiskReadOnly, MutationClass: MutationNone,
-			Preconditions: []string{"diagnosis evidence available"},
-			Postconditions: []string{"failure class + confidence emitted"},
+			Description: "Classify the current network failure into a deterministic failure class.",
+			Argv:        []string{"classify", "--json"},
+			InputSchema: noInput(), OutputSchema: jsonResult(),
+			RiskClass: RiskReadOnly, MutationClass: MutationNone,
+			Preconditions:   []string{"diagnosis evidence available"},
+			Postconditions:  []string{"failure class + confidence emitted"},
 			ExampleGoodCall: "agentlink classify --json",
 			ExampleBadCall:  "agentlink classify && sudo networksetup ...  # never chain raw repair",
 			PossibleErrors:  []string{"insufficient_evidence", "timeout"},
 			TimeoutSeconds:  45, WhenNotToUse: "Not for execution; selection input only.",
-			RelatedTools:    []string{"agentlink.recommend_recipes", "agentlink.diagnosis_graph"},
+			RelatedTools:      []string{"agentlink.recommend_recipes", "agentlink.diagnosis_graph"},
 			AutonomousAllowed: true, RecommendAllowed: true},
 		{ID: "agentlink.diagnosis_graph", Family: "planning",
-			Description:   "Compact structured diagnosis graph (symptoms, facts, confidence, recommended + forbidden next tools). Small enough for a small-memory model, precise for an autonomous operator.",
-			Argv:          []string{"diagnose-graph", "--json"},
-			InputSchema:   noInput(), OutputSchema: jsonResult(),
-			RiskClass:     RiskReadOnly, MutationClass: MutationNone,
-			Preconditions: []string{"agentlink binary discoverable"},
-			Postconditions: []string{"compact diagnosis graph emitted; no host change"},
+			Description: "Compact structured diagnosis graph (symptoms, topology constraints, repair corridor, confidence, recommended + forbidden next tools). Small enough for a small-memory model, precise for an autonomous operator.",
+			Argv:        []string{"diagnose-graph", "--json"},
+			InputSchema: noInput(), OutputSchema: jsonResult(),
+			RiskClass: RiskReadOnly, MutationClass: MutationNone,
+			Preconditions:   []string{"agentlink binary discoverable"},
+			Postconditions:  []string{"compact diagnosis graph emitted; no host change"},
 			ExampleGoodCall: "agentlink diagnose-graph --json",
 			ExampleBadCall:  "agentlink diagnose-graph --raw-dump  # do not request raw host dumps for small models",
 			PossibleErrors:  []string{"timeout", "malformed_json"},
 			TimeoutSeconds:  60, WhenNotToUse: "Do not use as an execution surface.",
-			RelatedTools:    []string{"agentlink.classify_incident", "agentlink.recommend_recipes"},
+			RelatedTools:      []string{"agentlink.classify_incident", "agentlink.recommend_recipes"},
 			AutonomousAllowed: true, RecommendAllowed: true},
 		{ID: "agentlink.recommend_recipes", Family: "planning",
-			Description:   "Rank candidate repair recipes for the classified incident with short reasons.",
-			Argv:          []string{"orchestrator", "rescue", "--dry-run", "--json"},
-			InputSchema:   noInput(), OutputSchema: jsonResult(),
-			RiskClass:     RiskReadOnly, MutationClass: MutationNone, DryRunSupported: true,
-			Preconditions: []string{"incident classified"},
-			Postconditions: []string{"ranked recipe list emitted; nothing executed"},
+			Description: "Rank candidate repair recipes for the classified incident with short reasons.",
+			Argv:        []string{"orchestrator", "rescue", "--dry-run", "--json"},
+			InputSchema: noInput(), OutputSchema: jsonResult(),
+			RiskClass: RiskReadOnly, MutationClass: MutationNone, DryRunSupported: true,
+			Preconditions:   []string{"incident classified"},
+			Postconditions:  []string{"ranked recipe list emitted; nothing executed"},
 			ExampleGoodCall: "agentlink orchestrator rescue --dry-run --json",
 			ExampleBadCall:  "agentlink orchestrator rescue --yes  # --yes is never model-facing",
 			PossibleErrors:  []string{"no_candidate_recipe", "timeout"},
 			TimeoutSeconds:  90, WhenNotToUse: "Never pass --yes; this is planning only.",
-			RelatedTools:    []string{"agentlink.recipe_inspect", "agentlink.recipe_dry_run"},
+			RelatedTools:      []string{"agentlink.recipe_inspect", "agentlink.recipe_dry_run"},
 			AutonomousAllowed: true, RecommendAllowed: true},
 		{ID: "agentlink.recipe_list", Family: "planning",
-			Description:   "List bounded repair recipes (id, title, risk, failure classes).",
-			Argv:          []string{"recipe", "list", "--json"},
-			InputSchema:   noInput(), OutputSchema: jsonResult(),
-			RiskClass:     RiskReadOnly, MutationClass: MutationNone,
-			Preconditions: []string{"recipes directory present"},
-			Postconditions: []string{"recipe index emitted"},
+			Description: "List bounded repair recipes (id, title, risk, failure classes).",
+			Argv:        []string{"recipe", "list", "--json"},
+			InputSchema: noInput(), OutputSchema: jsonResult(),
+			RiskClass: RiskReadOnly, MutationClass: MutationNone,
+			Preconditions:   []string{"recipes directory present"},
+			Postconditions:  []string{"recipe index emitted"},
 			ExampleGoodCall: "agentlink recipe list --json",
 			ExampleBadCall:  "agentlink recipe run X --yes  # execution must go through the typed execution tool",
 			PossibleErrors:  []string{"recipes_dir_missing"},
 			TimeoutSeconds:  30, WhenNotToUse: "Not execution.",
-			RelatedTools:    []string{"agentlink.recipe_inspect"},
+			RelatedTools:      []string{"agentlink.recipe_inspect"},
 			AutonomousAllowed: true, RecommendAllowed: true},
 		{ID: "agentlink.recipe_inspect", Family: "planning",
-			Description:   "Inspect one recipe: preconditions, patches, verify, rollback, docs.",
-			Argv:          []string{"recipe", "inspect", "<recipe_id>", "--json"},
+			Description: "Inspect one recipe: preconditions, patches, verify, rollback, docs.",
+			Argv:        []string{"recipe", "inspect", "<recipe_id>", "--json"},
 			InputSchema: obj(map[string]any{"type": "object", "required": []string{"recipe_id"},
 				"properties": obj(map[string]any{"recipe_id": obj(map[string]any{"type": "string"})})}),
-			OutputSchema:  jsonResult(),
-			RiskClass:     RiskReadOnly, MutationClass: MutationNone,
-			Preconditions: []string{"recipe_id from recipe_list"},
-			Postconditions: []string{"recipe detail emitted"},
+			OutputSchema: jsonResult(),
+			RiskClass:    RiskReadOnly, MutationClass: MutationNone,
+			Preconditions:   []string{"recipe_id from recipe_list"},
+			Postconditions:  []string{"recipe detail emitted"},
 			ExampleGoodCall: "agentlink recipe inspect proxy-clean-stale-env --json",
 			ExampleBadCall:  "agentlink recipe inspect $(rm -rf ~)  # never interpolate shell",
 			PossibleErrors:  []string{"recipe_not_found"},
 			TimeoutSeconds:  30, WhenNotToUse: "Not execution.",
-			RelatedTools:    []string{"agentlink.recipe_dry_run"},
+			RelatedTools:      []string{"agentlink.recipe_dry_run"},
 			AutonomousAllowed: true, RecommendAllowed: true},
 		{ID: "agentlink.recipe_dry_run", Family: "planning",
-			Description:   "Dry-run a recipe: render exactly what WOULD change, no mutation.",
-			Argv:          []string{"recipe", "run", "<recipe_id>", "--dry-run", "--json"},
+			Description: "Dry-run a recipe: render exactly what WOULD change, no mutation.",
+			Argv:        []string{"recipe", "run", "<recipe_id>", "--dry-run", "--json"},
 			InputSchema: obj(map[string]any{"type": "object", "required": []string{"recipe_id"},
 				"properties": obj(map[string]any{"recipe_id": obj(map[string]any{"type": "string"})})}),
-			OutputSchema:  jsonResult(),
-			RiskClass:     RiskReadOnly, MutationClass: MutationNone, DryRunSupported: true,
-			Preconditions: []string{"recipe_id valid"},
-			Postconditions: []string{"planned actions emitted; zero host mutation"},
+			OutputSchema: jsonResult(),
+			RiskClass:    RiskReadOnly, MutationClass: MutationNone, DryRunSupported: true,
+			Preconditions:   []string{"recipe_id valid"},
+			Postconditions:  []string{"planned actions emitted; zero host mutation"},
 			ExampleGoodCall: "agentlink recipe dry-run dns-resolver-baseline --json",
 			ExampleBadCall:  "agentlink recipe run dns-resolver-baseline --yes  # use execute tool w/ approval",
 			PossibleErrors:  []string{"recipe_not_found", "precondition_failed"},
 			TimeoutSeconds:  60, WhenNotToUse: "Not for actual repair.",
-			RelatedTools:    []string{"agentlink.execute_recipe"},
+			RelatedTools:      []string{"agentlink.execute_recipe"},
 			AutonomousAllowed: true, RecommendAllowed: true},
 		{ID: "agentlink.repair_plan_validate", Family: "planning",
-			Description:   "Validate a planner/brain JSON decision against the safety contract.",
-			Argv:          []string{"planner", "validate", "--json"},
+			Description: "Validate a planner/brain JSON decision against the safety contract.",
+			Argv:        []string{"planner", "validate", "--json"},
 			InputSchema: obj(map[string]any{"type": "object", "required": []string{"decisionJson"},
 				"properties": obj(map[string]any{"decisionJson": obj(map[string]any{"type": "string"})})}),
-			OutputSchema:  jsonResult(),
-			RiskClass:     RiskReadOnly, MutationClass: MutationNone,
-			Preconditions: []string{"a planner decision JSON"},
-			Postconditions: []string{"valid/invalid + reasons emitted"},
+			OutputSchema: jsonResult(),
+			RiskClass:    RiskReadOnly, MutationClass: MutationNone,
+			Preconditions:   []string{"a planner decision JSON"},
+			Postconditions:  []string{"valid/invalid + reasons emitted"},
 			ExampleGoodCall: "agentlink planner validate --json < decision.json",
 			ExampleBadCall:  "agentlink planner validate --exec  # validation never executes",
 			PossibleErrors:  []string{"malformed_decision", "schema_violation"},
 			TimeoutSeconds:  20, WhenNotToUse: "Not execution.",
-			RelatedTools:    []string{"agentlink.recommend_recipes"},
+			RelatedTools:      []string{"agentlink.recommend_recipes"},
 			AutonomousAllowed: true, RecommendAllowed: false},
 		{ID: "agentlink.risk_score", Family: "planning",
-			Description:   "Return the deterministic risk class + confidence for a candidate recipe.",
-			Argv:          []string{"recipe", "inspect", "<recipe_id>", "--json"},
+			Description: "Return the deterministic risk class + confidence for a candidate recipe.",
+			Argv:        []string{"recipe", "inspect", "<recipe_id>", "--json"},
 			InputSchema: obj(map[string]any{"type": "object", "required": []string{"recipe_id"},
 				"properties": obj(map[string]any{"recipe_id": obj(map[string]any{"type": "string"})})}),
-			OutputSchema:  jsonResult(),
-			RiskClass:     RiskReadOnly, MutationClass: MutationNone,
-			Preconditions: []string{"recipe_id valid"},
-			Postconditions: []string{"risk class + confidence emitted"},
+			OutputSchema: jsonResult(),
+			RiskClass:    RiskReadOnly, MutationClass: MutationNone,
+			Preconditions:   []string{"recipe_id valid"},
+			Postconditions:  []string{"risk class + confidence emitted"},
 			ExampleGoodCall: "agentlink recipe inspect tun-residue-clean --json | jq .risk",
 			ExampleBadCall:  "ignore risk and run anyway  # never bypass risk gating",
 			PossibleErrors:  []string{"recipe_not_found"},
 			TimeoutSeconds:  30, WhenNotToUse: "Not execution.",
-			RelatedTools:    []string{"agentlink.recipe_inspect"},
+			RelatedTools:      []string{"agentlink.recipe_inspect"},
 			AutonomousAllowed: true, RecommendAllowed: true},
 		{ID: "agentlink.approval_ticket_create", Family: "planning",
-			Description:   "Create a terminal repair ticket (.command) for a user-approved privileged repair. The USER runs it; the model never does.",
-			Argv:          []string{"ticket", "--type", "<ticket_type>"},
+			Description: "Create a terminal repair ticket (.command) for a user-approved privileged repair. The USER runs it; the model never does.",
+			Argv:        []string{"ticket", "--type", "<ticket_type>"},
 			InputSchema: obj(map[string]any{"type": "object", "required": []string{"ticket_type"},
 				"properties": obj(map[string]any{"ticket_type": obj(map[string]any{"type": "string",
 					"enum": []string{"clash-tun-fix", "rollback", "verify-network"}})})}),
-			OutputSchema:  jsonResult(),
-			RiskClass:     RiskReadOnly, MutationClass: MutationNone,
-			Preconditions: []string{"a repair requiring user-approved privilege"},
-			Postconditions: []string{"a ticket file path emitted; nothing executed by the model"},
+			OutputSchema: jsonResult(),
+			RiskClass:    RiskReadOnly, MutationClass: MutationNone,
+			Preconditions:   []string{"a repair requiring user-approved privilege"},
+			Postconditions:  []string{"a ticket file path emitted; nothing executed by the model"},
 			ExampleGoodCall: "agentlink ticket --type verify-network",
 			ExampleBadCall:  "bash $(agentlink ticket ...)  # the model must NEVER execute the ticket",
 			PossibleErrors:  []string{"unknown_ticket_type"},
 			TimeoutSeconds:  20, WhenNotToUse: "Do not auto-run the ticket; user approval is mandatory.",
-			RelatedTools:    []string{"agentlink.execute_recipe"},
-			HumanApproval:   true, AutonomousAllowed: true, RecommendAllowed: true},
+			RelatedTools:  []string{"agentlink.execute_recipe"},
+			HumanApproval: true, AutonomousAllowed: true, RecommendAllowed: true},
 	}
 }
 
@@ -339,10 +339,10 @@ var RecipeBackedExecTools = map[string]string{
 // CLIBackedExecTools maps execution tool id -> its real AgentLink
 // transactional subcommand argv (journal/snapshot-backed, not a recipe).
 var CLIBackedExecTools = map[string][]string{
-	"agentlink.restore_last_good":          {"last-good", "restore", "--json"},
-	"agentlink.rollback_last":              {"rollback", "--json"},
+	"agentlink.restore_last_good":           {"last-good", "restore", "--json"},
+	"agentlink.rollback_last":               {"rollback", "--json"},
 	"agentlink.recover_interrupted_journal": {"journal", "recover", "--json"},
-	"agentlink.repair_package_runtime":     {"package", "repair", "--json"},
+	"agentlink.repair_package_runtime":      {"package", "repair", "--json"},
 }
 
 func execCard(id, desc string, argv []string, risk string, rollback bool) ToolCard {
@@ -352,9 +352,9 @@ func execCard(id, desc string, argv []string, risk string, rollback bool) ToolCa
 			"properties": obj(map[string]any{
 				"confirmed_dry_run": obj(map[string]any{"type": "boolean"}),
 				"user_approved":     obj(map[string]any{"type": "boolean"})})}),
-		OutputSchema:       jsonResult(),
-		RiskClass:          risk, MutationClass: MutationHostTxn,
-		DryRunSupported:    true, RollbackSupported: rollback,
+		OutputSchema: jsonResult(),
+		RiskClass:    risk, MutationClass: MutationHostTxn,
+		DryRunSupported: true, RollbackSupported: rollback,
 		RollbackImpossible: !rollback,
 		Preconditions: []string{"dry-run inspected first", "snapshot captured",
 			"user approval obtained", "incident class matches"},
@@ -408,13 +408,13 @@ func reportingTools() []ToolCard {
 		return ToolCard{ID: id, Family: "reporting", Description: desc, Argv: argv,
 			InputSchema: noInput(), OutputSchema: jsonResult(),
 			RiskClass: RiskReadOnly, MutationClass: MutationNone,
-			Preconditions:  []string{"an incident session exists"},
-			Postconditions: []string{"report emitted; no host change"},
+			Preconditions:   []string{"an incident session exists"},
+			Postconditions:  []string{"report emitted; no host change"},
 			ExampleGoodCall: "agentlink " + joinArgv(argv),
 			ExampleBadCall:  "include raw secrets in the report  # reports MUST be redacted",
 			PossibleErrors:  []string{"no_session", "timeout"},
 			TimeoutSeconds:  45, WhenNotToUse: "Not execution.",
-			RelatedTools:    []string{"agentlink.support_bundle_redacted"},
+			RelatedTools:      []string{"agentlink.support_bundle_redacted"},
 			AutonomousAllowed: true, RecommendAllowed: gemma}
 	}
 	return []ToolCard{

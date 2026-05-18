@@ -26,6 +26,7 @@ type TunInterface struct {
 }
 
 func DiagnoseTun(report DiagnosticReport) TunReport {
+	AnalyzeTopology(&report)
 	out := TunReport{SchemaVersion: 1}
 	for _, iface := range report.Network.Interfaces {
 		if !iface.IsUTun && !strings.HasPrefix(iface.Name, "utun") {
@@ -55,6 +56,10 @@ func DiagnoseTun(report DiagnosticReport) TunReport {
 		out.UTunInterfaces = append(out.UTunInterfaces, item)
 	}
 	out.Providers = interference.Facts(allResidueText(report.Residues), out.SuspiciousSignatures)
+	if HasProtectedRouteOwnershipConflict(report) {
+		out.Warnings = append(out.Warnings, "protected topology route ownership conflict detected; suppressing TUN repair recommendation until scoped ownership is proven")
+		return out
+	}
 	if hasSuspiciousTun(out) {
 		out.RecommendedRepair = "tun"
 	}

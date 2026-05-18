@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "maze-m02-system-proxy-dirty-internet-ok",
+  "category": "network-maze",
+  "description": "System proxy settings are dirty even though internet probes still work; should route to safe proxy cleanup, not TUN repair.",
+  "diagnostic": {
+    "schemaVersion": 1,
+    "network": {
+      "hardwarePorts": [{"port": "Wi-Fi", "device": "en0"}],
+      "interfaces": [{"name": "en0", "status": "active", "ipv4": ["192.168.1.21"]}],
+      "defaultRoute": {"present": true, "gateway": "192.168.1.1", "interface": "en0"},
+      "proxySummary": {"httpEnabled": true, "httpsEnabled": true, "socksEnabled": false, "pacEnabled": false, "dirty": true}
+    },
+    "reachability": {
+      "gateway": {"target": "192.168.1.1", "ok": true},
+      "rawIPs": {"1.1.1.1": {"target": "1.1.1.1", "ok": true}},
+      "dnsNames": {"www.baidu.com": {"target": "www.baidu.com", "ok": true}},
+      "httpsTargets": {"https://www.baidu.com": {"target": "https://www.baidu.com", "ok": true}},
+      "agentTargets": {}
+    }
+  },
+  "expected": {
+    "failureClass": "SYSTEM_PROXY_DIRTY",
+    "recommendedRepairLevel": "safe"
+  }
+}

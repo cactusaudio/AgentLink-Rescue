@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -41,6 +42,9 @@ func TestRecipeLoadValidateAndUnknown(t *testing.T) {
 }
 
 func TestMacOSZshPathRepairDryRunAndRollback(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("macOS zsh path repair uses /bin/zsh verifier; covered by macOS release gates")
+	}
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	zshrc := filepath.Join(home, ".zshrc")

@@ -1,0 +1,158 @@
+{
+  "count": 12,
+  "failed": 0,
+  "fixtureRoot": "testdata/chaos/network/mazes",
+  "pack": "agentlink-common-network-sandbox-mazes",
+  "passed": 12,
+  "results": [
+    {
+      "failureClasses": [
+        "OK"
+      ],
+      "fixturePath": "/Users/jack/CactusLocalAgent/AgentLink-Rescue/testdata/chaos/network/mazes/m01-healthy-wifi-baseline.json",
+      "id": "maze-m01-healthy-wifi-baseline",
+      "recommendedRepairLevel": "none",
+      "schemaVersion": 1,
+      "status": "passed",
+      "toolVersion": "0.5.1"
+    },
+    {
+      "failureClasses": [
+        "SYSTEM_PROXY_DIRTY"
+      ],
+      "fixturePath": "/Users/jack/CactusLocalAgent/AgentLink-Rescue/testdata/chaos/network/mazes/m02-system-proxy-dirty-internet-ok.json",
+      "id": "maze-m02-system-proxy-dirty-internet-ok",
+      "recommendedRepairLevel": "safe",
+      "schemaVersion": 1,
+      "status": "passed",
+      "toolVersion": "0.5.1"
+    },
+    {
+      "failureClasses": [
+        "USER_PROXY_DIRTY"
+      ],
+      "fixturePath": "/Users/jack/CactusLocalAgent/AgentLink-Rescue/testdata/chaos/network/mazes/m03-shell-env-proxy-dirty.json",
+      "id": "maze-m03-shell-env-proxy-dirty",
+      "recommendedRepairLevel": "safe",
+      "schemaVersion": 1,
+      "status": "passed",
+      "toolVersion": "0.5.1"
+    },
+    {
+      "failureClasses": [
+        "GIT_PROXY_DIRTY",
+        "NPM_PROXY_DIRTY",
+        "BREW_PROXY_DIRTY"
+      ],
+      "fixturePath": "/Users/jack/CactusLocalAgent/AgentLink-Rescue/testdata/chaos/network/mazes/m04-dev-tool-proxies-dirty.json",
+      "id": "maze-m04-dev-tool-proxies-dirty",
+      "recommendedRepairLevel": "safe",
+      "schemaVersion": 1,
+      "status": "passed",
+      "toolVersion": "0.5.1"
+    },
+    {
+      "failureClasses": [
+        "HTTPS_FAIL"
+      ],
+      "fixturePath": "/Users/jack/CactusLocalAgent/AgentLink-Rescue/testdata/chaos/network/mazes/m05-https-only-captive-portal.json",
+      "id": "maze-m05-https-only-captive-portal",
+      "recommendedRepairLevel": "safe",
+      "schemaVersion": 1,
+      "status": "passed",
+      "toolVersion": "0.5.1"
+    },
+    {
+      "failureClasses": [
+        "NO_DEFAULT_ROUTE",
+        "RAW_IP_UNREACHABLE"
+      ],
+      "fixturePath": "/Users/jack/CactusLocalAgent/AgentLink-Rescue/testdata/chaos/network/mazes/m06-no-default-route-wifi-active.json",
+      "id": "maze-m06-no-default-route-wifi-active",
+      "recommendedRepairLevel": "standard",
+      "schemaVersion": 1,
+      "status": "passed",
+      "toolVersion": "0.5.1"
+    },
+    {
+      "failureClasses": [
+        "NO_ACTIVE_INTERFACE",
+        "LINK_LOCAL_ONLY",
+        "NO_DHCP_LEASE",
+        "NO_DEFAULT_ROUTE",
+        "RAW_IP_UNREACHABLE"
+      ],
+      "fixturePath": "/Users/jack/CactusLocalAgent/AgentLink-Rescue/testdata/chaos/network/mazes/m07-dhcp-link-local-only.json",
+      "id": "maze-m07-dhcp-link-local-only",
+      "recommendedRepairLevel": "standard",
+      "schemaVersion": 1,
+      "status": "passed",
+      "toolVersion": "0.5.1"
+    },
+    {
+      "failureClasses": [
+        "GATEWAY_UNREACHABLE",
+        "RAW_IP_UNREACHABLE"
+      ],
+      "fixturePath": "/Users/jack/CactusLocalAgent/AgentLink-Rescue/testdata/chaos/network/mazes/m08-gateway-unreachable-lan.json",
+      "id": "maze-m08-gateway-unreachable-lan",
+      "recommendedRepairLevel": "safe",
+      "schemaVersion": 1,
+      "status": "passed",
+      "toolVersion": "0.5.1"
+    },
+    {
+      "failureClasses": [
+        "GENERAL_INTERNET_OK_AGENT_ENDPOINT_BLOCKED"
+      ],
+      "fixturePath": "/Users/jack/CactusLocalAgent/AgentLink-Rescue/testdata/chaos/network/mazes/m09-agent-endpoint-blocked-only.json",
+      "id": "maze-m09-agent-endpoint-blocked-only",
+      "recommendedRepairLevel": "none",
+      "schemaVersion": 1,
+      "status": "passed",
+      "toolVersion": "0.5.1"
+    },
+    {
+      "failureClasses": [
+        "GATEWAY_UNREACHABLE",
+        "RAW_IP_UNREACHABLE",
+        "KNOWN_AGENT_RESIDUE",
+        "CLASH_TUN_ACTIVE_OR_STALE",
+        "NETWORK_EXTENSION_SUSPECTED",
+        "TUN_ROUTE_OWNERSHIP_SUSPECTED",
+        "AIRDROP_DISCOVERY_DEGRADED"
+      ],
+      "fixturePath": "/Users/jack/CactusLocalAgent/AgentLink-Rescue/testdata/chaos/network/mazes/m10-clash-tun-airdrop-degraded.json",
+      "id": "maze-m10-clash-tun-airdrop-degraded",
+      "recommendedRepair": "tun",
+      "recommendedRepairLevel": "tun",
+      "schemaVersion": 1,
+      "status": "passed",
+      "toolVersion": "0.5.1"
+    },
+    {
+      "failureClasses": [
+        "RAW_IP_UNREACHABLE",
+        "NETWORK_EXTENSION_SUSPECTED"
+      ],
+      "fixturePath": "/Users/jack/CactusLocalAgent/AgentLink-Rescue/testdata/chaos/network/mazes/m11-network-extension-stale.json",
+      "id": "maze-m11-network-extension-stale",
+      "recommendedRepairLevel": "safe",
+      "schemaVersion": 1,
+      "status": "passed",
+      "toolVersion": "0.5.1"
+    },
+    {
+      "failureClasses": [
+        "MDM_PROFILE_SUSPECTED"
+      ],
+      "fixturePath": "/Users/jack/CactusLocalAgent/AgentLink-Rescue/testdata/chaos/network/mazes/m12-mdm-profile-suspected.json",
+      "id": "maze-m12-mdm-profile-suspected",
+      "recommendedRepairLevel": "safe",
+      "schemaVersion": 1,
+      "status": "passed",
+      "toolVersion": "0.5.1"
+    }
+  ],
+  "schemaVersion": 1
+}

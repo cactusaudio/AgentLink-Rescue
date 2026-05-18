@@ -7,19 +7,19 @@ struct StatusDashboardView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                guidedHero
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 12)], spacing: 12) {
-                    summaryPill(title: "Package Health", value: state.packageHealthLabel, kind: packageHealthKind)
-                    summaryPill(title: "AgentLink Core", value: state.selftestStatus, kind: state.selftestStatus == "OK" ? .ok : .warn)
-                    summaryPill(title: "Brain Pack", value: state.brainDoctor?.brainPackAvailable == true ? "OK" : "Missing", kind: state.brainDoctor?.brainPackAvailable == true ? .ok : .warn)
-                    summaryPill(title: "Network", value: state.doctor?.classifications?.contains("OK") == true ? "OK" : state.recommendationLabel, kind: state.recommendationKind)
-                    summaryPill(title: "Last Session", value: state.repair?.status ?? state.dryRun?.status ?? "None", kind: state.dryRun?.status == "dry-run" || state.repair?.status == "success" ? .ok : .neutral)
+                rescueHero
+                if needsPackageAttention || state.incompleteJournalDetected {
+                    attentionCard
                 }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 12)], spacing: 12) {
-                    restoreCard
-                    reportsCard
+                    statusCard
+                    planCard
                 }
-                OutputCard(title: "Latest Command Output", text: state.latestResult?.combinedOutput ?? "", placeholder: "Run the main rescue flow to see command output.", collapsedByDefault: true)
+                safetyCard
+                if state.developerModeEnabled {
+                    developerDetails
+                    OutputCard(title: "Latest Command Output", text: state.latestResult?.combinedOutput ?? "", placeholder: "Run Check & Plan Rescue to see command output.", collapsedByDefault: true)
+                }
             }
             .padding()
         }
@@ -33,79 +33,53 @@ struct StatusDashboardView: View {
         }
     }
 
-    private var guidedHero: some View {
+    private var rescueHero: some View {
         HStack(alignment: .center, spacing: 18) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Fix My Connection")
+                Text("AgentLink Rescue")
                     .font(.title2.weight(.semibold))
                     .onTapGesture(count: 3) {
                         state.developerModeEnabled = true
                     }
-                Text(state.fieldMode?.mode == "macbook-network-rescue" ? "AgentLink diagnoses the connection, checks Clash/TUN as one possible cause, asks before writable repair, creates rollback checkpoints, and uses Terminal tickets when admin permission is needed." : "AgentLink diagnoses your network, explains the likely cause, asks before writable repair, creates rollback checkpoints, verifies after each step, and uses Terminal tickets when admin permission is needed.")
+                Text("Check this Mac, prepare a safe rescue plan, and export a support bundle. The app does not run sudo in the GUI; admin repairs are handed off as Terminal tickets.")
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                if state.safeModeActive {
-                    Text("Package needs local repair or is missing required resources. Safe Mode limits the main action to diagnostics until package health is restored.")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                }
-                if state.incompleteJournalDetected {
-                    Text("Previous repair did not finish. Review journal recovery before applying another repair.")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                }
                 HStack(spacing: 8) {
-                    StatusBadge(text: "Package \(state.packageHealthLabel)", kind: packageHealthKind)
-                    StatusBadge(text: state.packageType, kind: state.packageType == "Brain" ? .ok : .warn)
-                    StatusBadge(text: state.recommendationLabel, kind: state.recommendationKind)
+                    StatusBadge(text: "Local diagnostics", kind: .ok)
+                    StatusBadge(text: "Dry-run first", kind: .ok)
+                    StatusBadge(text: "Approval required", kind: .ok)
                     if state.incompleteJournalDetected {
                         StatusBadge(text: "Incomplete repair", kind: .warn)
-                    }
-                    if state.isRunning {
-                        StatusBadge(text: "Running", kind: .warn)
                     }
                 }
             }
             Spacer(minLength: 16)
             VStack(alignment: .trailing, spacing: 12) {
                 Button {
-                    if state.safeModeActive {
+                    if packageBlocksMainAction {
                         Task { await state.runDoctor() }
                     } else {
-                        state.page = .guided
-                        Task { await state.runGuidedRescue(allowRepair: false, target: state.fieldMode?.mode == "macbook-network-rescue" ? "network" : "auto") }
+                        Task {
+                            await state.runGuidedRescue(allowRepair: false, target: state.fieldMode?.mode == "macbook-network-rescue" ? "network" : "auto")
+                            await state.loadReports()
+                        }
                     }
                 } label: {
-                    Label(state.safeModeActive ? "Diagnose Only" : "Fix My Connection", systemImage: state.safeModeActive ? "stethoscope" : "sparkles.rectangle.stack")
+                    Label(packageBlocksMainAction ? "Run Diagnosis" : "Check & Plan Rescue", systemImage: packageBlocksMainAction ? "stethoscope" : "checklist.checked")
                         .font(.headline)
-                        .frame(minWidth: 260)
+                        .frame(minWidth: 250)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(state.isRunning)
+                Text(packageBlocksMainAction ? "Package health limits this to diagnostics." : "Creates a dry-run rescue plan only.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 if state.isRunning {
-                    Text("A rescue command is already running.")
+                    Text("AgentLink is checking this Mac.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                }
-                if state.packageHealth?.status == "needs_repair" || state.packageHealth?.status == "broken" {
-                    Button {
-                        Task { await state.repairPackage() }
-                    } label: {
-                        Label("Fix Package", systemImage: "wrench.and.screwdriver")
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(state.isRunning)
-                }
-                if state.incompleteJournalDetected {
-                    Button {
-                        state.page = .reports
-                    } label: {
-                        Label("Review Recovery", systemImage: "exclamationmark.arrow.triangle.2.circlepath")
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(state.isRunning)
                 }
                 Button {
                     confirmSupportBundle = true
@@ -114,8 +88,8 @@ struct StatusDashboardView: View {
                 }
                 .buttonStyle(.bordered)
                 .disabled(state.isRunning)
-                Button(state.developerModeEnabled ? "Developer Mode On" : "Developer Mode") {
-                    state.page = .settings
+                Button("View Reports") {
+                    state.page = .reports
                 }
                 .buttonStyle(.borderless)
             }
@@ -125,40 +99,162 @@ struct StatusDashboardView: View {
         .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 10))
     }
 
-    private var restoreCard: some View {
+    private var attentionCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Connection Rescue").font(.headline)
-            Text(state.versionText).foregroundStyle(.secondary)
-            StatusBadge(text: state.selftestStatus, kind: state.selftestStatus == "OK" ? .ok : .warn)
-            InfoRow(label: "Package health", value: state.packageHealthLabel)
-            InfoRow(label: "Safe Mode", value: state.safeModeActive ? "On" : "Off")
-            InfoRow(label: "Journal", value: state.journalRecovery?.status ?? "unknown")
-            InfoRow(label: "Package", value: state.packageType)
-            InfoRow(label: "Recommended", value: state.recommendationLabel)
-            ForEach((state.doctor?.classifications ?? []).prefix(4), id: \.self) { item in
-                StatusBadge(text: item, kind: item == "OK" ? .ok : .warn)
+            HStack {
+                Label(packageBlocksMainAction ? "Needs attention" : "First-run setup", systemImage: packageBlocksMainAction ? "exclamationmark.triangle" : "folder.badge.plus")
+                    .font(.headline)
+                Spacer()
+                StatusBadge(text: packageBlocksMainAction ? "Safe Mode" : "Setup", kind: .warn)
             }
-            InfoRow(label: "Binary", value: state.client.binaryURL.path, monospaced: true)
+            if needsPackageAttention {
+                Text(packageBlocksMainAction ? "AgentLink package health is \(state.packageHealthLabel). The main action is limited to diagnosis until the local package is healthy." : "AgentLink is ready to diagnose. Snapshot-backed repairs need local support folders; package repair can create them before you apply a repair.")
+                    .foregroundStyle(.secondary)
+                if state.packageHealth?.status == "needs_repair" || state.packageHealth?.status == "broken" {
+                    Button {
+                        Task { await state.repairPackage() }
+                    } label: {
+                        Label(packageBlocksMainAction ? "Repair AgentLink Package" : "Prepare Local Support Folders", systemImage: "wrench.and.screwdriver")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(state.isRunning)
+                }
+            }
+            if state.incompleteJournalDetected {
+                Text("A previous repair did not finish. Review the recovery report before running another repair.")
+                    .foregroundStyle(.secondary)
+                Button {
+                    state.page = .reports
+                } label: {
+                    Label("Review Recovery Report", systemImage: "doc.text.magnifyingglass")
+                }
+                .buttonStyle(.bordered)
+            }
         }
         .card()
     }
 
-    private var reportsCard: some View {
+    private var statusCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Reports & Rollback").font(.headline)
-            InfoRow(label: "Dry-run", value: state.dryRun?.status ?? "None")
-            InfoRow(label: "Repair", value: state.repair?.status ?? "None")
-            InfoRow(label: "Session", value: state.repair?.sessionId ?? state.dryRun?.sessionId ?? "None", monospaced: true)
+            Text("Current Status").font(.headline)
+            InfoRow(label: "AgentLink", value: state.selftestStatus == "OK" ? "Ready" : "Needs attention")
+            InfoRow(label: "Package", value: packageBlocksMainAction ? "Needs local repair" : "Ready")
+            InfoRow(label: "Network", value: state.doctor?.classifications?.contains("OK") == true ? "Looks OK" : state.recommendationLabel)
+            if let classes = state.doctor?.classifications, !classes.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(classes.prefix(3), id: \.self) { item in
+                        StatusBadge(text: item, kind: item == "OK" ? .ok : .warn)
+                    }
+                }
+            } else {
+                Text("Run Check & Plan Rescue to refresh the network assessment.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .card()
+    }
+
+    private var planCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Latest Plan").font(.headline)
+            if let guided = state.guidedReport {
+                StatusBadge(text: guided.status ?? state.guidedStatus, kind: guided.status == "failed" ? .fail : .ok)
+                InfoRow(label: "Target", value: guided.target ?? state.guidedLastTarget ?? "auto")
+                InfoRow(label: "Recipe", value: guided.selectedRecipe ?? state.guidedLastRecipe ?? "none", monospaced: true)
+                if guided.requiresAdmin == true {
+                    StatusBadge(text: "Terminal ticket required", kind: .warn)
+                }
+                Text(guided.humanSummary ?? guided.finalSummary ?? state.guidedSummary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let ticket = guided.terminalTicketPath, !ticket.isEmpty {
+                    InfoRow(label: "Ticket", value: ticket, monospaced: true)
+                }
+            } else if let dryRun = state.dryRun {
+                    StatusBadge(text: dryRun.status ?? "dry-run", kind: .ok)
+                    InfoRow(label: "Target", value: dryRun.target ?? "auto")
+                    InfoRow(label: "Recipe", value: dryRun.plannerDecision?.selectedRecipe?.id ?? dryRun.recipeResult?.recipeId ?? "none", monospaced: true)
+                    InfoRow(label: "Risk", value: dryRun.plannerDecision?.risk ?? "unknown")
+                    if let explanation = dryRun.plannerDecision?.explanationForUser, !explanation.isEmpty {
+                        Text(explanation)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+            } else if state.guidedStatus == "Running" {
+                StatusBadge(text: "Checking", kind: .warn)
+                Text(state.guidedSummary)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if let result = state.guidedResult, !result.succeeded {
+                StatusBadge(text: "Failed", kind: .fail)
+                Text(result.stderrOrFallback)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                StatusBadge(text: "No plan yet", kind: .neutral)
+                Text("Start with Check & Plan Rescue. AgentLink will produce a dry-run plan and support-bundle evidence before any repair.")
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let session = state.repair?.sessionId ?? state.dryRun?.sessionId {
+                InfoRow(label: "Session", value: session, monospaced: true)
+            }
+        }
+        .card()
+    }
+
+    private var safetyCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Safety Boundary").font(.headline)
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 10)], spacing: 10) {
+                safetyItem("No sudo in the GUI", "Admin work is prepared as a Terminal ticket.")
+                safetyItem("Dry-run before repair", "The main button produces a plan, not a system mutation.")
+                safetyItem("Reports first", "Support bundles are redacted and exportable for review.")
+                safetyItem("Protected topologies preserved", "Audio, video, storage, lab, and policy-owned interfaces become report-only boundaries.")
+            }
+        }
+        .card()
+    }
+
+    private var developerDetails: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Developer Details").font(.headline)
+                Spacer()
+                StatusBadge(text: "Developer Mode", kind: .warn)
+            }
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 12)], spacing: 12) {
+                summaryPill(title: "Package Health", value: state.packageHealthLabel, kind: packageHealthKind)
+                summaryPill(title: "AgentLink Core", value: state.selftestStatus, kind: state.selftestStatus == "OK" ? .ok : .warn)
+                summaryPill(title: "Brain Pack", value: state.brainDoctor?.brainPackAvailable == true ? "OK" : "Missing", kind: state.brainDoctor?.brainPackAvailable == true ? .ok : .warn)
+                summaryPill(title: "Last Session", value: state.repair?.status ?? state.dryRun?.status ?? "None", kind: state.dryRun?.status == "dry-run" || state.repair?.status == "success" ? .ok : .neutral)
+            }
+            InfoRow(label: "Version", value: state.versionText)
+            InfoRow(label: "Binary", value: state.client.binaryURL.path, monospaced: true)
+            InfoRow(label: "Journal", value: state.journalRecovery?.status ?? "unknown")
             Text("Rollback is available only after a snapshot-backed repair.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Divider()
-            let available = state.brainDoctor?.brainPackAvailable == true
-            StatusBadge(text: available ? "Brain package available" : "Brain assets missing", kind: available ? .ok : .warn)
-            InfoRow(label: "Model SHA", value: state.brainDoctor?.modelSha256OK == true ? "OK" : "Missing/failed")
-            InfoRow(label: "Runtime", value: state.brainDoctor?.runtimeExecutable == true ? "Executable" : "Missing")
         }
         .card()
+    }
+
+    private func safetyItem(_ title: String, _ detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+            Text(detail)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
     }
 
     private func summaryPill(title: String, value: String, kind: StatusBadge.Kind) -> some View {
@@ -182,6 +278,30 @@ struct StatusDashboardView: View {
         default:
             return .neutral
         }
+    }
+
+    private var needsPackageAttention: Bool {
+        guard let status = state.packageHealth?.status else { return false }
+        return ["needs_repair", "broken", "partial_repair", "failed"].contains(status)
+    }
+
+    private var packageBlocksMainAction: Bool {
+        guard let health = state.packageHealth else { return false }
+        if health.status == "broken" || health.status == "failed" {
+            return true
+        }
+        guard health.status == "needs_repair" else {
+            return false
+        }
+        return health.checks?.contains { check in
+            guard ["needs_repair", "missing", "not_executable", "failed"].contains(check.status ?? "") else {
+                return false
+            }
+            if check.id == "app_support_dir" {
+                return false
+            }
+            return check.required == true || check.id == "quarantine_xattr"
+        } ?? true
     }
 
     private func export(_ text: String, name: String) {

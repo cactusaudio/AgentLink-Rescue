@@ -69,13 +69,23 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Report {
 		State:          "CollectFacts",
 		FailureClasses: report.FailureClasses,
 		FactsSummary: map[string]any{
-			"defaultRoute":   diag.Network.DefaultRoute.Present,
-			"recommended":    diag.RecommendedRepairLevel,
-			"tunRecommended": tun.RecommendedRepair,
-			"providers":      tun.Providers,
+			"defaultRoute":         diag.Network.DefaultRoute.Present,
+			"recommended":          diag.RecommendedRepairLevel,
+			"tunRecommended":       tun.RecommendedRepair,
+			"providers":            tun.Providers,
+			"protectedConstraints": len(diag.Topology.ProtectedConstraints),
+			"repairCorridor":       diag.Topology.RepairCorridor,
 		},
 		Result: "facts_collected",
 	})
+	if contains(report.FailureClasses, classify.ProtectedAudioVLANRouteTrap) || contains(report.FailureClasses, classify.ProtectedTopologyConstraint) || diagnose.HasProtectedTopologyConstraint(diag) {
+		decision := topologyBoundaryDecision(diag)
+		report.Status = "manual_action_required"
+		report.HumanSummary = decision.ExplanationForUser
+		report.NextAction = "agentlink support bundle --json"
+		report.Cycles = append(report.Cycles, Cycle{Index: 2, State: "TopologyBoundary", SupervisorDecision: decision, Result: "repair_corridor_refused"})
+		return finish(report, opts.Home)
+	}
 	brainBackend := opts.BrainBackend
 	if brainBackend == nil {
 		brainBackend = brain.NewLlamaCLIBackend(runner, opts.Home)
@@ -268,6 +278,8 @@ func gemmaSupervise(ctx context.Context, backend brain.BrainBackend, diag diagno
 			"tunRecommended":      tun.RecommendedRepair,
 			"tunSignatures":       tun.SuspiciousSignatures,
 			"providers":           tun.Providers,
+			"topology":            diag.Topology,
+			"repairCorridor":      diag.Topology.RepairCorridor,
 		},
 	}
 	data, _ := json.MarshalIndent(payload, "", "  ")
@@ -314,6 +326,11 @@ func arbitratePlans(deterministicPlan, gemmaPlan RescuePlanDecision, tunHighConf
 	}
 	if err := ValidatePlan(gemmaPlan, tunHighConfidence); err != nil {
 		result.GemmaOverrideRejectedReason = "Gemma plan rejected by policy validator: " + err.Error()
+		result.Warning = result.GemmaOverrideRejectedReason
+		return result
+	}
+	if isProtectedBoundaryPlan(deterministicPlan) {
+		result.GemmaOverrideRejectedReason = "protected topology repair corridor retained; model cannot relax deterministic boundary"
 		result.Warning = result.GemmaOverrideRejectedReason
 		return result
 	}
@@ -394,6 +411,9 @@ func hasValidatedContradictoryFacts(_ RescuePlanDecision) bool {
 }
 
 func supervise(diag diagnose.DiagnosticReport, tun diagnose.TunReport, target string) RescuePlanDecision {
+	if contains(diag.Classifications, classify.ProtectedAudioVLANRouteTrap) || contains(diag.Classifications, classify.ProtectedTopologyConstraint) || diagnose.HasProtectedTopologyConstraint(diag) {
+		return topologyBoundaryDecision(diag)
+	}
 	if target == "network" || target == "clash-tun" || target == "auto" {
 		if tun.RecommendedRepair == "tun" {
 			return RescuePlanDecision{
@@ -415,6 +435,27 @@ func supervise(diag diagnose.DiagnosticReport, tun diagnose.TunReport, target st
 		return RescuePlanDecision{SchemaVersion: 1, Intent: "report", FailureClass: classify.OK, Confidence: 0.9, ExplanationForUser: "network looks healthy"}
 	}
 	return RescuePlanDecision{SchemaVersion: 1, Intent: "manual_action", FailureClass: "UNKNOWN", Confidence: 0.6, StopReason: "no high-confidence targeted rescue plan"}
+}
+
+func topologyBoundaryDecision(diag diagnose.DiagnosticReport) RescuePlanDecision {
+	class := classify.ProtectedTopologyConstraint
+	conf := 0.9
+	if contains(diag.Classifications, classify.ProtectedAudioVLANRouteTrap) || diagnose.ProtectedAudioRouteTrap(diag) {
+		class = classify.ProtectedAudioVLANRouteTrap
+		conf = 0.95
+	}
+	return RescuePlanDecision{
+		SchemaVersion:      1,
+		Intent:             "manual_action",
+		FailureClass:       class,
+		Confidence:         conf,
+		ExplanationForUser: "Protected topology detected. AgentLink will only gather route/network snapshots, support bundles, and incident reports; it will not run TUN cleanup, DHCP renew, route flush, proxy reset, clean-baseline, or VLAN mutation across protected surfaces.",
+		StopReason:         "protected topology repair corridor",
+	}
+}
+
+func isProtectedBoundaryPlan(plan RescuePlanDecision) bool {
+	return plan.Intent != "repair" && (plan.FailureClass == classify.ProtectedAudioVLANRouteTrap || plan.FailureClass == classify.ProtectedTopologyConstraint)
 }
 
 func healthy(diag diagnose.DiagnosticReport, tun diagnose.TunReport) bool {

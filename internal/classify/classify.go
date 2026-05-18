@@ -33,16 +33,20 @@ const (
 	SysconfigSuspected                    = "SYSCONFIG_SUSPECTED"
 	MDMProfileSuspected                   = "MDM_PROFILE_SUSPECTED"
 	GeneralInternetOKAgentEndpointBlocked = "GENERAL_INTERNET_OK_AGENT_ENDPOINT_BLOCKED"
+	ProtectedTopologyConstraint           = "PROTECTED_TOPOLOGY_CONSTRAINT"
+	ProtectedAudioVLANRouteTrap           = "PROTECTED_AUDIO_VLAN_ROUTE_TRAP"
 	Unknown                               = "UNKNOWN"
 )
 
 func Apply(r *diagnose.DiagnosticReport) {
+	diagnose.AnalyzeTopology(r)
 	classes := Classify(*r)
 	r.Classifications = classes
 	r.RecommendedRepairLevel = RecommendedRepairLevel(classes)
 }
 
 func Classify(r diagnose.DiagnosticReport) []string {
+	diagnose.AnalyzeTopology(&r)
 	added := map[string]bool{}
 	var out []string
 	add := func(c string) {
@@ -102,8 +106,10 @@ func Classify(r diagnose.DiagnosticReport) []string {
 	if hasAutoResidue(r.Residues) && internetBroken {
 		add(KnownAgentResidue)
 	}
+	protectedTrap := diagnose.ProtectedAudioRouteTrap(r)
+	protectedConstraint := diagnose.HasProtectedTopologyConstraint(r)
 	tun := diagnose.DiagnoseTun(r)
-	if tun.RecommendedRepair == "tun" {
+	if tun.RecommendedRepair == "tun" && !protectedTrap && !protectedConstraint {
 		add(ClashTunActiveOrStale)
 	}
 	if proxyClean(r) && internetBroken && hasNetworkFilterResidue(r.Residues) {
@@ -120,6 +126,11 @@ func Classify(r diagnose.DiagnosticReport) []string {
 	}
 	if rawOK && dnsOK && httpsOK && len(r.Reachability.AgentTargets) > 0 && !agentOK {
 		add(GeneralInternetOKAgentEndpointBlocked)
+	}
+	if protectedTrap {
+		add(ProtectedAudioVLANRouteTrap)
+	} else if protectedConstraint {
+		add(ProtectedTopologyConstraint)
 	}
 	if len(out) == 0 {
 		add(OK)
@@ -138,6 +149,12 @@ func RecommendedRepairLevel(classes []string) string {
 	}
 	if has(GeneralInternetOKAgentEndpointBlocked) {
 		return "none"
+	}
+	if has(ProtectedAudioVLANRouteTrap) {
+		return "safe"
+	}
+	if has(ProtectedTopologyConstraint) {
+		return "safe"
 	}
 	if has(ClashTunActiveOrStale) || has(TunRouteOwnershipSuspected) {
 		return "tun"

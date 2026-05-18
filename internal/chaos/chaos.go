@@ -21,19 +21,21 @@ type Fixture struct {
 }
 
 type Expected struct {
-	FailureClass      string `json:"failureClass,omitempty"`
-	RecommendedRepair string `json:"recommendedRepair,omitempty"`
+	FailureClass           string `json:"failureClass,omitempty"`
+	RecommendedRepair      string `json:"recommendedRepair,omitempty"`
+	RecommendedRepairLevel string `json:"recommendedRepairLevel,omitempty"`
 }
 
 type Report struct {
-	SchemaVersion     int      `json:"schemaVersion"`
-	ToolVersion       string   `json:"toolVersion"`
-	FixturePath       string   `json:"fixturePath,omitempty"`
-	ID                string   `json:"id,omitempty"`
-	Status            string   `json:"status"`
-	FailureClasses    []string `json:"failureClasses,omitempty"`
-	RecommendedRepair string   `json:"recommendedRepair,omitempty"`
-	Warnings          []string `json:"warnings,omitempty"`
+	SchemaVersion          int      `json:"schemaVersion"`
+	ToolVersion            string   `json:"toolVersion"`
+	FixturePath            string   `json:"fixturePath,omitempty"`
+	ID                     string   `json:"id,omitempty"`
+	Status                 string   `json:"status"`
+	FailureClasses         []string `json:"failureClasses,omitempty"`
+	RecommendedRepair      string   `json:"recommendedRepair,omitempty"`
+	RecommendedRepairLevel string   `json:"recommendedRepairLevel,omitempty"`
+	Warnings               []string `json:"warnings,omitempty"`
 }
 
 func List(root string) ([]string, error) {
@@ -75,6 +77,7 @@ func Run(path string) Report {
 	tun := diagnose.DiagnoseTun(diag)
 	rep.FailureClasses = append([]string(nil), diag.Classifications...)
 	rep.RecommendedRepair = tun.RecommendedRepair
+	rep.RecommendedRepairLevel = diag.RecommendedRepairLevel
 	if fixture.Expected.FailureClass != "" && !contains(diag.Classifications, fixture.Expected.FailureClass) {
 		rep.Status = "failed"
 		rep.Warnings = append(rep.Warnings, "expected failure class missing: "+fixture.Expected.FailureClass)
@@ -82,6 +85,10 @@ func Run(path string) Report {
 	if fixture.Expected.RecommendedRepair != "" && fixture.Expected.RecommendedRepair != tun.RecommendedRepair {
 		rep.Status = "failed"
 		rep.Warnings = append(rep.Warnings, "expected recommended repair "+fixture.Expected.RecommendedRepair+", got "+tun.RecommendedRepair)
+	}
+	if fixture.Expected.RecommendedRepairLevel != "" && fixture.Expected.RecommendedRepairLevel != diag.RecommendedRepairLevel {
+		rep.Status = "failed"
+		rep.Warnings = append(rep.Warnings, "expected recommended repair level "+fixture.Expected.RecommendedRepairLevel+", got "+diag.RecommendedRepairLevel)
 	}
 	return rep
 }

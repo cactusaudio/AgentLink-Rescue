@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"cactus-agentlink-rescue/internal/classify"
 	"cactus-agentlink-rescue/internal/command"
 	"cactus-agentlink-rescue/internal/diagnose"
 	"cactus-agentlink-rescue/internal/snapshot"
@@ -162,6 +163,42 @@ func TestStandardDoesNotUseBroadSystemReset(t *testing.T) {
 	}
 	if !foundLocation {
 		t.Fatal("standard-system-reset did not create clean location")
+	}
+}
+
+func TestProtectedAudioVLANTrapPlansNoMutation(t *testing.T) {
+	report := diagnose.DiagnosticReport{
+		Classifications: []string{classify.ProtectedAudioVLANRouteTrap},
+		Network: diagnose.NetworkInfo{
+			Services:      []diagnose.NetworkService{{Name: "Ethernet"}, {Name: "USB LAN"}},
+			HardwarePorts: []diagnose.HardwarePort{{Port: "Ethernet", Device: "en0"}, {Port: "USB LAN", Device: "en1"}},
+			DefaultRoute:  diagnose.DefaultRoute{Present: true, Gateway: "192.168.0.1", Interface: "en0"},
+		},
+	}
+	for _, level := range []string{LevelSafe, LevelStandard, LevelTun, LevelCleanBaseline, LevelStandardSystemReset, LevelDeep} {
+		if actions := buildActions(level, report); len(actions) != 0 {
+			t.Fatalf("protected route trap level %s produced mutating actions: %+v", level, actions)
+		}
+	}
+}
+
+func TestProtectedTopologyConstraintPlansNoMutationWithoutFailureClass(t *testing.T) {
+	report := diagnose.DiagnosticReport{
+		Network: diagnose.NetworkInfo{
+			Services:      []diagnose.NetworkService{{Name: "Ethernet"}, {Name: "USB LAN"}},
+			HardwarePorts: []diagnose.HardwarePort{{Port: "Ethernet", Device: "en0"}, {Port: "USB LAN", Device: "en1"}},
+			Interfaces:    []diagnose.NetworkInterface{{Name: "en0", Status: "active", IPv4: []string{"192.168.0.103"}}, {Name: "en1", Status: "active", IPv4: []string{"192.168.0.104"}}},
+			DefaultRoute:  diagnose.DefaultRoute{Present: true, Gateway: "192.168.0.1", Interface: "en0"},
+		},
+		Reachability: diagnose.ReachabilityInfo{Gateway: diagnose.ProbeResult{Target: "192.168.0.1", OK: false}},
+		Topology: diagnose.TopologyInfo{Interfaces: []diagnose.TopologyInterface{{
+			Name: "en0", Protected: true, Roles: []string{"protected_media"}, RoleEvidence: []string{"Dante audio VLAN"},
+		}}},
+	}
+	for _, level := range []string{LevelSafe, LevelStandard, LevelTun, LevelCleanBaseline, LevelStandardSystemReset, LevelDeep} {
+		if actions := plannedActions(level, report); len(actions) != 0 {
+			t.Fatalf("protected topology level %s produced planned actions: %+v", level, actions)
+		}
 	}
 }
 

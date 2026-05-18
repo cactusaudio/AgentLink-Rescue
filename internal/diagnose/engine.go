@@ -2,6 +2,7 @@ package diagnose
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -123,6 +124,8 @@ func (e Engine) Run(ctx context.Context) DiagnosticReport {
 	report.Residues = e.collectResidues(ctx, agentRules, userInfo.Home)
 	e.collectSystemExtensions(ctx, agentRules, &report)
 	e.collectProfiles(ctx, &report)
+	e.collectTopology(ctx, &report, userInfo.Home)
+	AnalyzeTopology(&report)
 
 	return report
 }
@@ -544,6 +547,59 @@ func (e Engine) collectProfiles(ctx context.Context, report *DiagnosticReport) {
 	if strings.Contains(lower, "enrolled via dep: yes") || strings.Contains(lower, "mdm enrollment: yes") || strings.Contains(lower, "user approved mdm: yes") {
 		report.Residues.Profiles = append(report.Residues.Profiles, ResidueMatch{DisplayName: "MDM/Profile enrollment", Risk: "profile_mdm_suspected", Kind: "profile", DetectOnly: true, Raw: safety.RedactSensitive(strings.TrimSpace(res.Stdout))})
 	}
+}
+
+func (e Engine) collectTopology(ctx context.Context, report *DiagnosticReport, home string) {
+	for _, item := range loadProtectedTopologyManifests(home) {
+		report.Topology.Interfaces = append(report.Topology.Interfaces, item.Interfaces...)
+		report.Topology.ProtectedConstraints = append(report.Topology.ProtectedConstraints, item.ProtectedConstraints...)
+	}
+	if !system.CommandExists("/usr/bin/dns-sd") {
+		return
+	}
+	// dns-sd browse is intentionally bounded and read-only. Its output is
+	// treated as weak role evidence only; interface-bound manifest or report
+	// topology still owns mutation boundaries.
+	for _, svc := range []string{"_netaudio-arc._udp", "_netaudio-cmc._udp", "_ravenna._udp", "_ndi._tcp"} {
+		res := e.runWithTimeout(ctx, 1500*time.Millisecond, "/usr/bin/dns-sd", "-B", svc, "local.")
+		text := strings.ToLower(res.Stdout + "\n" + res.Stderr)
+		if text == "" || !containsAny(text, []string{"add", "local", "_netaudio", "ravenna", "ndi"}) {
+			continue
+		}
+		report.Topology.RedHerrings = append(report.Topology.RedHerrings, TopologyRedHerring{
+			Class:  "UNBOUND_SERVICE_DISCOVERY_SIGNAL",
+			Reason: "read-only DNS-SD saw " + svc + "; use a protected-topology manifest or scoped evidence before mutating interfaces",
+		})
+	}
+}
+
+type topologyManifest struct {
+	SchemaVersion        int                  `json:"schemaVersion"`
+	Interfaces           []TopologyInterface  `json:"interfaces"`
+	ProtectedConstraints []TopologyConstraint `json:"protectedConstraints"`
+}
+
+func loadProtectedTopologyManifests(home string) []topologyManifest {
+	var paths []string
+	if home != "" {
+		paths = append(paths,
+			filepath.Join(home, ".config", "agentlink", "protected-topology.json"),
+			filepath.Join(home, "Library", "Application Support", "Cactus AgentLink Rescue", "protected-topology.json"),
+		)
+	}
+	paths = append(paths, "/Library/Application Support/Cactus AgentLink Rescue/protected-topology.json")
+	var out []topologyManifest
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil || len(data) == 0 {
+			continue
+		}
+		var m topologyManifest
+		if json.Unmarshal(data, &m) == nil {
+			out = append(out, m)
+		}
+	}
+	return out
 }
 
 func containsAny(s string, patterns []string) bool {

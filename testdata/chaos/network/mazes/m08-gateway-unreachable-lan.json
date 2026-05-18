@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "maze-m08-gateway-unreachable-lan",
+  "category": "network-maze",
+  "description": "Default route exists on Wi-Fi but the gateway and raw IP are unreachable.",
+  "diagnostic": {
+    "schemaVersion": 1,
+    "network": {
+      "hardwarePorts": [{"port": "Wi-Fi", "device": "en0"}],
+      "interfaces": [{"name": "en0", "status": "active", "ipv4": ["192.168.88.20"]}],
+      "defaultRoute": {"present": true, "gateway": "192.168.88.1", "interface": "en0"},
+      "proxySummary": {"dirty": false}
+    },
+    "reachability": {
+      "gateway": {"target": "192.168.88.1", "ok": false},
+      "rawIPs": {"1.1.1.1": {"target": "1.1.1.1", "ok": false}},
+      "dnsNames": {"www.baidu.com": {"target": "www.baidu.com", "ok": false}},
+      "httpsTargets": {"https://www.baidu.com": {"target": "https://www.baidu.com", "ok": false}},
+      "agentTargets": {}
+    }
+  },
+  "expected": {
+    "failureClass": "GATEWAY_UNREACHABLE",
+    "recommendedRepairLevel": "safe"
+  }
+}

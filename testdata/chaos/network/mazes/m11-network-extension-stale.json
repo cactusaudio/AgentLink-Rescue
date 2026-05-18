@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "id": "maze-m11-network-extension-stale",
+  "category": "network-maze",
+  "description": "No suspicious TUN signature, but a detect-only network extension is present while connectivity is broken.",
+  "diagnostic": {
+    "schemaVersion": 1,
+    "network": {
+      "hardwarePorts": [{"port": "Wi-Fi", "device": "en0"}],
+      "interfaces": [{"name": "en0", "status": "active", "ipv4": ["192.168.1.26"]}],
+      "defaultRoute": {"present": true, "gateway": "192.168.1.1", "interface": "en0"},
+      "proxySummary": {"dirty": false}
+    },
+    "reachability": {
+      "gateway": {"target": "192.168.1.1", "ok": true},
+      "rawIPs": {"1.1.1.1": {"target": "1.1.1.1", "ok": false}},
+      "dnsNames": {"www.baidu.com": {"target": "www.baidu.com", "ok": false}},
+      "httpsTargets": {"https://www.baidu.com": {"target": "https://www.baidu.com", "ok": false}},
+      "agentTargets": {}
+    },
+    "residues": {
+      "systemExtensions": [{
+        "ruleId": "at.obdev.littlesnitch.networkextension",
+        "displayName": "Little Snitch Network Extension",
+        "risk": "firewall_network_extension_detect_only",
+        "path": "",
+        "kind": "systemExtension",
+        "detectOnly": true,
+        "raw": "Little Snitch Network Extension [activated enabled]"
+      }]
+    }
+  },
+  "expected": {
+    "failureClass": "NETWORK_EXTENSION_SUSPECTED",
+    "recommendedRepairLevel": "safe"
+  }
+}
