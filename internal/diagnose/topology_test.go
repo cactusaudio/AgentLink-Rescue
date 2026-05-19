@@ -43,6 +43,68 @@ func TestAnalyzeTopologyRequiresInterfaceBoundRaw(t *testing.T) {
 	}
 }
 
+func TestInternetCandidateDoesNotMatchNDISubstring(t *testing.T) {
+	r := routeTrapReport()
+	r.Topology.Interfaces = []TopologyInterface{{
+		Name:                "en1",
+		Roles:               []string{"management", "internet_candidate"},
+		RoleEvidence:        []string{"alternate internet candidate over USB LAN"},
+		InternetCandidate:   true,
+		ManagementCandidate: true,
+	}}
+	AnalyzeTopology(&r)
+	for _, c := range r.Topology.ProtectedConstraints {
+		if c.Interface == "en1" {
+			t.Fatalf("internet_candidate produced protected constraint on en1: %+v", r.Topology.ProtectedConstraints)
+		}
+	}
+}
+
+func TestNDIWordTokenStillCreatesVideoBoundary(t *testing.T) {
+	r := routeTrapReport()
+	r.Topology.Interfaces = []TopologyInterface{{
+		Name:         "en0",
+		Roles:        []string{"protected_video"},
+		RoleEvidence: []string{"NDI production VLAN multicast video"},
+		Protected:    true,
+	}}
+	AnalyzeTopology(&r)
+	if len(r.Topology.ProtectedConstraints) != 1 {
+		t.Fatalf("constraints=%+v", r.Topology.ProtectedConstraints)
+	}
+	if r.Topology.ProtectedConstraints[0].Class != TopologyClassProtectedVideoVLAN {
+		t.Fatalf("class=%s constraints=%+v", r.Topology.ProtectedConstraints[0].Class, r.Topology.ProtectedConstraints)
+	}
+}
+
+func TestProtectedDefaultWithInternetCandidateDoesNotProtectAlternate(t *testing.T) {
+	r := routeTrapReport()
+	r.Topology.Interfaces = []TopologyInterface{
+		{
+			Name:         "en0",
+			Roles:        []string{"protected_media"},
+			RoleEvidence: []string{"Dante _netaudio production VLAN"},
+			Protected:    true,
+		},
+		{
+			Name:                "en1",
+			Roles:               []string{"management", "internet_candidate"},
+			RoleEvidence:        []string{"alternate internet candidate over USB LAN"},
+			InternetCandidate:   true,
+			ManagementCandidate: true,
+		},
+	}
+	AnalyzeTopology(&r)
+	for _, c := range r.Topology.ProtectedConstraints {
+		if c.Interface == "en1" {
+			t.Fatalf("alternate internet candidate was marked protected: %+v", r.Topology.ProtectedConstraints)
+		}
+	}
+	if !ProtectedAudioRouteTrap(r) {
+		t.Fatalf("protected default route trap was lost: %+v", r.Topology.ProtectedConstraints)
+	}
+}
+
 func TestMDMProfileCreatesPolicyBoundary(t *testing.T) {
 	r := routeTrapReport()
 	r.Residues.Profiles = []ResidueMatch{{DisplayName: "Managed Proxy Profile", Risk: "mdm_profile_network_policy", Kind: "profile", DetectOnly: true}}

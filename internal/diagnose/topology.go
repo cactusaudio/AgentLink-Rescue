@@ -355,12 +355,44 @@ func protectedClassFromText(text string) (string, []string) {
 	}
 	for _, s := range signals {
 		for _, term := range s.terms {
-			if strings.Contains(text, term) {
+			if containsTopologySignal(text, term) {
 				return s.class, []string{term}
 			}
 		}
 	}
 	return "", nil
+}
+
+func containsTopologySignal(text, term string) bool {
+	text = strings.ToLower(text)
+	term = strings.ToLower(term)
+	if term == "" {
+		return false
+	}
+	if strings.ContainsAny(term, " -_/") {
+		return strings.Contains(text, term)
+	}
+	return containsWordToken(text, term)
+}
+
+func containsWordToken(text, token string) bool {
+	offset := 0
+	for {
+		idx := strings.Index(text[offset:], token)
+		if idx < 0 {
+			return false
+		}
+		start := offset + idx
+		end := start + len(token)
+		if (start == 0 || !isAlphaNum(text[start-1])) && (end == len(text) || !isAlphaNum(text[end])) {
+			return true
+		}
+		offset = start + 1
+	}
+}
+
+func isAlphaNum(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= '0' && b <= '9')
 }
 
 func roleForClass(class string) string {

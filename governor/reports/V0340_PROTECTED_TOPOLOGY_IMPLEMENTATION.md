@@ -26,6 +26,30 @@ repair-corridor enforcement.
 - Added GUI safety copy for protected topologies.
 - Expanded sandbox maze pack from 13 to 25 scenarios.
 
+## GPT Pro Follow-Up: NDI Token Precision
+
+GPT Pro cloud/manual topology review found a real precision bug after the
+initial v0.3.4 alpha package: `protectedClassFromText` matched short protocol
+signals with raw substring checks, so the benign role `internet_candidate`
+could match `ndi` inside `candidate` and falsely mark an alternate management
+path as `PROTECTED_VIDEO_VLAN`.
+
+The follow-up fix changes protected topology signal detection to token-aware
+matching for single-token protocol names. `NDI`, `DVS`, `PTP`, and similar
+short terms must appear as independent word/protocol tokens; multi-word and
+symbolic terms such as `video vlan`, `_netaudio`, and `thunderbolt bridge`
+continue to match literally. This preserves real NDI detection while preventing
+availability-risk false positives from ordinary labels such as
+`internet_candidate`.
+
+Added regression coverage:
+
+```text
+TestInternetCandidateDoesNotMatchNDISubstring
+TestNDIWordTokenStillCreatesVideoBoundary
+TestProtectedDefaultWithInternetCandidateDoesNotProtectAlternate
+```
+
 ## Evidence
 
 Focused tests:
@@ -48,6 +72,7 @@ Key regression probes:
 m13 without Raw -> primaryClass PROTECTED_AUDIO_VLAN_ROUTE_TRAP
 m14 AES67-only -> PROTECTED_AUDIO_VLAN_ROUTE_TRAP
 m25 unbound raw audio -> DNS_FAIL, not protected topology
+m13 graph after NDI token fix -> protectedConstraints only en0, no false en1
 ```
 
 Full gate:
