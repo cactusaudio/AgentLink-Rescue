@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -92,19 +93,28 @@ func TestDiagnoseBrowserCodexReturnsCardBackedTopThree(t *testing.T) {
 
 func TestRedactionStandardAndStrict(t *testing.T) {
 	t.Setenv("USER", "bowei")
-	text := "Authorization: Bearer secret-token\nhttps://user:pass@127.0.0.1:7890\n/Users/bowei/project\n192.168.1.10\n10.1.2.3\n172.16.1.10\nhostname: studio-host\n{\"auth\":\"dXNlcjpzdXBlcnNlY3JldA==\",\"identitytoken\":\"dockertoken-SECRET-1234567890\"}\n"
+	text := "Authorization: Bearer secret-token\nhttps://user:pass@127.0.0.1:7890\n/Users/bowei/project\n192.168.1.10\n10.1.2.3\n172.16.1.10\n169.254.30.98\n198.18.0.1\nhostname: studio-host\n{\"auth\":\"dXNlcjpzdXBlcnNlY3JldA==\",\"identitytoken\":\"dockertoken-SECRET-1234567890\"}\n"
 	standard := Redact(text, "standard")
 	if strings.Contains(standard, "secret-token") || strings.Contains(standard, "user:pass") {
 		t.Fatalf("standard redaction leaked: %s", standard)
 	}
 	strict := Redact(text, "strict")
-	for _, leak := range []string{"/Users/bowei", "192.168.1.10", "10.1.2.3", "172.16.1.10", "studio-host", "dXNlcjpzdXBlcnNlY3JldA==", "dockertoken-SECRET"} {
+	for _, leak := range []string{"/Users/bowei", "192.168.1.10", "10.1.2.3", "172.16.1.10", "169.254.30.98", "198.18.0.1", "studio-host", "dXNlcjpzdXBlcnNlY3JldA==", "dockertoken-SECRET"} {
 		if strings.Contains(strict, leak) {
 			t.Fatalf("strict redaction leaked %q: %s", leak, strict)
 		}
 	}
 	if strings.Contains(strict, "<private-ip>.3") {
 		t.Fatalf("strict redaction leaked: %s", strict)
+	}
+	jsonPath := `{"path":"/Users/bowei/project/report.json","other":"ok"}`
+	redactedJSON := Redact(jsonPath, "strict")
+	var parsed map[string]string
+	if err := json.Unmarshal([]byte(redactedJSON), &parsed); err != nil {
+		t.Fatalf("strict path redaction broke JSON: %v: %s", err, redactedJSON)
+	}
+	if strings.Contains(redactedJSON, "/Users/bowei") {
+		t.Fatalf("strict JSON path redaction leaked user path: %s", redactedJSON)
 	}
 }
 
@@ -336,6 +346,63 @@ routes:
 	}
 	if len(d.Routes) == 0 || d.Routes[0].ID != "SYM-CUSTOM-FROM-YAML" || !strings.Contains(d.Routes[0].Reason, "symptom_routes.yaml") {
 		t.Fatalf("route did not come from YAML: %+v", d.Routes)
+	}
+}
+
+func TestRouteRankingBoostsAreLoadedFromCorpusYAML(t *testing.T) {
+	root := t.TempDir()
+	boosted := validTestCard("BOOSTED-001")
+	boosted.Title = "Boosted card"
+	plain := validTestCard("PLAIN-001")
+	plain.Title = "Plain card"
+	writeMiniCorpus(t, root, []Card{plain, boosted})
+	routeDir := filepath.Join(root, "ontology")
+	if err := os.MkdirAll(routeDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	routeYAML := `version: test
+routes:
+- id: SYM-BOOST-FROM-YAML
+  user_phrase:
+  - custom route ranking phrase
+  priority_layers:
+  - L05_proxy
+  ranking_boosts:
+  - card_id: BOOSTED-001
+    score: 25
+    reason: corpus-defined boost
+`
+	if err := os.WriteFile(filepath.Join(routeDir, "symptom_routes.yaml"), []byte(routeYAML), 0644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("AGENTLINK_GENOME_INDEX_DIR", t.TempDir())
+	d, err := Diagnose(root, "custom route ranking phrase", "", 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(d.Hypotheses) == 0 || d.Hypotheses[0].CardID != "BOOSTED-001" {
+		t.Fatalf("corpus ranking boost did not win: %+v", d.Hypotheses)
+	}
+	if !strings.Contains(strings.Join(d.Hypotheses[0].WhyMatched, " "), "corpus ranking boost") {
+		t.Fatalf("boost provenance missing: %+v", d.Hypotheses[0].WhyMatched)
+	}
+}
+
+func TestGenomeRuntimeDoesNotUsePythonOrScenarioBoost(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime caller unavailable")
+	}
+	data, err := os.ReadFile(filepath.Join(filepath.Dir(file), "genome.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(data)
+	if strings.Contains(text, `exec.Command("python3"`) {
+		t.Fatal("genome runtime still shells out to python3")
+	}
+	if strings.Contains(text, "func scenarioBoost") {
+		t.Fatal("scenarioBoost hard-coded ranking function is still present")
 	}
 }
 

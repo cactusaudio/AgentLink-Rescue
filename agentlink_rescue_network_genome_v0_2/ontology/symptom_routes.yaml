@@ -36,6 +36,16 @@ routes:
   - env proxy diff
   - curl -Iv target
   - tool verbose probe
+  ranking_boosts:
+  - card_id: MAC-PROXY-002
+    score: 35
+    reason: shell proxy mismatch is the highest-priority browser/CLI split card
+  - card_id: DEV-CURL-001
+    score: 20
+    reason: curl-specific browser split is a direct developer-tool candidate
+  - card_id: CODEX-API-001
+    score: 16
+    reason: local/API agent connectivity belongs in the same split path
 - id: SYM-VPN-LAN-LOSS
   user_phrase:
   - VPN on local network disappears
@@ -51,6 +61,16 @@ routes:
   - scutil --dns
   - ifconfig utun
   - multicast discovery check
+  ranking_boosts:
+  - id_prefix: VPN-
+    score: 18
+    reason: VPN-prefixed cards own VPN/LAN split cases
+  - layer: L06_vpn_ne_tun
+    score: 18
+    reason: VPN/TUN layer is the primary route owner candidate
+  - layer: L03_routing
+    score: 18
+    reason: routing layer decides LAN reachability under VPN
 - id: SYM-CLASH-TUN-BROKEN
   user_phrase:
   - Clash TUN no network
@@ -66,6 +86,16 @@ routes:
   - scutil --dns
   - route -n get default
   - local proxy port lsof
+  ranking_boosts:
+  - id_prefix: CLASH-
+    score: 18
+    reason: Clash-prefixed cards own Clash TUN and fake-IP cases
+  - layer: L06_vpn_ne_tun
+    score: 18
+    reason: TUN ownership is central to this route
+  - layer: L04_dns
+    score: 18
+    reason: fake-IP and TUN failures frequently surface as DNS failures
 - id: SYM-CODEX-API-FAIL
   user_phrase:
   - Codex fails
@@ -83,6 +113,19 @@ routes:
   - Codex config diff
   - env whitelist/sandbox
   - TLS issuer check
+  ranking_boosts:
+  - card_id: CODEX-API-001
+    score: 32
+    reason: explicit Codex/API failure top candidate
+  - card_id: DEV-CODEX-002
+    score: 20
+    reason: Codex shell environment policy can strip proxy or CA state
+  - card_id: DEV-CURL-001
+    score: 20
+    reason: same-shell curl is the lowest-cost discriminator
+  - card_id: MAC-PROXY-002
+    score: 20
+    reason: stale shell proxy is a common API-tool mismatch
 - id: SYM-DANTE-INVISIBLE
   user_phrase:
   - Dante devices not visible
@@ -100,6 +143,16 @@ routes:
   - same subnet/static IP
   - controller interface selection
   - IGMP/multicast observation
+  ranking_boosts:
+  - id_prefix: DANTE-
+    score: 18
+    reason: Dante-prefixed cards own Dante discovery failures
+  - layer: L10_multicast_discovery
+    score: 18
+    reason: discovery visibility is multicast first
+  - layer: L00_physical_link
+    score: 18
+    reason: interface/link selection is the first physical boundary
 - id: SYM-AES67-CLOCK-MEDIA
   user_phrase:
   - AES67 no audio

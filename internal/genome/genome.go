@@ -3,6 +3,7 @@ package genome
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -15,6 +16,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	_ "modernc.org/sqlite"
 )
 
 const (
@@ -98,11 +101,21 @@ type Stats struct {
 }
 
 type RouteCandidate struct {
-	ID              string   `json:"id"`
-	CandidateLayers []string `json:"candidateLayers"`
-	CandidateDomain []string `json:"candidateDomains,omitempty"`
-	Reason          string   `json:"reason"`
-	FirstVerifiers  []string `json:"firstVerifiers,omitempty"`
+	ID              string       `json:"id"`
+	CandidateLayers []string     `json:"candidateLayers"`
+	CandidateDomain []string     `json:"candidateDomains,omitempty"`
+	Reason          string       `json:"reason"`
+	FirstVerifiers  []string     `json:"firstVerifiers,omitempty"`
+	RankingBoosts   []RouteBoost `json:"rankingBoosts,omitempty"`
+}
+
+type RouteBoost struct {
+	CardID   string `json:"cardId,omitempty"`
+	IDPrefix string `json:"idPrefix,omitempty"`
+	Layer    string `json:"layer,omitempty"`
+	Domain   string `json:"domain,omitempty"`
+	Score    int    `json:"score"`
+	Reason   string `json:"reason,omitempty"`
 }
 
 type Diagnosis struct {
@@ -545,68 +558,119 @@ func copyFile(src, dst string) error {
 }
 
 func rebuildSQLiteFromCards(cardsPath, dst string) error {
-	script := `
-import json, sqlite3, sys
-cards_path, dst = sys.argv[1], sys.argv[2]
-with open(cards_path, "r", encoding="utf-8") as f:
-    payload = json.load(f)
-cards = payload["cards"]
-conn = sqlite3.connect(dst)
-cur = conn.cursor()
-cur.executescript("""
-DROP TABLE IF EXISTS cards;
-DROP TABLE IF EXISTS card_tags;
-DROP TABLE IF EXISTS card_layers;
-DROP TABLE IF EXISTS observations;
-DROP TABLE IF EXISTS discriminators;
-DROP TABLE IF EXISTS verifiers;
-DROP TABLE IF EXISTS recipes;
-DROP TABLE IF EXISTS rollbacks;
-DROP TABLE IF EXISTS edges;
-DROP TABLE IF EXISTS source_anchors;
-DROP TABLE IF EXISTS cards_fts;
-CREATE TABLE cards (id TEXT PRIMARY KEY, title TEXT NOT NULL, layer TEXT NOT NULL, domain TEXT NOT NULL, risk TEXT NOT NULL, json TEXT NOT NULL);
-CREATE TABLE card_tags (card_id TEXT NOT NULL, tag TEXT NOT NULL);
-CREATE TABLE card_layers (card_id TEXT NOT NULL, layer TEXT NOT NULL);
-CREATE TABLE observations (card_id TEXT NOT NULL, value TEXT NOT NULL);
-CREATE TABLE discriminators (card_id TEXT NOT NULL, value TEXT NOT NULL);
-CREATE TABLE verifiers (card_id TEXT NOT NULL, value TEXT NOT NULL);
-CREATE TABLE recipes (card_id TEXT NOT NULL, mode TEXT, automation_class TEXT, commands_json TEXT, manual_steps_json TEXT);
-CREATE TABLE rollbacks (card_id TEXT NOT NULL, value TEXT NOT NULL);
-CREATE TABLE edges (src TEXT NOT NULL, dst TEXT NOT NULL, type TEXT NOT NULL);
-CREATE TABLE source_anchors (card_id TEXT NOT NULL, anchor TEXT NOT NULL);
-CREATE VIRTUAL TABLE cards_fts USING fts5(id UNINDEXED, title, symptoms, observations, discriminators, likely_causes, tags);
-""")
-for c in cards:
-    cid = c["id"]
-    cur.execute("INSERT INTO cards VALUES (?,?,?,?,?,?)", (cid, c.get("title",""), c.get("layer",""), c.get("domain",""), c.get("risk",""), json.dumps(c, sort_keys=True)))
-    cur.execute("INSERT INTO card_layers VALUES (?,?)", (cid, c.get("layer","")))
-    for tag in c.get("tags") or []:
-        cur.execute("INSERT INTO card_tags VALUES (?,?)", (cid, tag))
-    for value in c.get("observations") or []:
-        cur.execute("INSERT INTO observations VALUES (?,?)", (cid, value))
-    for value in c.get("discriminators") or []:
-        cur.execute("INSERT INTO discriminators VALUES (?,?)", (cid, value))
-    for value in c.get("verify") or []:
-        cur.execute("INSERT INTO verifiers VALUES (?,?)", (cid, value))
-    repair = c.get("repair") or {}
-    cur.execute("INSERT INTO recipes VALUES (?,?,?,?,?)", (cid, repair.get("mode",""), repair.get("automation_class",""), json.dumps(repair.get("commands") or []), json.dumps(repair.get("manual_steps") or [])))
-    for value in c.get("rollback") or []:
-        cur.execute("INSERT INTO rollbacks VALUES (?,?)", (cid, value))
-    for anchor in c.get("source_anchors") or []:
-        cur.execute("INSERT INTO source_anchors VALUES (?,?)", (cid, anchor))
-    for related in c.get("related") or []:
-        cur.execute("INSERT INTO edges VALUES (?,?,?)", (cid, related, "related"))
-    cur.execute("INSERT INTO cards_fts (id,title,symptoms,observations,discriminators,likely_causes,tags) VALUES (?,?,?,?,?,?,?)", (
-        cid, c.get("title",""), "\n".join(c.get("symptoms") or []), "\n".join(c.get("observations") or []),
-        "\n".join(c.get("discriminators") or []), "\n".join(c.get("likely_causes") or []), " ".join(c.get("tags") or [])))
-conn.commit()
-conn.close()
-`
-	cmd := exec.Command("python3", "-", cardsPath, dst)
-	cmd.Stdin = strings.NewReader(script)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("python sqlite rebuild failed: %w: %s", err, string(out))
+	data, err := os.ReadFile(cardsPath)
+	if err != nil {
+		return err
+	}
+	var payload cardFile
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return err
+	}
+	if len(payload.Cards) == 0 {
+		return errors.New("cannot rebuild SQLite index from empty card corpus")
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		return err
+	}
+	if err := os.Remove(dst); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	db, err := sql.Open("sqlite", dst)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	if _, err := db.Exec(`PRAGMA journal_mode=DELETE; PRAGMA synchronous=NORMAL;`); err != nil {
+		return err
+	}
+	schema := []string{
+		`CREATE TABLE cards (id TEXT PRIMARY KEY, title TEXT NOT NULL, layer TEXT NOT NULL, domain TEXT NOT NULL, risk TEXT NOT NULL, json TEXT NOT NULL);`,
+		`CREATE TABLE card_tags (card_id TEXT NOT NULL, tag TEXT NOT NULL);`,
+		`CREATE TABLE card_layers (card_id TEXT NOT NULL, layer TEXT NOT NULL);`,
+		`CREATE TABLE observations (card_id TEXT NOT NULL, value TEXT NOT NULL);`,
+		`CREATE TABLE discriminators (card_id TEXT NOT NULL, value TEXT NOT NULL);`,
+		`CREATE TABLE verifiers (card_id TEXT NOT NULL, value TEXT NOT NULL);`,
+		`CREATE TABLE recipes (card_id TEXT NOT NULL, mode TEXT, automation_class TEXT, commands_json TEXT, manual_steps_json TEXT);`,
+		`CREATE TABLE rollbacks (card_id TEXT NOT NULL, value TEXT NOT NULL);`,
+		`CREATE TABLE edges (src TEXT NOT NULL, dst TEXT NOT NULL, type TEXT NOT NULL);`,
+		`CREATE TABLE source_anchors (card_id TEXT NOT NULL, anchor TEXT NOT NULL);`,
+		`CREATE VIRTUAL TABLE cards_fts USING fts5(id UNINDEXED, title, symptoms, observations, discriminators, likely_causes, tags);`,
+	}
+	for _, stmt := range schema {
+		if _, err := db.Exec(stmt); err != nil {
+			return err
+		}
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, card := range payload.Cards {
+		cardJSON, err := json.Marshal(card)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`INSERT INTO cards VALUES (?,?,?,?,?,?)`, card.ID, card.Title, card.Layer, card.Domain, card.Risk, string(cardJSON)); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`INSERT INTO card_layers VALUES (?,?)`, card.ID, card.Layer); err != nil {
+			return err
+		}
+		if err := insertTextList(tx, `INSERT INTO card_tags VALUES (?,?)`, card.ID, card.Tags); err != nil {
+			return err
+		}
+		if err := insertTextList(tx, `INSERT INTO observations VALUES (?,?)`, card.ID, card.Observations); err != nil {
+			return err
+		}
+		if err := insertTextList(tx, `INSERT INTO discriminators VALUES (?,?)`, card.ID, card.Discriminators); err != nil {
+			return err
+		}
+		if err := insertTextList(tx, `INSERT INTO verifiers VALUES (?,?)`, card.ID, card.Verify); err != nil {
+			return err
+		}
+		commandsJSON, err := json.Marshal(card.Repair.Commands)
+		if err != nil {
+			return err
+		}
+		manualJSON, err := json.Marshal(card.Repair.ManualSteps)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`INSERT INTO recipes VALUES (?,?,?,?,?)`, card.ID, card.Repair.Mode, card.Repair.AutomationClass, string(commandsJSON), string(manualJSON)); err != nil {
+			return err
+		}
+		if err := insertTextList(tx, `INSERT INTO rollbacks VALUES (?,?)`, card.ID, card.Rollback); err != nil {
+			return err
+		}
+		if err := insertTextList(tx, `INSERT INTO source_anchors VALUES (?,?)`, card.ID, card.SourceAnchors); err != nil {
+			return err
+		}
+		for _, related := range card.Related {
+			if _, err := tx.Exec(`INSERT INTO edges VALUES (?,?,?)`, card.ID, related, "related"); err != nil {
+				return err
+			}
+		}
+		if _, err := tx.Exec(`INSERT INTO cards_fts (id,title,symptoms,observations,discriminators,likely_causes,tags) VALUES (?,?,?,?,?,?,?)`,
+			card.ID,
+			card.Title,
+			strings.Join(card.Symptoms, "\n"),
+			strings.Join(card.Observations, "\n"),
+			strings.Join(card.Discriminators, "\n"),
+			strings.Join(card.LikelyCauses, "\n"),
+			strings.Join(card.Tags, " "),
+		); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func insertTextList(tx *sql.Tx, stmt, cardID string, values []string) error {
+	for _, value := range values {
+		if _, err := tx.Exec(stmt, cardID, value); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -761,10 +825,13 @@ func routeSymptomFromYAML(path, symptom string) ([]RouteCandidate, error) {
 		id        string
 		phrases   []string
 		layers    []string
+		domains   []string
 		verifiers []string
+		boosts    []RouteBoost
 	}
 	var routes []yamlRoute
 	current := -1
+	currentBoost := -1
 	section := ""
 	for _, raw := range strings.Split(string(data), "\n") {
 		line := strings.TrimSpace(raw)
@@ -774,6 +841,7 @@ func routeSymptomFromYAML(path, symptom string) ([]RouteCandidate, error) {
 		if strings.HasPrefix(line, "- id:") {
 			routes = append(routes, yamlRoute{id: strings.TrimSpace(strings.TrimPrefix(line, "- id:"))})
 			current = len(routes) - 1
+			currentBoost = -1
 			section = ""
 			continue
 		}
@@ -782,6 +850,20 @@ func routeSymptomFromYAML(path, symptom string) ([]RouteCandidate, error) {
 		}
 		if strings.HasSuffix(line, ":") {
 			section = strings.TrimSuffix(line, ":")
+			currentBoost = -1
+			continue
+		}
+		if section == "ranking_boosts" {
+			if strings.HasPrefix(line, "- ") {
+				boost := RouteBoost{}
+				parseRouteBoostField(&boost, strings.TrimSpace(strings.TrimPrefix(line, "- ")))
+				routes[current].boosts = append(routes[current].boosts, boost)
+				currentBoost = len(routes[current].boosts) - 1
+				continue
+			}
+			if currentBoost >= 0 {
+				parseRouteBoostField(&routes[current].boosts[currentBoost], line)
+			}
 			continue
 		}
 		if strings.HasPrefix(line, "- ") {
@@ -791,6 +873,8 @@ func routeSymptomFromYAML(path, symptom string) ([]RouteCandidate, error) {
 				routes[current].phrases = append(routes[current].phrases, val)
 			case "priority_layers":
 				routes[current].layers = append(routes[current].layers, val)
+			case "priority_domains":
+				routes[current].domains = append(routes[current].domains, val)
 			case "first_verifiers":
 				routes[current].verifiers = append(routes[current].verifiers, val)
 			}
@@ -803,14 +887,42 @@ func routeSymptomFromYAML(path, symptom string) ([]RouteCandidate, error) {
 				out = append(out, RouteCandidate{
 					ID:              r.id,
 					CandidateLayers: append([]string(nil), r.layers...),
+					CandidateDomain: append([]string(nil), r.domains...),
 					Reason:          "symptom_routes.yaml matched phrase: " + phrase,
 					FirstVerifiers:  append([]string(nil), r.verifiers...),
+					RankingBoosts:   append([]RouteBoost(nil), r.boosts...),
 				})
 				break
 			}
 		}
 	}
 	return out, nil
+}
+
+func parseRouteBoostField(boost *RouteBoost, line string) {
+	key, value, ok := strings.Cut(line, ":")
+	if !ok {
+		return
+	}
+	key = strings.TrimSpace(key)
+	value = strings.Trim(strings.TrimSpace(value), `"`)
+	switch key {
+	case "card_id", "cardId":
+		boost.CardID = value
+	case "id_prefix", "idPrefix":
+		boost.IDPrefix = value
+	case "layer":
+		boost.Layer = value
+	case "domain":
+		boost.Domain = value
+	case "score":
+		var score int
+		if _, err := fmt.Sscanf(value, "%d", &score); err == nil {
+			boost.Score = score
+		}
+	case "reason":
+		boost.Reason = value
+	}
 }
 
 func phraseMatches(symptom, phrase string) bool {
@@ -896,15 +1008,19 @@ func sqliteUsable(path string) bool {
 	if st, err := os.Stat(path); err != nil || st.IsDir() {
 		return false
 	}
-	script := `import sqlite3, sys
-con=sqlite3.connect(sys.argv[1])
-cur=con.cursor()
-cur.execute("select count(*) from cards")
-cur.execute("select count(*) from cards_fts")
-`
-	cmd := exec.Command("python3", "-", path)
-	cmd.Stdin = strings.NewReader(script)
-	return cmd.Run() == nil
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		return false
+	}
+	defer db.Close()
+	var cards, fts int
+	if err := db.QueryRow(`select count(*) from cards`).Scan(&cards); err != nil {
+		return false
+	}
+	if err := db.QueryRow(`select count(*) from cards_fts`).Scan(&fts); err != nil {
+		return false
+	}
+	return cards > 0 && fts > 0
 }
 
 type sqliteIndexStats struct {
@@ -915,54 +1031,48 @@ type sqliteIndexStats struct {
 }
 
 func inspectSQLiteStats(path string) (sqliteIndexStats, error) {
-	script := `import json, sqlite3, sys
-path = sys.argv[1]
-con = sqlite3.connect(path)
-cur = con.cursor()
-def count_table(name):
-    try:
-        return cur.execute(f"select count(*) from {name}").fetchone()[0]
-    except sqlite3.Error:
-        return 0
-cards = count_table("cards")
-fts = count_table("cards_fts")
-try:
-    null_ids = cur.execute("select count(*) from cards_fts where id is null or id = ''").fetchone()[0]
-except sqlite3.Error:
-    null_ids = fts
-usable = fts > 0 and null_ids == 0
-print(json.dumps({"cards": cards, "ftsRows": fts, "ftsIdsUsable": usable, "ftsNullIds": null_ids}))
-`
-	cmd := exec.Command("python3", "-", path)
-	cmd.Stdin = strings.NewReader(script)
-	out, err := cmd.CombinedOutput()
+	db, err := sql.Open("sqlite", path)
 	if err != nil {
-		return sqliteIndexStats{}, fmt.Errorf("sqlite stats failed: %w: %s", err, string(out))
-	}
-	var stats sqliteIndexStats
-	if err := json.Unmarshal(out, &stats); err != nil {
 		return sqliteIndexStats{}, err
 	}
+	defer db.Close()
+	stats := sqliteIndexStats{}
+	if err := db.QueryRow(`select count(*) from cards`).Scan(&stats.Cards); err != nil {
+		return sqliteIndexStats{}, err
+	}
+	if err := db.QueryRow(`select count(*) from cards_fts`).Scan(&stats.FTSRows); err != nil {
+		return sqliteIndexStats{}, err
+	}
+	if err := db.QueryRow(`select count(*) from cards_fts where id is null or id = ''`).Scan(&stats.FTSNullIDs); err != nil {
+		return sqliteIndexStats{}, err
+	}
+	stats.FTSIDsUsable = stats.FTSRows > 0 && stats.FTSNullIDs == 0
 	return stats, nil
 }
 
 func queryFTS(sqlitePath string, terms []string, limit int) ([]string, error) {
 	query := strings.Join(terms, " OR ")
-	script := `import json, sqlite3, sys
-path, query, limit = sys.argv[1], sys.argv[2], int(sys.argv[3])
-con=sqlite3.connect(path)
-cur=con.cursor()
-rows = cur.execute("select id from cards_fts where cards_fts match ? order by bm25(cards_fts) limit ?", (query, limit)).fetchall()
-print(json.dumps([r[0] for r in rows]))
-`
-	cmd := exec.Command("python3", "-", sqlitePath, query, fmt.Sprintf("%d", limit))
-	cmd.Stdin = strings.NewReader(script)
-	out, err := cmd.CombinedOutput()
+	db, err := sql.Open("sqlite", sqlitePath)
 	if err != nil {
-		return nil, fmt.Errorf("fts query failed: %w: %s", err, string(out))
+		return nil, err
 	}
+	defer db.Close()
+	rows, err := db.Query(`select id from cards_fts where cards_fts match ? order by bm25(cards_fts) limit ?`, query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 	var ids []string
-	if err := json.Unmarshal(out, &ids); err != nil {
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		if id != "" {
+			ids = append(ids, id)
+		}
+	}
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -1003,6 +1113,9 @@ func scoreCard(card Card, symptom string, routes []RouteCandidate, features map[
 			why = append(why, "route "+r.ID+" prioritizes "+card.Domain)
 		}
 	}
+	boostScore, boostWhy := routeRankingBoost(card, routes)
+	score += boostScore
+	why = append(why, boostWhy...)
 	for key, val := range features {
 		if val != "true" {
 			continue
@@ -1025,7 +1138,6 @@ func scoreCard(card Card, symptom string, routes []RouteCandidate, features map[
 	if card.Risk == "high" {
 		score -= 1
 	}
-	score += scenarioBoost(card, symptom)
 	if len(matchedSymptoms) > 0 {
 		why = append(why, "symptom text matched card symptoms")
 	}
@@ -1038,32 +1150,53 @@ func scoreCard(card Card, symptom string, routes []RouteCandidate, features map[
 	return score, uniqueStrings(why), firstN(uniqueStrings(matchedSymptoms), 3), firstN(uniqueStrings(matchedDisc), 3), firstN(uniqueStrings(usedFeatures), 6)
 }
 
-func scenarioBoost(card Card, symptom string) int {
-	s := strings.ToLower(symptom)
-	switch {
-	case strings.Contains(s, "browser works") && strings.Contains(s, "codex"):
-		switch card.ID {
-		case "MAC-PROXY-002":
-			return 35
-		case "CODEX-API-001":
-			return 32
-		case "DEV-CODEX-002", "DEV-CURL-001":
-			return 20
-		}
-	case strings.Contains(s, "clash") && strings.Contains(s, "tun") && strings.Contains(s, "dns"):
-		if strings.HasPrefix(card.ID, "CLASH-") || card.Layer == "L06_vpn_ne_tun" || card.Layer == "L04_dns" {
-			return 18
-		}
-	case strings.Contains(s, "vpn") && strings.Contains(s, "lan"):
-		if card.Layer == "L06_vpn_ne_tun" || card.Layer == "L03_routing" || strings.HasPrefix(card.ID, "VPN-") {
-			return 18
-		}
-	case strings.Contains(s, "dante") && strings.Contains(s, "invisible"):
-		if strings.HasPrefix(card.ID, "DANTE-") || card.Layer == "L10_multicast_discovery" || card.Layer == "L00_physical_link" {
-			return 18
+func routeRankingBoost(card Card, routes []RouteCandidate) (int, []string) {
+	score := 0
+	var why []string
+	for _, route := range routes {
+		for _, boost := range route.RankingBoosts {
+			if boost.Score == 0 || !routeBoostMatches(card, boost) {
+				continue
+			}
+			score += boost.Score
+			reason := boost.Reason
+			if reason == "" {
+				reason = routeBoostTarget(boost)
+			}
+			why = append(why, fmt.Sprintf("route %s corpus ranking boost: %s", route.ID, reason))
 		}
 	}
-	return 0
+	return score, why
+}
+
+func routeBoostMatches(card Card, boost RouteBoost) bool {
+	switch {
+	case boost.CardID != "":
+		return card.ID == boost.CardID
+	case boost.IDPrefix != "":
+		return strings.HasPrefix(card.ID, boost.IDPrefix)
+	case boost.Layer != "":
+		return card.Layer == boost.Layer
+	case boost.Domain != "":
+		return card.Domain == boost.Domain
+	default:
+		return false
+	}
+}
+
+func routeBoostTarget(boost RouteBoost) string {
+	switch {
+	case boost.CardID != "":
+		return "card " + boost.CardID
+	case boost.IDPrefix != "":
+		return "cards with prefix " + boost.IDPrefix
+	case boost.Layer != "":
+		return "layer " + boost.Layer
+	case boost.Domain != "":
+		return "domain " + boost.Domain
+	default:
+		return "unspecified target"
+	}
 }
 
 func tokenize(s string) []string {
@@ -1407,7 +1540,7 @@ func Redact(text, privacy string) string {
 		if home, err := os.UserHomeDir(); err == nil && home != "" {
 			out = strings.ReplaceAll(out, home, "/Users/<user>/<path>")
 		}
-		out = regexp.MustCompile(`/Users/[^/\s]+(?:/[^\s]*)?`).ReplaceAllString(out, "/Users/<user>/<path>")
+		out = regexp.MustCompile(`/Users/[^/\s"',}]+(?:/[^\s"',}]*)?`).ReplaceAllString(out, "/Users/<user>/<path>")
 		if u := os.Getenv("USER"); u != "" {
 			out = strings.ReplaceAll(out, u, "<user>")
 		}
@@ -1420,6 +1553,8 @@ func Redact(text, privacy string) string {
 		out = regexp.MustCompile(`\b10(?:\.\d{1,3}){3}\b`).ReplaceAllString(out, "<private-ip>")
 		out = regexp.MustCompile(`\b192\.168(?:\.\d{1,3}){2}\b`).ReplaceAllString(out, "<private-ip>")
 		out = regexp.MustCompile(`\b172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}\b`).ReplaceAllString(out, "<private-ip>")
+		out = regexp.MustCompile(`\b169\.254(?:\.\d{1,3}){2}\b`).ReplaceAllString(out, "<link-local-ip>")
+		out = regexp.MustCompile(`\b198\.18(?:\.\d{1,3}){2}\b`).ReplaceAllString(out, "<fake-ip-range>")
 		out = regexp.MustCompile(`(?i)\b[A-Za-z0-9_-]+\.local\b`).ReplaceAllString(out, "<hostname>.local")
 		out = regexp.MustCompile(`(?im)^(\s*(?:host(?:name)?|computername|localhostname)\s*[:=]?\s*)[A-Za-z0-9._-]+`).ReplaceAllString(out, `${1}<hostname>`)
 	}

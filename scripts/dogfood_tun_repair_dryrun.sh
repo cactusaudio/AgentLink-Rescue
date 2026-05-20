@@ -11,6 +11,11 @@ fi
 import json, sys
 doc=json.load(open(sys.argv[1]))
 actions=doc.get("actions", [])
+if doc.get("status") == "protected_topology_report_only":
+    assert actions in (None, []), doc
+    warnings=" ".join(doc.get("warnings") or []).lower()
+    assert "protected topology" in warnings and "refusing" in warnings, doc
+    sys.exit(0)
 stages=[a.get("stage","") for a in actions]
 for stage in ["1_stop_runtime_processes", "4_kick_network_extension_daemons", "7_dns_airdrop_awdl_repair"]:
     assert stage in stages, (stage, stages)
@@ -31,6 +36,10 @@ grep -E '"level": "tun"|"DryRun": true|"dryRun": true' /tmp/agentlink-tun-dryrun
   cat /tmp/agentlink-tun-dryrun.json >&2
   exit 1
 }
+if grep -q '"status": "protected_topology_report_only"' /tmp/agentlink-tun-dryrun.json; then
+  echo "dogfood_tun_repair_dryrun OK (protected topology report-only)"
+  exit 0
+fi
 if grep -E 'standard.location|route.flush' /tmp/agentlink-tun-dryrun.json >/dev/null; then
   echo "TUN dry-run contains broad standard reset actions" >&2
   exit 1

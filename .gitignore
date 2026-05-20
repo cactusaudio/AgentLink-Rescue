@@ -4,6 +4,9 @@ __MACOSX/
 .AppleDouble/
 AppleDouble/
 .cactus/
+.gpt-pro-build/
+.tmp/
+gpt-pro-results/
 
 bin/
 dist/

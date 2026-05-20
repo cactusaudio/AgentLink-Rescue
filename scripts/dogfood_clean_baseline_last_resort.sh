@@ -14,6 +14,11 @@ import json, sys
 doc=json.load(open(sys.argv[1]))
 assert doc["level"] == "clean-baseline", doc
 assert doc["dryRun"] is True, doc
+if doc.get("status") == "protected_topology_report_only":
+    assert doc.get("actions") in (None, []), doc
+    warnings=" ".join(doc.get("warnings") or []).lower()
+    assert "protected topology" in warnings and "refusing" in warnings, doc
+    sys.exit(0)
 text=json.dumps(doc).lower()
 for forbidden in ["route.flush", "deep.quarantine", "enable tun", "enable proxy"]:
     assert forbidden not in text, (forbidden, doc)
