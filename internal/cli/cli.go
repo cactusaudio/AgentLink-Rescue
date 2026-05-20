@@ -230,6 +230,8 @@ func nonDarwinCloudAllowed(cmd string, args []string) bool {
 		return true
 	case "dev":
 		return len(args) > 0 && args[0] == "doctor"
+	case "guided":
+		return len(args) > 0 && args[0] == "rescue" && flagPresent(args[1:], "--dry-run") && !flagPresent(args[1:], "--yes")
 	case "rollback":
 		return flagPresent(args, "--dry-run")
 	case "last-good":

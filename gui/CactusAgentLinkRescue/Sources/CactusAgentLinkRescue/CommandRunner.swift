@@ -128,10 +128,12 @@ func redact(_ input: String) -> String {
         #"(?i)((?:token|access_token|password|passwd)=)[^&\s]+"#,
         #"(?i)\b(?:sk|sk-ant|sk-or|deepseek)[-_][A-Za-z0-9_\-]{8,2048}"#,
         #"(?i)(https?://)[^:\s/@]+:[^@\s/]+@"#,
-        #"(?i)((?:HTTP_PROXY|HTTPS_PROXY|ALL_PROXY|http_proxy|https_proxy|all_proxy)=)(\S+)"#
+        #"(?i)((?:HTTP_PROXY|HTTPS_PROXY|ALL_PROXY|http_proxy|https_proxy|all_proxy)=)(\S+)"#,
+        #"/Users/[^/"\s]+"#
     ]
     for pattern in patterns {
-        text = text.replacingOccurrences(of: pattern, with: "$1REDACTED", options: .regularExpression)
+        let replacement = pattern == #"/Users/[^/"\s]+"# ? "<home>" : "$1REDACTED"
+        text = text.replacingOccurrences(of: pattern, with: replacement, options: .regularExpression)
     }
     return text
 }

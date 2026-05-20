@@ -61,6 +61,13 @@ res=json.load(open(sys.argv[1]))
 assert res["ok"] is True, res
 assert res["version"].strip() == "agentlink 0.5.1", res
 assert res["brainDoctor"]["brainPackAvailable"] is False, res
+beta=res["betaReadiness"]
+assert beta["ready"] is True, beta
+assert beta["mainActionDryRunOnly"] is True, beta
+assert beta["noSudoInGUI"] is True, beta
+assert beta["adminRepairsUseTerminalTicket"] is True, beta
+assert beta["guidedDryRunReady"] is True, beta
+assert beta["supportBundleReady"] is True, beta
 PY
 
 "$GUIBIN" --selftest-gui-long-output > "$TMP/gui-long-output-selftest.json"

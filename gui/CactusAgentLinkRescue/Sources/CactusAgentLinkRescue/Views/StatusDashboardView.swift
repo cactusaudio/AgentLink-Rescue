@@ -11,6 +11,7 @@ struct StatusDashboardView: View {
                 if needsPackageAttention || state.incompleteJournalDetected {
                     attentionCard
                 }
+                betaReadinessCard
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 12)], spacing: 12) {
                     statusCard
                     planCard
@@ -56,7 +57,7 @@ struct StatusDashboardView: View {
             Spacer(minLength: 16)
             VStack(alignment: .trailing, spacing: 12) {
                 Button {
-                    if packageBlocksMainAction {
+                    if state.packageBlocksMainAction {
                         Task { await state.runDoctor() }
                     } else {
                         Task {
@@ -65,7 +66,7 @@ struct StatusDashboardView: View {
                         }
                     }
                 } label: {
-                    Label(packageBlocksMainAction ? "Run Diagnosis" : "Check & Plan Rescue", systemImage: packageBlocksMainAction ? "stethoscope" : "checklist.checked")
+                    Label(state.packageBlocksMainAction ? "Run Diagnosis" : "Check & Plan Rescue", systemImage: state.packageBlocksMainAction ? "stethoscope" : "checklist.checked")
                         .font(.headline)
                         .frame(minWidth: 250)
                         .padding(.horizontal, 16)
@@ -73,7 +74,7 @@ struct StatusDashboardView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(state.isRunning)
-                Text(packageBlocksMainAction ? "Package health limits this to diagnostics." : "Creates a dry-run rescue plan only.")
+                Text(state.packageBlocksMainAction ? "Package health limits this to diagnostics." : "Creates a dry-run rescue plan only.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 if state.isRunning {
@@ -81,6 +82,13 @@ struct StatusDashboardView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                Button {
+                    Task { await state.runBetaReadinessCheck() }
+                } label: {
+                    Label("Run Field Beta Check", systemImage: "checkmark.seal")
+                }
+                .buttonStyle(.bordered)
+                .disabled(state.isRunning)
                 Button {
                     confirmSupportBundle = true
                 } label: {
@@ -102,19 +110,19 @@ struct StatusDashboardView: View {
     private var attentionCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Label(packageBlocksMainAction ? "Needs attention" : "First-run setup", systemImage: packageBlocksMainAction ? "exclamationmark.triangle" : "folder.badge.plus")
+                Label(state.packageBlocksMainAction ? "Needs attention" : "First-run setup", systemImage: state.packageBlocksMainAction ? "exclamationmark.triangle" : "folder.badge.plus")
                     .font(.headline)
                 Spacer()
-                StatusBadge(text: packageBlocksMainAction ? "Safe Mode" : "Setup", kind: .warn)
+                StatusBadge(text: state.packageBlocksMainAction ? "Safe Mode" : "Setup", kind: .warn)
             }
             if needsPackageAttention {
-                Text(packageBlocksMainAction ? "AgentLink package health is \(state.packageHealthLabel). The main action is limited to diagnosis until the local package is healthy." : "AgentLink is ready to diagnose. Snapshot-backed repairs need local support folders; package repair can create them before you apply a repair.")
+                Text(state.packageBlocksMainAction ? "AgentLink package health is \(state.packageHealthLabel). The main action is limited to diagnosis until the local package is healthy." : "AgentLink is ready to diagnose. Snapshot-backed repairs need local support folders; package repair can create them before you apply a repair.")
                     .foregroundStyle(.secondary)
                 if state.packageHealth?.status == "needs_repair" || state.packageHealth?.status == "broken" {
                     Button {
                         Task { await state.repairPackage() }
                     } label: {
-                        Label(packageBlocksMainAction ? "Repair AgentLink Package" : "Prepare Local Support Folders", systemImage: "wrench.and.screwdriver")
+                        Label(state.packageBlocksMainAction ? "Repair AgentLink Package" : "Prepare Local Support Folders", systemImage: "wrench.and.screwdriver")
                     }
                     .buttonStyle(.bordered)
                     .disabled(state.isRunning)
@@ -134,11 +142,59 @@ struct StatusDashboardView: View {
         .card()
     }
 
+    private var betaReadinessCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center) {
+                Label("Field Beta Readiness", systemImage: "checkmark.shield")
+                    .font(.headline)
+                Spacer()
+                StatusBadge(text: state.betaStatus, kind: betaStatusKind)
+            }
+            Text(state.betaSummary)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if !state.betaChecks.isEmpty {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 10)], spacing: 10) {
+                    ForEach(state.betaChecks) { check in
+                        VStack(alignment: .leading, spacing: 5) {
+                            HStack {
+                                Text(check.title)
+                                    .font(.caption.weight(.semibold))
+                                Spacer()
+                                StatusBadge(text: check.status, kind: betaCheckKind(check.status))
+                            }
+                            Text(check.detail)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(3)
+                                .truncationMode(.middle)
+                        }
+                        .padding(10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
+                    }
+                }
+            } else {
+                Text("This check is stricter than the main rescue button: it verifies package health, journal state, CLI selftest, read-only diagnosis, guided dry-run, readiness, and support-bundle export.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let checkedAt = state.betaCheckedAt {
+                Text("Last checked \(checkedAt.formatted(date: .abbreviated, time: .standard))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .card()
+    }
+
     private var statusCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Current Status").font(.headline)
             InfoRow(label: "AgentLink", value: state.selftestStatus == "OK" ? "Ready" : "Needs attention")
-            InfoRow(label: "Package", value: packageBlocksMainAction ? "Needs local repair" : "Ready")
+            InfoRow(label: "Package", value: state.packageBlocksMainAction ? "Needs local repair" : "Ready")
+            InfoRow(label: "Field Beta", value: state.betaStatus)
             InfoRow(label: "Network", value: state.doctor?.classifications?.contains("OK") == true ? "Looks OK" : state.recommendationLabel)
             if let classes = state.doctor?.classifications, !classes.isEmpty {
                 HStack(spacing: 6) {
@@ -285,23 +341,22 @@ struct StatusDashboardView: View {
         return ["needs_repair", "broken", "partial_repair", "failed"].contains(status)
     }
 
-    private var packageBlocksMainAction: Bool {
-        guard let health = state.packageHealth else { return false }
-        if health.status == "broken" || health.status == "failed" {
-            return true
+    private var betaStatusKind: StatusBadge.Kind {
+        switch state.betaStatus {
+        case "Ready for field beta": return .ok
+        case "Checking": return .warn
+        case "Needs attention": return .fail
+        default: return .neutral
         }
-        guard health.status == "needs_repair" else {
-            return false
+    }
+
+    private func betaCheckKind(_ status: String) -> StatusBadge.Kind {
+        switch status {
+        case "ok": return .ok
+        case "running": return .warn
+        case "failed": return .fail
+        default: return .neutral
         }
-        return health.checks?.contains { check in
-            guard ["needs_repair", "missing", "not_executable", "failed"].contains(check.status ?? "") else {
-                return false
-            }
-            if check.id == "app_support_dir" {
-                return false
-            }
-            return check.required == true || check.id == "quarantine_xattr"
-        } ?? true
     }
 
     private func export(_ text: String, name: String) {

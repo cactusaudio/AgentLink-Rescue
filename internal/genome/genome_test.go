@@ -183,6 +183,50 @@ func TestNoProxyDoesNotCreateLocalhostProxyFalsePositive(t *testing.T) {
 	}
 }
 
+func TestDockerProxyFeatureParsesSummaryBoolean(t *testing.T) {
+	dir := t.TempDir()
+	redacted := filepath.Join(dir, "redacted")
+	if err := os.MkdirAll(redacted, 0755); err != nil {
+		t.Fatal(err)
+	}
+	write := func(name, text string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(redacted, name), []byte(text), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("proxy_scutil.txt", "HTTPEnable : 0\n")
+	write("shell_proxy_env.txt", "")
+	write("dns_scutil.txt", "")
+	write("route_default.txt", "")
+	write("network_ifconfig.txt", "")
+	write("git_proxy.txt", "")
+	write("npm_proxy.txt", "")
+	write("npm_registry.txt", "")
+	write("docker_config_hint.txt", `{
+  "docker_config_present": true,
+  "docker_proxy_config_present": false,
+  "docker_auths_present": true
+}
+`)
+	sf, err := ExtractFeatures(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sf.Features["docker_proxy_config_present"] != "false" {
+		t.Fatalf("docker proxy false value was substring-matched as true: %+v", sf.Features)
+	}
+
+	write("docker_config_hint.txt", `{"docker_proxy_config_present": true}`)
+	sf, err = ExtractFeatures(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sf.Features["docker_proxy_config_present"] != "true" {
+		t.Fatalf("docker proxy true summary was not detected: %+v", sf.Features)
+	}
+}
+
 func TestCollectWritesManifestFeaturesAndRedactedRaw(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)

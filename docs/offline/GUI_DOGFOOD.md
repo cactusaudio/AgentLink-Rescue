@@ -2,6 +2,32 @@
 
 v0.5.1 focuses on native GUI dogfood hardening.
 
+## v0.5.2 Field Beta Landing
+
+The main GUI entry is now the `Rescue` dashboard, not the developer pages.
+The first action remains `Check & Plan Rescue`, which runs a guided rescue
+dry-run and does not execute sudo or network mutation from the GUI.
+
+The dashboard also exposes `Run Field Beta Check`. This check verifies:
+
+- package doctor;
+- repair journal recovery state;
+- CLI selftest;
+- read-only diagnosis;
+- guided rescue dry-run;
+- readiness doctor;
+- support-bundle export;
+- GUI safety boundary: main rescue is dry-run-only and privileged repair stays
+  in Terminal tickets.
+
+Current screenshot evidence:
+
+- `docs/gui-dogfood/v0.5.2/after/beta-readiness-dashboard.jpg`
+
+This is a controlled field beta proof, not a public release proof. It does not
+claim notarization, signed distribution, real mutating network repair, or GUI
+behavior on another Mac.
+
 Recommended checks:
 
 1. Build and package Core GUI.

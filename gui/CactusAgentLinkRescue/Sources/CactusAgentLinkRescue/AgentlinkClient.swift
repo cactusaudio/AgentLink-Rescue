@@ -68,42 +68,114 @@ enum GUISelftest {
         let version = runner.runSync(executable: client.binaryURL, args: ["version"], timeout: 10)
         let packageDoctor = runner.runSync(executable: client.binaryURL, args: ["package", "doctor", "--package-root", client.packageRoot.path, "--json"], timeout: 20)
         let journalRecover = runner.runSync(executable: client.binaryURL, args: ["journal", "recover", "--json"], timeout: 20)
+        let selftest = runner.runSync(executable: client.binaryURL, args: ["selftest"], timeout: 20)
         let doctor = runner.runSync(executable: client.binaryURL, args: ["doctor", "--json"], timeout: 30)
         let brain = runner.runSync(executable: client.binaryURL, args: ["brain", "doctor", "--json"], timeout: 30)
         let guided = runner.runSync(executable: client.binaryURL, args: ["guided", "rescue", "--target", "auto", "--dry-run", "--json"], timeout: 120)
         let installer = runner.runSync(executable: client.binaryURL, args: ["installer", "doctor", "--json"], timeout: 30)
         let readiness = runner.runSync(executable: client.binaryURL, args: ["readiness", "doctor", "--json"], timeout: 90)
+        let support = runner.runSync(executable: client.binaryURL, args: ["support", "bundle", "--json"], timeout: 120)
+        let betaReadiness = betaReadinessSummary(
+            version: version,
+            packageDoctor: packageDoctor,
+            journalRecover: journalRecover,
+            selftest: selftest,
+            doctor: doctor,
+            guided: guided,
+            readiness: readiness,
+            support: support
+        )
+        let betaReady = betaReadiness["ready"] as? Bool == true
         let summary: [String: Any] = [
-            "ok": version.succeeded && (packageDoctor.exitCode == 0 || packageDoctor.exitCode == 20) && (journalRecover.exitCode == 0 || journalRecover.exitCode == 20) && doctor.succeeded && brain.succeeded && guided.succeeded && installer.succeeded && readiness.succeeded,
+            "ok": version.succeeded && (packageDoctor.exitCode == 0 || packageDoctor.exitCode == 20) && (journalRecover.exitCode == 0 || journalRecover.exitCode == 20) && selftest.succeeded && doctor.succeeded && brain.succeeded && guided.succeeded && installer.succeeded && readiness.succeeded && support.succeeded && betaReady,
             "packageRoot": client.packageRoot.path,
             "binaryPath": client.binaryURL.path,
             "versionExitCode": version.exitCode,
             "packageDoctorExitCode": packageDoctor.exitCode,
             "journalRecoverExitCode": journalRecover.exitCode,
+            "selftestExitCode": selftest.exitCode,
             "doctorExitCode": doctor.exitCode,
             "brainDoctorExitCode": brain.exitCode,
             "guidedExitCode": guided.exitCode,
             "installerDoctorExitCode": installer.exitCode,
             "readinessExitCode": readiness.exitCode,
+            "supportBundleExitCode": support.exitCode,
             "durationMs": Int(Date().timeIntervalSince(start) * 1000),
             "version": version.stdout.trimmingCharacters(in: .whitespacesAndNewlines),
+            "betaReadiness": betaReadiness,
             "packageDoctor": jsonObject(packageDoctor.stdout) ?? packageDoctor.stdout,
             "journalRecover": jsonObject(journalRecover.stdout) ?? journalRecover.stdout,
+            "selftest": selftest.stdout.trimmingCharacters(in: .whitespacesAndNewlines),
             "brainDoctor": jsonObject(brain.stdout) ?? brain.stdout,
             "guidedRescue": jsonObject(guided.stdout) ?? guided.stdout,
             "installerDoctor": jsonObject(installer.stdout) ?? installer.stdout,
-            "readiness": jsonObject(readiness.stdout) ?? readiness.stdout
+            "readiness": jsonObject(readiness.stdout) ?? readiness.stdout,
+            "supportBundle": jsonObject(support.stdout) ?? support.stdout
         ]
         let data = try? JSONSerialization.data(withJSONObject: summary, options: [.prettyPrinted, .sortedKeys])
         if let data, let text = String(data: data, encoding: .utf8) {
             print(redact(text))
         }
-        return (version.succeeded && (packageDoctor.exitCode == 0 || packageDoctor.exitCode == 20) && (journalRecover.exitCode == 0 || journalRecover.exitCode == 20) && doctor.succeeded && brain.succeeded && guided.succeeded && installer.succeeded && readiness.succeeded) ? 0 : 1
+        return (version.succeeded && (packageDoctor.exitCode == 0 || packageDoctor.exitCode == 20) && (journalRecover.exitCode == 0 || journalRecover.exitCode == 20) && selftest.succeeded && doctor.succeeded && brain.succeeded && guided.succeeded && installer.succeeded && readiness.succeeded && support.succeeded && betaReady) ? 0 : 1
     }
 
     private static func jsonObject(_ text: String) -> Any? {
         guard let data = text.data(using: .utf8) else { return nil }
         return try? JSONSerialization.jsonObject(with: data)
+    }
+
+    private static func jsonDictionary(_ text: String) -> [String: Any]? {
+        jsonObject(text) as? [String: Any]
+    }
+
+    private static func betaReadinessSummary(
+        version: CommandResult,
+        packageDoctor: CommandResult,
+        journalRecover: CommandResult,
+        selftest: CommandResult,
+        doctor: CommandResult,
+        guided: CommandResult,
+        readiness: CommandResult,
+        support: CommandResult
+    ) -> [String: Any] {
+        let packageObject = jsonDictionary(packageDoctor.stdout)
+        let packageReport = decode(PackageHealthReport.self, packageDoctor.stdout)
+        let journalObject = jsonDictionary(journalRecover.stdout)
+        let guidedObject = jsonDictionary(guided.stdout)
+        let readinessObject = jsonDictionary(readiness.stdout)
+        let supportObject = jsonDictionary(support.stdout)
+        let packageReady = packageDoctor.exitCode == 0 || (packageDoctor.exitCode == 20 && !AppState.packageBlocksMainAction(packageReport))
+        let journalReady = (journalRecover.exitCode == 0 || journalRecover.exitCode == 20) && (journalObject?["status"] as? String) != "incomplete_transactions_found"
+        let guidedMode = guidedObject?["mode"] as? String
+        let guidedStatus = guidedObject?["status"] as? String
+        let guidedSafe = guided.succeeded && guidedMode == "dry-run" && AppState.guidedStatusIsBetaSafe(guidedStatus)
+        let readinessReady = readiness.succeeded && (readinessObject?["status"] as? String) != "failed"
+        let supportReady = support.succeeded && (supportObject?["status"] as? String) != "failed"
+        let ready = version.succeeded && packageReady && journalReady && selftest.succeeded && doctor.succeeded && guidedSafe && readinessReady && supportReady
+        return [
+            "ready": ready,
+            "status": ready ? "ready_for_field_beta" : "needs_attention",
+            "mainActionDryRunOnly": true,
+            "noSudoInGUI": true,
+            "adminRepairsUseTerminalTicket": true,
+            "packageReady": packageReady,
+            "packageStatus": packageObject?["status"] as? String ?? "unknown",
+            "journalReady": journalReady,
+            "journalStatus": journalObject?["status"] as? String ?? "unknown",
+            "doctorReady": doctor.succeeded,
+            "guidedDryRunReady": guidedSafe,
+            "guidedMode": guidedMode ?? "unknown",
+            "guidedStatus": guidedStatus ?? "unknown",
+            "readinessReady": readinessReady,
+            "readinessStatus": readinessObject?["status"] as? String ?? "unknown",
+            "supportBundleReady": supportReady,
+            "supportBundleStatus": supportObject?["status"] as? String ?? "unknown"
+        ]
+    }
+
+    private static func decode<T: Decodable>(_ type: T.Type, _ text: String) -> T? {
+        guard let data = text.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(T.self, from: data)
     }
 
 	static func runLongOutput() -> Int32 {

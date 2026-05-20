@@ -1620,7 +1620,7 @@ func ExtractFeatures(snapshot string) (SnapshotFeatures, error) {
 	set("npm_proxy_override_present", strings.Contains(strings.ToLower(chunks["npm_proxy.txt"]), "http"), "npm proxy config present")
 	set("npm_registry_override_present", strings.Contains(strings.ToLower(chunks["npm_registry.txt"]), "registry") || strings.Contains(strings.ToLower(chunks["npm_registry.txt"]), "http"), "npm registry configured")
 	set("brew_proxy_env_present", strings.Contains(text, "homebrew") && strings.Contains(proxyText, "proxy"), "brew proxy environment hint")
-	set("docker_proxy_config_present", strings.Contains(strings.ToLower(chunks["docker_config_hint.txt"]), "proxy"), "docker proxy config present")
+	set("docker_proxy_config_present", dockerSummaryBool(chunks["docker_config_hint.txt"], "docker_proxy_config_present"), "docker proxy config present")
 	set("docker_host_container_proxy_mismatch_risk", features["docker_proxy_config_present"] == "true" && features["shell_proxy_env_present"] == "true", "docker and host proxy both configured")
 	set("tls_trust_issue_hint", strings.Contains(text, "certificate") || strings.Contains(text, "tls") || strings.Contains(text, "ssl"), "TLS/certificate hint")
 	set("aoip_domain_requested", strings.Contains(text, "dante") || strings.Contains(text, "aes67") || strings.Contains(text, "ravenna"), "AoIP text present")
@@ -1629,6 +1629,17 @@ func ExtractFeatures(snapshot string) (SnapshotFeatures, error) {
 	set("system_proxy_dead_local_port", features["system_proxy_localhost"] == "true" && strings.Contains(text, "connection refused"), "localhost proxy refused")
 	set("shell_proxy_dead_local_port", features["shell_proxy_localhost"] == "true" && strings.Contains(text, "connection refused"), "shell localhost proxy refused")
 	return SnapshotFeatures{SchemaVersion: 1, CreatedAt: time.Now().UTC().Format(time.RFC3339), PrivacyMode: manifestPrivacy(snapshot), Features: features, Evidence: evidence}, nil
+}
+
+func dockerSummaryBool(text, key string) bool {
+	var summary map[string]any
+	if err := json.Unmarshal([]byte(text), &summary); err != nil {
+		return false
+	}
+	if v, ok := summary[key].(bool); ok {
+		return v
+	}
+	return false
 }
 
 func effectiveProxyEnvText(text string) string {

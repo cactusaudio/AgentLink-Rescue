@@ -473,6 +473,13 @@ struct JournalTransaction: Codable, Identifiable {
     var rollbackAvailable: Bool?
 }
 
+struct BetaReadinessCheck: Identifiable {
+    let id: String
+    var title: String
+    var status: String
+    var detail: String
+}
+
 enum RescuePage: String, CaseIterable, Identifiable {
     case dashboard = "Dashboard"
     case guided = "Guided Rescue"

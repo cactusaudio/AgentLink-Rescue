@@ -7,12 +7,13 @@ FULL="${FULL:-1}"
 cd "$ROOT"
 mkdir -p "$OUT"
 
-if ! command -v go >/dev/null 2>&1 && [ -x "/Users/jack/CactusLocalAgent/.asset-cache/Cactus-Local-Agent-Pro/runtimes/go/bin/go" ]; then
-  export PATH="/Users/jack/CactusLocalAgent/.asset-cache/Cactus-Local-Agent-Pro/runtimes/go/bin:$PATH"
-fi
-if ! command -v go >/dev/null 2>&1; then
+GO_BIN="${GO_BIN:-${GO:-$(command -v go || true)}}"
+if [ -z "$GO_BIN" ]; then
   echo "go is required" >&2
   exit 2
+fi
+if [ -d vendor ]; then
+  export GOFLAGS="${GOFLAGS:-} -mod=vendor"
 fi
 PYTHON="${PYTHON:-$(command -v python3 || true)}"
 if [ -z "$PYTHON" ]; then
@@ -20,8 +21,8 @@ if [ -z "$PYTHON" ]; then
   exit 2
 fi
 
-host_os="$(go env GOOS)"
-host_arch="$(go env GOARCH)"
+host_os="$("$GO_BIN" env GOOS)"
+host_arch="$("$GO_BIN" env GOARCH)"
 BUILD_DIR="$ROOT/.gpt-pro-build"
 BIN_AGENTLINK="${AGENTLINK_BIN:-$BUILD_DIR/agentlink-${host_os}-${host_arch}}"
 BIN_RESCUE="${AGENTLINK_RESCUE_BIN:-$BUILD_DIR/agentlink-rescue-${host_os}-${host_arch}}"
@@ -75,9 +76,9 @@ if [ -f CHECKSUMS.txt ]; then
   run_log 00-checksums shasum -a 256 -c CHECKSUMS.txt
 fi
 
-run_log 01-go-version go version
-run_log 02-build-agentlink env CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o "$BIN_AGENTLINK" ./cmd/agentlink
-run_log 03-build-agentlink-rescue env CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o "$BIN_RESCUE" ./cmd/agentlink-rescue
+run_log 01-go-version "$GO_BIN" version
+run_log 02-build-agentlink env CGO_ENABLED=0 "$GO_BIN" build -trimpath -ldflags "-s -w" -o "$BIN_AGENTLINK" ./cmd/agentlink
+run_log 03-build-agentlink-rescue env CGO_ENABLED=0 "$GO_BIN" build -trimpath -ldflags "-s -w" -o "$BIN_RESCUE" ./cmd/agentlink-rescue
 run_log 04-version "$BIN_RESCUE" version
 
 export AGENTLINK_GENOME_INDEX_DIR="$INDEX_DIR"
@@ -164,11 +165,11 @@ assert features.get("privacyMode") == "strict", features
 assert features.get("features", {}).get("docker_proxy_config_present") == "true", features
 PY
 
-run_log 40-targeted-go-tests go test ./internal/genome ./internal/cli -count=1
-run_log 41-go-vet go vet ./...
+run_log 40-targeted-go-tests "$GO_BIN" test ./internal/genome ./internal/cli -count=1
+run_log 41-go-vet "$GO_BIN" vet ./...
 
 if [ "$FULL" = "1" ]; then
-  run_log 42-full-go-test go test ./... -count=1 -timeout 35m
+  run_log 42-full-go-test "$GO_BIN" test ./... -count=1 -timeout 35m
 fi
 
 "$PYTHON" - "$OUT" "$FULL" "$REPORT_MD" "$REPORT_JSON" <<'PY'

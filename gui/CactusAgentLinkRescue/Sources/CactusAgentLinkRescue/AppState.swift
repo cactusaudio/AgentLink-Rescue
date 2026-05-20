@@ -70,6 +70,10 @@ final class AppState: ObservableObject {
     @Published var fieldMode: FieldMode?
     @Published var fieldReport: FieldRescueReport?
     @Published var fieldResult: CommandResult?
+    @Published var betaStatus = "Not checked"
+    @Published var betaSummary = "Run Field Beta Check to verify package health, read-only diagnosis, dry-run rescue planning, and support-bundle export."
+    @Published var betaChecks: [BetaReadinessCheck] = []
+    @Published var betaCheckedAt: Date?
 
     let client: AgentlinkClient
 
@@ -96,6 +100,10 @@ final class AppState: ObservableObject {
 
     var packageHealthLabel: String {
         packageHealth?.status ?? "unknown"
+    }
+
+    var packageBlocksMainAction: Bool {
+        Self.packageBlocksMainAction(packageHealth)
     }
 
     var incompleteJournalDetected: Bool {
@@ -171,12 +179,95 @@ final class AppState: ObservableObject {
     }
 
     func repairPackage() async {
-        await runGuarded(mutating: false) {
+        await runGuarded(mutating: true) {
             let (result, decoded) = await client.runJSON(PackageHealthReport.self, args: ["package", "repair", "--package-root", client.packageRoot.path, "--yes", "--json"], timeout: 60)
             latestResult = result
             packageHealthResult = result
             packageHealth = decoded
             appendLog(result)
+        }
+    }
+
+    func runBetaReadinessCheck() async {
+        await runGuarded(mutating: false) {
+            betaStatus = "Checking"
+            betaSummary = "Running package, journal, CLI, guided dry-run, readiness, and support-bundle checks. No network repair is executed."
+            betaChecks = [
+                BetaReadinessCheck(id: "start", title: "Started", status: "running", detail: "Field beta check is running without privileged repair.")
+            ]
+            betaCheckedAt = nil
+
+            let version = await client.run(["version"], timeout: 10)
+            versionText = version.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+            latestResult = version
+            appendLog(version)
+
+            let (packageResult, packageDecoded) = await client.runJSON(PackageHealthReport.self, args: ["package", "doctor", "--package-root", client.packageRoot.path, "--json"], timeout: 20)
+            packageHealthResult = packageResult
+            packageHealth = packageDecoded
+            latestResult = packageResult
+            appendLog(packageResult)
+
+            let (journalResult, journalDecoded) = await client.runJSON(JournalRecoveryReport.self, args: ["journal", "recover", "--json"], timeout: 20)
+            journalRecoveryResult = journalResult
+            journalRecovery = journalDecoded
+            latestResult = journalResult
+            appendLog(journalResult)
+
+            let selftest = await client.run(["selftest"], timeout: 20)
+            selftestStatus = selftest.succeeded ? "OK" : "failed"
+            latestResult = selftest
+            appendLog(selftest)
+
+            let (doctorRun, doctorDecoded) = await client.runJSON(DoctorReport.self, args: ["doctor", "--json"], timeout: 45)
+            doctorResult = doctorRun
+            doctor = doctorDecoded
+            latestResult = doctorRun
+            appendLog(doctorRun)
+
+            let (guidedRun, guidedDecoded) = await client.runJSON(GuidedRescueReport.self, args: ["guided", "rescue", "--target", "auto", "--dry-run", "--json"], timeout: 240)
+            guidedResult = guidedRun
+            guidedReport = guidedDecoded
+            latestResult = guidedRun
+            appendLog(guidedRun)
+            if let guidedDecoded {
+                applyGuidedReport(guidedDecoded)
+            }
+
+            let (readinessRun, readinessDecoded) = await client.runJSON(ReadinessReport.self, args: ["readiness", "doctor", "--json"], timeout: 90)
+            readinessResult = readinessRun
+            readiness = readinessDecoded
+            latestResult = readinessRun
+            appendLog(readinessRun)
+
+            let (supportRun, supportDecoded) = await client.runJSON(SupportBundleReport.self, args: ["support", "bundle", "--json"], timeout: 120)
+            supportBundleResult = supportRun
+            supportBundle = supportDecoded
+            latestResult = supportRun
+            appendLog(supportRun)
+
+            let guidedSafe = guidedRun.succeeded && Self.guidedStatusIsBetaSafe(guidedDecoded?.status) && guidedDecoded?.mode == "dry-run"
+            let packageReady = packageResult.exitCode == 0 || (packageResult.exitCode == 20 && !Self.packageBlocksMainAction(packageDecoded))
+            let journalReady = (journalResult.exitCode == 0 || journalResult.exitCode == 20) && journalDecoded?.status != "incomplete_transactions_found"
+            let readinessReady = readinessRun.succeeded && readinessDecoded?.status != "failed"
+            let supportReady = supportRun.succeeded && supportDecoded?.status != "failed"
+            let ok = version.succeeded && packageReady && journalReady && selftest.succeeded && doctorRun.succeeded && guidedSafe && readinessReady && supportReady
+
+            betaChecks = [
+                betaCheck("version", "AgentLink binary", version.succeeded, version.stdout.trimmingCharacters(in: .whitespacesAndNewlines)),
+                betaCheck("package", "Package health", packageReady, packageDecoded?.status ?? "unknown"),
+                betaCheck("journal", "Repair journal", journalReady, journalDecoded?.status ?? "unknown"),
+                betaCheck("selftest", "CLI selftest", selftest.succeeded, selftest.succeeded ? "OK" : selftest.stderrOrFallback),
+                betaCheck("doctor", "Read-only diagnosis", doctorRun.succeeded, recommendationDisplay(for: doctorDecoded?.recommendedRepairLevel, classifications: doctorDecoded?.classifications).label),
+                betaCheck("guided", "Guided dry-run plan", guidedSafe, "\(guidedDecoded?.mode ?? "unknown") / \(guidedDecoded?.status ?? "unknown")"),
+                betaCheck("readiness", "Readiness doctor", readinessReady, readinessDecoded?.status ?? "unknown"),
+                betaCheck("support", "Support bundle export", supportReady, supportBundleDisplayPath(supportDecoded?.bundlePath) ?? supportDecoded?.status ?? "unknown"),
+                BetaReadinessCheck(id: "boundary", title: "GUI safety boundary", status: "ok", detail: "Main rescue action is dry-run-only; sudo work stays in Terminal tickets.")
+            ]
+            betaStatus = ok ? "Ready for field beta" : "Needs attention"
+            betaSummary = ok ? "AgentLink GUI is ready for controlled field beta: diagnose, plan, export evidence, and hand off admin repairs without GUI sudo." : "One or more field beta checks needs attention before relying on this GUI path."
+            betaCheckedAt = Date()
+            await loadReports()
         }
     }
 
@@ -456,14 +547,10 @@ final class AppState: ObservableObject {
         reportsLoadedAt = Date()
     }
 
-    func runGuarded(mutating: Bool, operation: () async -> Void) async {
-        if mutating {
-            if isRunning { return }
-            isRunning = true
-            defer { isRunning = false }
-            await operation()
-            return
-        }
+    func runGuarded(mutating _: Bool, operation: () async -> Void) async {
+        if isRunning { return }
+        isRunning = true
+        defer { isRunning = false }
         await operation()
     }
 
@@ -551,6 +638,15 @@ final class AppState: ObservableObject {
         return object["rollbackAvailable"] as? Bool ?? false
     }
 
+    private func betaCheck(_ id: String, _ title: String, _ ok: Bool, _ detail: String) -> BetaReadinessCheck {
+        BetaReadinessCheck(id: id, title: title, status: ok ? "ok" : "failed", detail: detail.isEmpty ? "No details returned." : detail)
+    }
+
+    private func supportBundleDisplayPath(_ path: String?) -> String? {
+        guard let path, !path.isEmpty else { return nil }
+        return URL(fileURLWithPath: path).lastPathComponent
+    }
+
     private func doctorResultAppend(_ result: CommandResult) {
         doctorResult = result
         appendLog(result)
@@ -589,6 +685,38 @@ final class AppState: ObservableObject {
     private func riskAllowedInGUI(_ risk: String?) -> Bool {
         guard let risk else { return false }
         return ["read_only", "safe_patch", "reversible_patch"].contains(risk)
+    }
+
+    nonisolated static func packageBlocksMainAction(_ health: PackageHealthReport?) -> Bool {
+        guard let health else { return false }
+        if health.status == "broken" || health.status == "failed" {
+            return true
+        }
+        guard health.status == "needs_repair" else {
+            return false
+        }
+        return health.checks?.contains { check in
+            guard ["needs_repair", "missing", "not_executable", "failed"].contains(check.status ?? "") else {
+                return false
+            }
+            if check.id == "app_support_dir" {
+                return false
+            }
+            return check.required == true || check.id == "quarantine_xattr"
+        } ?? true
+    }
+
+    nonisolated static func guidedStatusIsBetaSafe(_ status: String?) -> Bool {
+        guard let status else { return false }
+        return [
+            "healthy",
+            "planned",
+            "dry_run_complete",
+            "no_safe_action",
+            "manual_action_required",
+            "ticket_created",
+            "restart_required"
+        ].contains(status)
     }
 
     private func recommendationDisplay(for raw: String?, classifications: [String]?) -> (label: String, kind: StatusBadge.Kind) {
