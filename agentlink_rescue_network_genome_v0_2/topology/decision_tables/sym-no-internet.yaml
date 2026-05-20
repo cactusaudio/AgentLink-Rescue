@@ -1,0 +1,83 @@
+version: 0.2B
+route_id: SYM-NO-INTERNET
+user_phrase:
+- Mac has no internet
+- all network down
+- cannot browse
+priority_layers:
+- L00_physical_link
+- L01_interface_service
+- L02_ip_dhcp
+- L03_routing
+- L04_dns
+- L05_proxy
+- L06_vpn_ne_tun
+- L07_firewall_pf
+- L13_external_provider
+candidate_cards:
+- MAC-LINK-001
+- MAC-IP-001
+- MAC-ROUTE-001
+- MAC-ROUTE-002
+- MAC-DNS-001
+- MAC-DNS-002
+- MAC-DNS-003
+- MAC-PROXY-001
+- MAC-PROXY-002
+- MAC-PROXY-003
+- MAC-PROXY-004
+- VPN-ROUTE-001
+- VPN-DNS-001
+- CLASH-PROXY-001
+- CLASH-DNS-001
+- CLASH-ROUTE-001
+- PF-001
+- EXT-PROVIDER-001
+- MAC-LINK-002
+- MAC-LINK-003
+- MAC-LINK-004
+- MAC-LINK-005
+- MAC-LINK-006
+- MAC-LINK-007
+- MAC-LINK-008
+- MAC-LINK-009
+- MAC-LINK-010
+- MAC-LINK-011
+- MAC-LINK-012
+- MAC-SERVICE-001
+- MAC-SERVICE-002
+- MAC-SERVICE-003
+- MAC-SERVICE-004
+- MAC-SERVICE-005
+- MAC-SERVICE-006
+- MAC-SERVICE-007
+- MAC-SERVICE-008
+- MAC-SERVICE-009
+- MAC-SERVICE-010
+- MAC-SERVICE-011
+- MAC-SERVICE-012
+- MAC-SERVICE-013
+- MAC-SERVICE-014
+- MAC-SERVICE-015
+- MAC-SERVICE-016
+- MAC-IP-002
+- MAC-IP-003
+- MAC-IP-004
+- MAC-IP-005
+- MAC-IP-006
+- MAC-IP-007
+- MAC-IP-008
+- MAC-IP-009
+- MAC-IP-010
+- MAC-IP-011
+- MAC-IP-012
+- MAC-IP-013
+- MAC-IP-014
+- MAC-IP-015
+- MAC-IP-016
+first_verifiers:
+- ping gateway
+- curl direct IP
+- dig public domain
+- curl HTTPS baseline
+safety_gate: read_only_first; require explicit confirmation for any mutation; AoIP/manual-only if layer L10-L12 appears

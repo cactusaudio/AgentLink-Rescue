@@ -1,0 +1,119 @@
+version: 0.2B
+routes:
+- id: SYM-NO-INTERNET
+  user_phrase:
+  - Mac has no internet
+  - all network down
+  - cannot browse
+  priority_layers:
+  - L00_physical_link
+  - L01_interface_service
+  - L02_ip_dhcp
+  - L03_routing
+  - L04_dns
+  - L05_proxy
+  - L06_vpn_ne_tun
+  - L07_firewall_pf
+  - L13_external_provider
+  first_verifiers:
+  - ping gateway
+  - curl direct IP
+  - dig public domain
+  - curl HTTPS baseline
+- id: SYM-BROWSER-OK-CLI-FAIL
+  user_phrase:
+  - browser works terminal fails
+  - curl fails browser works
+  - Codex cannot connect but web works
+  priority_layers:
+  - L05_proxy
+  - L08_app_connectivity
+  - L09_tls_identity
+  - L04_dns
+  - L06_vpn_ne_tun
+  first_verifiers:
+  - scutil --proxy
+  - env proxy diff
+  - curl -Iv target
+  - tool verbose probe
+- id: SYM-VPN-LAN-LOSS
+  user_phrase:
+  - VPN on local network disappears
+  - LAN unavailable with VPN
+  - Dante gone after VPN
+  priority_layers:
+  - L06_vpn_ne_tun
+  - L03_routing
+  - L04_dns
+  - L10_multicast_discovery
+  first_verifiers:
+  - route -n get LAN target
+  - scutil --dns
+  - ifconfig utun
+  - multicast discovery check
+- id: SYM-CLASH-TUN-BROKEN
+  user_phrase:
+  - Clash TUN no network
+  - Verge TUN DNS broken
+  - mihomo TUN route issue
+  priority_layers:
+  - L06_vpn_ne_tun
+  - L04_dns
+  - L03_routing
+  - L05_proxy
+  first_verifiers:
+  - Clash core/listener status
+  - scutil --dns
+  - route -n get default
+  - local proxy port lsof
+- id: SYM-CODEX-API-FAIL
+  user_phrase:
+  - Codex fails
+  - OpenAI API unreachable
+  - local agent cannot connect
+  priority_layers:
+  - L08_app_connectivity
+  - L05_proxy
+  - L04_dns
+  - L09_tls_identity
+  - L06_vpn_ne_tun
+  - L13_external_provider
+  first_verifiers:
+  - curl target from same shell
+  - Codex config diff
+  - env whitelist/sandbox
+  - TLS issuer check
+- id: SYM-DANTE-INVISIBLE
+  user_phrase:
+  - Dante devices not visible
+  - Dante Controller empty
+  - audio devices disappeared
+  priority_layers:
+  - L00_physical_link
+  - L01_interface_service
+  - L02_ip_dhcp
+  - L10_multicast_discovery
+  - L07_firewall_pf
+  - L11_ptp_clock
+  first_verifiers:
+  - expected NIC active
+  - same subnet/static IP
+  - controller interface selection
+  - IGMP/multicast observation
+- id: SYM-AES67-CLOCK-MEDIA
+  user_phrase:
+  - AES67 no audio
+  - RAVENNA stream silent
+  - PTP unlock
+  - subscription but no sound
+  priority_layers:
+  - L10_multicast_discovery
+  - L11_ptp_clock
+  - L12_aoip_media
+  - L02_ip_dhcp
+  - L07_firewall_pf
+  first_verifiers:
+  - PTP lock/status
+  - SAP/SDP stream params
+  - IGMP/QoS switch state
+  - receiver latency/channel map

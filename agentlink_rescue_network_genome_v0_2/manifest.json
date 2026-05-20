@@ -1,0 +1,48 @@
+{
+  "name": "AgentLink Rescue Network Genome Pack",
+  "version": "0.2",
+  "completed_parts": [
+    "v0.2A_expansion",
+    "v0.2B_topology"
+  ],
+  "generated_at": "2026-05-19T00:00:00-07:00",
+  "card_count": 300,
+  "layer_counts": {
+    "L00_physical_link": 12,
+    "L02_ip_dhcp": 18,
+    "L03_routing": 20,
+    "L04_dns": 26,
+    "L05_proxy": 32,
+    "L06_vpn_ne_tun": 24,
+    "L07_firewall_pf": 14,
+    "L08_app_connectivity": 42,
+    "L09_tls_identity": 16,
+    "L10_multicast_discovery": 22,
+    "L12_aoip_media": 28,
+    "L11_ptp_clock": 18,
+    "L13_external_provider": 7,
+    "L01_interface_service": 16,
+    "L14_user_policy": 5
+  },
+  "risk_counts": {
+    "medium": 82,
+    "low": 93,
+    "high": 37,
+    "never_auto": 81,
+    "read_only": 7
+  },
+  "primary_files": [
+    "cards/failure_cards.yaml",
+    "topology/failure_graph.yaml",
+    "topology/diagnosis_dag.yaml",
+    "compiler/codex_handoff_prompt.md",
+    "database/network_genome_v0_2.sqlite"
+  ],
+  "safety_invariants": [
+    "Read-only collectors before mutating recipes",
+    "No recipe without verifier",
+    "No mutating recipe without rollback",
+    "Never auto-mutate Dante/AES67/RAVENNA/switch/PTP/QoS/VLAN settings",
+    "External-provider path is read-only until local baseline passes"
+  ]
+}

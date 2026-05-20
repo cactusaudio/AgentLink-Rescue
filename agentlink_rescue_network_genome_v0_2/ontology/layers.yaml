@@ -1,0 +1,107 @@
+version: '0.2'
+layers:
+- id: L00_physical_link
+  name: Physical / link
+  description: Cable, Wi-Fi association, link speed, USB/Thunderbolt adapter, switch port, NIC status.
+- id: L01_interface_service
+  name: Interface / macOS network service
+  description: Active service order, disabled service, wrong primary interface, Wi-Fi/Ethernet conflicts.
+- id: L02_ip_dhcp
+  name: IP / DHCP
+  description: Address, subnet, gateway, DHCP lease, self-assigned 169.254/16, IPv4/IPv6 mismatch.
+- id: L03_routing
+  name: Routing / default path
+  description: Default route, utun route capture, split routes, LAN reachability, IPv6 preference.
+- id: L04_dns
+  name: DNS / resolver state
+  description: System DNS, scoped resolvers, split DNS, DNS cache, DoH/DoT side effects, fake-ip.
+- id: L05_proxy
+  name: Proxy control plane
+  description: System proxy, PAC, environment variables, app-specific proxy, NO_PROXY bypass.
+- id: L06_vpn_ne_tun
+  name: VPN / Network Extension / TUN
+  description: utun interfaces, network extensions, VPN DNS, route capture, kill-switch, LAN exclusion.
+- id: L07_firewall_pf
+  name: Firewall / PF / content filter
+  description: Application firewall, pf anchors, content filters, corporate endpoint agents.
+- id: L08_app_connectivity
+  name: Application connectivity
+  description: curl, browser, Git, npm, Homebrew, Docker, Codex/API, model/runtime tools.
+- id: L09_tls_identity
+  name: TLS / certificate / trust
+  description: Corporate MITM root CA, expired certs, SNI/proxy issues, time skew.
+- id: L10_multicast_discovery
+  name: Multicast / discovery
+  description: mDNS, Bonjour, SSDP, Dante discovery, RAVENNA/AES67 discovery, IGMP.
+- id: L11_ptp_clock
+  name: PTP / clocking
+  description: Dante PTP, AES67 PTPv2, leader election, domain mismatch, unstable clock.
+- id: L12_aoip_media
+  name: AoIP media transport
+  description: RTP streams, SDP, sample rate, packet time, latency, QoS, VLAN, multicast forwarding.
+- id: L13_external_provider
+  name: External provider
+  description: ISP outage, DNS provider outage, proxy/VPN provider outage, API/provider service outage.
+- id: L14_user_policy
+  name: User / permission / policy
+  description: Admin privileges, MDM, security software, SIP/TCC, corporate policy blockers.
+edge_types:
+- causes
+- masks
+- amplifies
+- depends_on
+- same_symptom_as
+- false_positive_of
+- requires_observation
+- repair_verifies_by
+- repair_rolls_back_by
+risk_classes:
+  read_only: No mutation; safe to run automatically.
+  low: User-level change; reversible; no admin or low-impact admin.
+  medium: System network mutation; requires snapshot and explicit approval.
+  high: Can disconnect user, break VPN/pro-audio, or affect other apps; manual mode only.
+  never_auto: Do not execute automatically; guide human operator only.
+target_card_counts:
+  L00_physical_link: 12
+  L01_interface_service: 16
+  L02_ip_dhcp: 18
+  L03_routing: 20
+  L04_dns: 26
+  L05_proxy: 32
+  L06_vpn_ne_tun: 24
+  L07_firewall_pf: 14
+  L08_app_connectivity: 42
+  L09_tls_identity: 16
+  L10_multicast_discovery: 22
+  L11_ptp_clock: 18
+  L12_aoip_media: 28
+  L13_external_provider: 7
+  L14_user_policy: 5
+diagnostic_order:
+- L00_physical_link
+- L01_interface_service
+- L02_ip_dhcp
+- L03_routing
+- L04_dns
+- L05_proxy
+- L06_vpn_ne_tun
+- L07_firewall_pf
+- L08_app_connectivity
+- L09_tls_identity
+- L10_multicast_discovery
+- L11_ptp_clock
+- L12_aoip_media
+- L13_external_provider
+- L14_user_policy
+cross_layer_rules:
+- id: RULE-LOWER-FIRST
+  text: Never mutate proxy/VPN/app/AoIP layers until link, service, IP, route, and DNS observations have been captured.
+- id: RULE-BROWSER-CLI-DIVERGENCE
+  text: Browser works while CLI fails usually routes through proxy/env/TLS/tool-specific layers before physical/IP.
+- id: RULE-AOIP-NOT-INTERNET
+  text: Dante/AES67 failures must not be collapsed into generic internet reachability; discovery, PTP, and RTP are separate
+    planes.
+- id: RULE-TUN-DNS-ROUTE
+  text: Clash/VPN/TUN failures must inspect DNS and route together because one control plane can masquerade as the other.
+- id: RULE-NO-UNVERIFIED-FIX
+  text: A repair path cannot be primary unless it has a verifier and rollback path.

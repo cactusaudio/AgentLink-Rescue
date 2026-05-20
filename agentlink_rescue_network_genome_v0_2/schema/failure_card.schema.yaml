@@ -1,0 +1,42 @@
+version: '0.2'
+description: Failure card schema for AgentLink Rescue Network Genome Pack v0.2. Cards
+  are planner input, not automatic fix scripts.
+required_fields:
+- id
+- title
+- layer
+- domain
+- tags
+- symptoms
+- observations
+- discriminators
+- likely_causes
+- safe_checks
+- repair
+- verify
+- rollback
+- risk
+- false_positives
+- source_anchors
+- related
+risk_classes:
+- read_only
+- low
+- medium
+- high
+- never_auto
+repair_contract:
+  no_recipe_without_verifier: true
+  no_mutating_recipe_without_rollback: true
+  never_auto_layers:
+  - L10_multicast_discovery
+  - L11_ptp_clock
+  - L12_aoip_media
+  read_only_collectors_only_by_default: true
+field_notes:
+  safe_checks: Read-only commands or manual observations. Must be redacted before
+    sharing.
+  repair.commands: Empty unless command is safe enough for human-confirmed execution.
+    v0.2 keeps most mutation as manual steps.
+  source_anchors: Short keys resolved in sources/source_anchors.md.
+  related: Card ids used by topology graph and retrieval expansion.

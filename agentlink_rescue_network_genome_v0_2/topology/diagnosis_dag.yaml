@@ -1,0 +1,65 @@
+version: 0.2B
+entrypoint: S0_collect_snapshot
+nodes:
+- id: S0_collect_snapshot
+  type: collector
+  goal: capture read-only baseline and redact secrets
+  next:
+  - S1_lower_layer_gate
+- id: S1_lower_layer_gate
+  type: classifier
+  goal: determine whether link/service/IP/route baseline is healthy
+  next:
+  - S2_dns_proxy_vpn_gate
+  - S1a_repair_core_network_manual
+- id: S1a_repair_core_network_manual
+  type: human_confirmed_recipe
+  goal: repair obvious link/service/IP/route problem with rollback
+  next:
+  - S0_collect_snapshot
+- id: S2_dns_proxy_vpn_gate
+  type: classifier
+  goal: separate DNS, proxy, VPN/TUN, firewall and app-specific failure planes
+  next:
+  - S3_app_or_provider_gate
+  - S2a_dns_proxy_vpn_manual
+- id: S2a_dns_proxy_vpn_manual
+  type: human_confirmed_recipe
+  goal: repair stale DNS/proxy/TUN state with explicit verifier
+  next:
+  - S0_collect_snapshot
+- id: S3_app_or_provider_gate
+  type: classifier
+  goal: decide between tool config, TLS identity, provider outage, or policy blocker
+  next:
+  - S4_aoip_gate
+  - S3a_tool_tls_policy_report
+- id: S3a_tool_tls_policy_report
+  type: guided_recipe_or_report
+  goal: repair app-specific config or produce admin/provider report
+  next:
+  - S0_collect_snapshot
+- id: S4_aoip_gate
+  type: classifier
+  goal: if audio symptoms exist, route to discovery/PTP/media planes without auto-mutation
+  next:
+  - S4a_aoip_manual_checklist
+  - S5_close
+- id: S4a_aoip_manual_checklist
+  type: manual_only
+  goal: produce Dante/AES67/RAVENNA checklist and evidence package
+  next:
+  - S5_close
+- id: S5_close
+  type: finalizer
+  goal: emit user report, Codex report, rollback state, and unresolved hypotheses
+  next: []
+decision_policy:
+  max_primary_hypotheses: 3
+  retrieve_cards_per_stage: 15
+  prefer_discriminators_over_similarity: true
+  never_auto_layers:
+  - L10_multicast_discovery
+  - L11_ptp_clock
+  - L12_aoip_media
+  stop_when: verifier passes or unresolved external/policy/manual-only condition is proven

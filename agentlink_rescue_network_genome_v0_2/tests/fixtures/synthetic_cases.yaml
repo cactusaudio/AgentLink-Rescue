@@ -1,0 +1,57 @@
+version: 0.2B
+cases:
+- id: FIX-BROWSER-OK-CODEX-FAIL
+  symptom: Browser works but Codex cannot connect
+  expected_priority_layers:
+  - L05_proxy
+  - L08_app_connectivity
+  - L09_tls_identity
+  expected_cards_any:
+  - MAC-PROXY-002
+  - CODEX-API-001
+  - DEV-CODEX-002
+  - DEV-OPENAI-001
+- id: FIX-CLASH-TUN-DNS
+  symptom: Clash Verge TUN on macOS breaks all DNS
+  expected_priority_layers:
+  - L06_vpn_ne_tun
+  - L04_dns
+  - L03_routing
+  expected_cards_any:
+  - CLASH-DNS-001
+  - CLASH-TUN-002
+  - CLASH-TUN-007
+  - MAC-DNS-004
+- id: FIX-VPN-LAN-DANTE
+  symptom: VPN on, Dante devices disappear
+  expected_priority_layers:
+  - L06_vpn_ne_tun
+  - L03_routing
+  - L10_multicast_discovery
+  expected_cards_any:
+  - VPN-ROUTE-001
+  - CLASH-TUN-003
+  - DANTE-NIC-001
+  - MDNS-005
+- id: FIX-AES67-CLOCK
+  symptom: AES67 stream visible but no sound and PTP unlocks
+  expected_priority_layers:
+  - L10_multicast_discovery
+  - L11_ptp_clock
+  - L12_aoip_media
+  expected_cards_any:
+  - AES67-PTP-001
+  - PTP-004
+  - AUDIO-RTP-001
+  - AES67-SDP-001
+- id: FIX-BREW-NPM-PROXY
+  symptom: Homebrew and npm fail behind proxy, browser works
+  expected_priority_layers:
+  - L05_proxy
+  - L08_app_connectivity
+  - L09_tls_identity
+  expected_cards_any:
+  - DEV-BREW-001
+  - DEV-BREW-004
+  - DEV-NPM-001
+  - MAC-PROXY-016

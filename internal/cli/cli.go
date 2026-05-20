@@ -72,6 +72,16 @@ func Main(args []string, stdout io.Writer, stderr io.Writer) int {
 	runner := command.NewExecRunner()
 	rulesDir := findRulesDir()
 	switch cmd {
+	case "index":
+		return runGenomeIndex(args[1:], stdout, stderr)
+	case "explain":
+		return runGenomeExplain(args[1:], stdout, stderr)
+	case "collect":
+		return runGenomeCollect(ctx, args[1:], stdout, stderr)
+	case "features":
+		return runGenomeFeatures(args[1:], stdout, stderr)
+	case "gate":
+		return runGenomeGate(args[1:], stdout, stderr)
 	case "readiness":
 		return runReadiness(ctx, runner, args[1:], stdout, stderr)
 	case "last-good":
@@ -135,6 +145,9 @@ func Main(args []string, stdout io.Writer, stderr io.Writer) int {
 	case "rollback":
 		return runRollback(ctx, runner, rulesDir, args[1:], stdout, stderr)
 	case "report":
+		if isGenomeReportArgs(args[1:]) {
+			return runGenomeReport(args[1:], stdout, stderr)
+		}
 		return runReport(ctx, runner, args[1:], stdout, stderr)
 	case "selftest":
 		return runSelftest(stdout, stderr)
@@ -171,6 +184,10 @@ func nonDarwinCloudAllowed(cmd string, args []string) bool {
 	switch cmd {
 	case "version", "selftest", "doctor", "manifest", "diagnose":
 		return true
+	case "index", "explain", "collect", "features", "gate":
+		return true
+	case "report":
+		return flagHasValue(args, "--format")
 	case "chaos":
 		return len(args) > 0 && (args[0] == "list" || args[0] == "run")
 	case "diagnose-graph":
@@ -1731,6 +1748,9 @@ func runDiagnose(ctx context.Context, runner command.Runner, rulesDir string, ar
 		}
 		return 0
 	}
+	if hasGenomeDiagnoseArgs(args) {
+		return runGenomeDiagnose(args, stdout, stderr)
+	}
 	fs := flag.NewFlagSet("diagnose", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	jsonOut := fs.Bool("json", false, "print JSON")
@@ -2243,6 +2263,13 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "  agentlink package doctor|repair [--package-root PATH] [--dry-run] [--yes] [--json]")
 	fmt.Fprintln(w, "  agentlink journal list|inspect|recover [--yes] [--package-root PATH] [--json]")
 	fmt.Fprintln(w, "  agentlink chaos list|run [--root PATH] [--fixture PATH] [--json]")
+	fmt.Fprintln(w, "  agentlink index rebuild|stats [--json]")
+	fmt.Fprintln(w, "  agentlink explain --card CARD_ID [--json]")
+	fmt.Fprintln(w, "  agentlink collect --out SNAPSHOT_DIR [--privacy standard|strict] [--json]")
+	fmt.Fprintln(w, "  agentlink features --snapshot SNAPSHOT_DIR [--json]")
+	fmt.Fprintln(w, "  agentlink diagnose --symptom TEXT [--no-snapshot | --snapshot SNAPSHOT_DIR] [--top N] [--json]")
+	fmt.Fprintln(w, "  agentlink gate --card CARD_ID [--json]")
+	fmt.Fprintln(w, "  agentlink report --format markdown|json --snapshot SNAPSHOT_DIR --symptom TEXT --out PATH")
 	fmt.Fprintln(w, "  agentlink --safe-mode doctor|support bundle|package doctor|journal list|journal recover")
 	fmt.Fprintln(w, "  agentlink dev doctor [--json]")
 	fmt.Fprintln(w, "  agentlink snapshot")

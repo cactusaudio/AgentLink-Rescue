@@ -1,0 +1,4812 @@
+{
+  "version": "0.2A",
+  "items": [
+    {
+      "id": "MAC-LINK-001",
+      "title": "Active network service has no link or degraded link",
+      "layer": "L00_physical_link",
+      "symptoms": [
+        "Mac shows connected intermittently",
+        "Ethernet expected but Wi-Fi is used",
+        "Dante/AES67 devices disappear when cable/adapter changes"
+      ],
+      "tags": [
+        "l00"
+      ]
+    },
+    {
+      "id": "MAC-IP-001",
+      "title": "Self-assigned link-local IPv4 address",
+      "layer": "L02_ip_dhcp",
+      "symptoms": [
+        "IP address starts with 169.254",
+        "No internet despite link active",
+        "Local audio network visible partially or not at all"
+      ],
+      "tags": [
+        "l02"
+      ]
+    },
+    {
+      "id": "MAC-ROUTE-001",
+      "title": "Missing default route",
+      "layer": "L03_routing",
+      "symptoms": [
+        "Can reach local subnet but not internet",
+        "DNS servers may exist but external IP ping fails",
+        "curl fails to all public hosts"
+      ],
+      "tags": [
+        "l03"
+      ]
+    },
+    {
+      "id": "MAC-ROUTE-002",
+      "title": "Default route uses wrong interface",
+      "layer": "L03_routing",
+      "symptoms": [
+        "Ethernet plugged in but traffic uses Wi-Fi",
+        "Dante network reachable but internet broken or vice versa",
+        "LAN devices disappear when VPN/Clash enabled"
+      ],
+      "tags": [
+        "l03"
+      ]
+    },
+    {
+      "id": "MAC-DNS-001",
+      "title": "IP reachability works but DNS resolution fails",
+      "layer": "L04_dns",
+      "symptoms": [
+        "ping 1.1.1.1 works but domains fail",
+        "curl reports could not resolve host",
+        "API/Git/npm fail with DNS errors"
+      ],
+      "tags": [
+        "dns",
+        "l04"
+      ]
+    },
+    {
+      "id": "MAC-DNS-002",
+      "title": "Scoped resolver or split DNS mismatch",
+      "layer": "L04_dns",
+      "symptoms": [
+        "Public domains resolve but corporate/internal domains fail",
+        "VPN works for IP but not hostname",
+        "Only certain suffixes fail"
+      ],
+      "tags": [
+        "dns",
+        "l04"
+      ]
+    },
+    {
+      "id": "MAC-DNS-003",
+      "title": "Stale DNS cache after network/proxy/VPN transition",
+      "layer": "L04_dns",
+      "symptoms": [
+        "A domain resolves to an old IP",
+        "Problem appears after switching VPN/proxy/Wi-Fi",
+        "Other devices resolve correctly"
+      ],
+      "tags": [
+        "dns",
+        "l04",
+        "proxy",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-001",
+      "title": "System proxy points to a dead local listener",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Browser or system apps hang",
+        "Terminal curl hangs if using system proxy integration",
+        "Proxy host is 127.0.0.1 but app is closed"
+      ],
+      "tags": [
+        "l05",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-002",
+      "title": "Shell environment proxy is stale or contradictory",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Terminal/Codex/Git/npm fail while browser works",
+        "curl uses old proxy",
+        "Turning system proxy off does not affect CLI failure"
+      ],
+      "tags": [
+        "l05",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-003",
+      "title": "PAC/auto proxy creates browser/CLI mismatch",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Safari works but CLI tools fail",
+        "Corporate network works in browser only",
+        "Proxy behavior differs by URL"
+      ],
+      "tags": [
+        "l05",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-004",
+      "title": "NO_PROXY missing for localhost or LAN",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Localhost services fail through proxy",
+        "LAN devices inaccessible when proxy env is set",
+        "Docker/dev servers unreachable"
+      ],
+      "tags": [
+        "l05",
+        "proxy"
+      ]
+    },
+    {
+      "id": "VPN-ROUTE-001",
+      "title": "VPN or utun captures default route and blocks local network",
+      "layer": "L06_vpn_ne_tun",
+      "symptoms": [
+        "LAN devices disappear after VPN connects",
+        "Dante/AES67 disappears during VPN",
+        "Default route points to utun",
+        "Local IP range unreachable"
+      ],
+      "tags": [
+        "l06",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "VPN-DNS-001",
+      "title": "VPN DNS overrides or loses expected resolvers",
+      "layer": "L06_vpn_ne_tun",
+      "symptoms": [
+        "Internal names fail on VPN",
+        "Public names fail on VPN",
+        "DNS changes after VPN connects",
+        "API tools fail only during VPN"
+      ],
+      "tags": [
+        "dns",
+        "l06",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "CLASH-PROXY-001",
+      "title": "System proxy still points to Clash/Verge after client stopped",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Network broken after closing Clash Verge",
+        "System apps hang",
+        "Proxy address is localhost port but process absent"
+      ],
+      "tags": [
+        "l05",
+        "proxy",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "CLASH-DNS-001",
+      "title": "Clash/Verge TUN DNS interaction breaks resolution or LAN names",
+      "layer": "L06_vpn_ne_tun",
+      "symptoms": [
+        "Turning on TUN breaks internet",
+        "LAN .local or private hostnames fail",
+        "System DNS changes when TUN enabled",
+        "Proxy nodes cannot resolve"
+      ],
+      "tags": [
+        "dns",
+        "l06",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "CLASH-ROUTE-001",
+      "title": "TUN route capture conflicts with VPN or LAN routes",
+      "layer": "L06_vpn_ne_tun",
+      "symptoms": [
+        "Internet or LAN breaks only when TUN is enabled",
+        "Multiple utun interfaces active",
+        "VPN + Clash combination unstable"
+      ],
+      "tags": [
+        "l06",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "PF-001",
+      "title": "pf or content filter blocks DNS/HTTP/HTTPS",
+      "layer": "L07_firewall_pf",
+      "symptoms": [
+        "All apps fail to a port or protocol",
+        "Rules persist after VPN/security software",
+        "Only DNS or HTTPS blocked",
+        "Corporate endpoint agent suspected"
+      ],
+      "tags": [
+        "dns",
+        "l07"
+      ]
+    },
+    {
+      "id": "DEV-GIT-001",
+      "title": "Git proxy config stale or overrides environment",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "git clone/fetch fails but browser/curl works",
+        "Git attempts old proxy",
+        "Only HTTPS remotes fail"
+      ],
+      "tags": [
+        "developer-tool",
+        "l08",
+        "proxy"
+      ]
+    },
+    {
+      "id": "DEV-NPM-001",
+      "title": "npm proxy or registry configuration stale",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "npm install fails but curl/browser work",
+        "npm uses old proxy or registry",
+        "Only npm package downloads fail"
+      ],
+      "tags": [
+        "developer-tool",
+        "l08",
+        "proxy"
+      ]
+    },
+    {
+      "id": "DEV-BREW-001",
+      "title": "Homebrew proxy/environment mismatch",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "brew update/install fails behind proxy",
+        "curl works but brew fails",
+        "brew GitHub downloads hang"
+      ],
+      "tags": [
+        "developer-tool",
+        "l08",
+        "proxy"
+      ]
+    },
+    {
+      "id": "DEV-DOCKER-001",
+      "title": "Docker host/container proxy mismatch",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Mac host can reach internet but container cannot",
+        "docker pull fails behind proxy",
+        "Container cannot reach localhost proxy"
+      ],
+      "tags": [
+        "developer-tool",
+        "l08",
+        "proxy"
+      ]
+    },
+    {
+      "id": "DEV-TLS-001",
+      "title": "TLS trust or corporate MITM certificate mismatch",
+      "layer": "L09_tls_identity",
+      "symptoms": [
+        "curl/Git/npm fail with certificate errors",
+        "Browser works after trusting corporate CA",
+        "Only HTTPS fails",
+        "Proxy present on corporate network"
+      ],
+      "tags": [
+        "l09",
+        "tls"
+      ]
+    },
+    {
+      "id": "CODEX-API-001",
+      "title": "Local coding/API agent cannot reach service while general internet appears usable",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Codex/API client fails",
+        "Browser works",
+        "curl direct/proxy tests differ",
+        "Failure after proxy/VPN change"
+      ],
+      "tags": [
+        "l08"
+      ]
+    },
+    {
+      "id": "DANTE-NIC-001",
+      "title": "Dante Controller or audio app bound to wrong network interface",
+      "layer": "L10_multicast_discovery",
+      "symptoms": [
+        "Dante devices invisible",
+        "Mac internet works but audio network not visible",
+        "Devices visible only after disabling Wi-Fi/VPN",
+        "Wrong subnet shown in Dante Controller"
+      ],
+      "tags": [
+        "aoip",
+        "l10",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "DANTE-SAMPLE-001",
+      "title": "Dante sample rate mismatch",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Devices visible but no audio",
+        "Subscriptions fail or show warning",
+        "One device receives but audio muted/distorted"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "DANTE-CLOCK-001",
+      "title": "Dante clock leader instability or PTP blocked",
+      "layer": "L11_ptp_clock",
+      "symptoms": [
+        "Devices visible but muted",
+        "Audio dropouts/clicks",
+        "Clock status unstable",
+        "Multiple devices fight for leader"
+      ],
+      "tags": [
+        "aoip",
+        "l11",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "DANTE-PRIMARY-SECONDARY-001",
+      "title": "Dante primary/secondary network wiring or mode mismatch",
+      "layer": "L10_multicast_discovery",
+      "symptoms": [
+        "Secondary link down warning",
+        "Devices duplicated/invisible",
+        "Audio unstable after redundant setup",
+        "Primary and secondary mixed on same switch"
+      ],
+      "tags": [
+        "aoip",
+        "l10",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "AES67-PTP-001",
+      "title": "AES67 PTPv2 not enabled or PTP domain/profile mismatch",
+      "layer": "L11_ptp_clock",
+      "symptoms": [
+        "AES67 stream visible but cannot receive",
+        "Dante-to-AES67 interoperability fails",
+        "Devices not clock locked",
+        "RTP flows fail despite IP reachability"
+      ],
+      "tags": [
+        "aoip",
+        "l11",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "AES67-MCAST-001",
+      "title": "AES67/RAVENNA multicast flooding or drop due IGMP/switch config",
+      "layer": "L10_multicast_discovery",
+      "symptoms": [
+        "Audio dropouts under load",
+        "Network lock-up when streams start",
+        "Stream visible but receiver gets no packets",
+        "Works on small switch but fails on managed network"
+      ],
+      "tags": [
+        "aoip",
+        "l10",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "AES67-SDP-001",
+      "title": "AES67/RAVENNA SDP or stream parameter mismatch",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Stream appears but receiver refuses it",
+        "Manual connection fails",
+        "Wrong channel count/sample format/packet time",
+        "Audio silent despite packets"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "AUDIO-SWITCH-EEE-001",
+      "title": "Energy Efficient Ethernet or switch power-saving disturbs AoIP timing",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Clicks/dropouts despite low bandwidth",
+        "Clock instability on otherwise simple network",
+        "Problem disappears on different switch"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "AUDIO-QOS-001",
+      "title": "AoIP QoS absent or ineffective under shared network load",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Audio stable when idle but drops under traffic",
+        "Large downloads cause glitches",
+        "PTP/media packets delayed"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "EXT-PROVIDER-001",
+      "title": "External provider or upstream service outage mistaken for local failure",
+      "layer": "L13_external_provider",
+      "symptoms": [
+        "Only one service unreachable",
+        "Other internet works",
+        "Multiple local repair attempts do not change result",
+        "Status page/social reports confirm outage"
+      ],
+      "tags": [
+        "l13"
+      ]
+    },
+    {
+      "id": "TIME-TLS-001",
+      "title": "System clock skew breaks TLS and authentication",
+      "layer": "L09_tls_identity",
+      "symptoms": [
+        "TLS certificate not yet valid/expired errors across sites",
+        "API auth signatures fail",
+        "Secure apps fail while raw network works"
+      ],
+      "tags": [
+        "aoip",
+        "l09",
+        "pro-audio",
+        "tls"
+      ]
+    },
+    {
+      "id": "MAC-LINK-002",
+      "title": "Wi-Fi associated but captive or restricted datapath prevents real traffic",
+      "layer": "L00_physical_link",
+      "symptoms": [
+        "Observed condition: Wi-Fi associated but captive or restricted datapath prevents real traffic",
+        "Link appears unstable or inactive",
+        "Connectivity changes after cable, dock, switch, or sleep/wake change"
+      ],
+      "tags": [
+        "l00",
+        "link",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-LINK-003",
+      "title": "Ethernet link flaps under USB-C hub power or thermal instability",
+      "layer": "L00_physical_link",
+      "symptoms": [
+        "Observed condition: Ethernet link flaps under USB-C hub power or thermal instability",
+        "Link appears unstable or inactive",
+        "Connectivity changes after cable, dock, switch, or sleep/wake change"
+      ],
+      "tags": [
+        "l00",
+        "link",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-LINK-004",
+      "title": "Link speed or duplex degraded below AoIP requirements",
+      "layer": "L00_physical_link",
+      "symptoms": [
+        "Observed condition: Link speed or duplex degraded below AoIP requirements",
+        "Link appears unstable or inactive",
+        "Connectivity changes after cable, dock, switch, or sleep/wake change"
+      ],
+      "tags": [
+        "aoip",
+        "l00",
+        "link",
+        "macos",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "MAC-LINK-005",
+      "title": "Wrong cable or switch port connects Mac to an isolated VLAN",
+      "layer": "L00_physical_link",
+      "symptoms": [
+        "Observed condition: Wrong cable or switch port connects Mac to an isolated VLAN",
+        "Link appears unstable or inactive",
+        "Connectivity changes after cable, dock, switch, or sleep/wake change"
+      ],
+      "tags": [
+        "l00",
+        "link",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-LINK-006",
+      "title": "Thunderbolt or USB adapter enumerates with changing interface identity",
+      "layer": "L00_physical_link",
+      "symptoms": [
+        "Observed condition: Thunderbolt or USB adapter enumerates with changing interface identity",
+        "Link appears unstable or inactive",
+        "Connectivity changes after cable, dock, switch, or sleep/wake change"
+      ],
+      "tags": [
+        "l00",
+        "link",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-LINK-007",
+      "title": "Wi-Fi roaming between APs causes intermittent resolver or route changes",
+      "layer": "L00_physical_link",
+      "symptoms": [
+        "Observed condition: Wi-Fi roaming between APs causes intermittent resolver or route changes",
+        "Link appears unstable or inactive",
+        "Connectivity changes after cable, dock, switch, or sleep/wake change"
+      ],
+      "tags": [
+        "dns",
+        "l00",
+        "link",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-LINK-008",
+      "title": "AWDL or peer link creates misleading local reachability",
+      "layer": "L00_physical_link",
+      "symptoms": [
+        "Observed condition: AWDL or peer link creates misleading local reachability",
+        "Link appears unstable or inactive",
+        "Connectivity changes after cable, dock, switch, or sleep/wake change"
+      ],
+      "tags": [
+        "l00",
+        "link",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-LINK-009",
+      "title": "Sleep/wake leaves NIC active but datapath stalled",
+      "layer": "L00_physical_link",
+      "symptoms": [
+        "Observed condition: Sleep/wake leaves NIC active but datapath stalled",
+        "Link appears unstable or inactive",
+        "Connectivity changes after cable, dock, switch, or sleep/wake change"
+      ],
+      "tags": [
+        "l00",
+        "link",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-LINK-010",
+      "title": "MTU blackhole at link path causes large transfers or TLS to hang",
+      "layer": "L00_physical_link",
+      "symptoms": [
+        "Observed condition: MTU blackhole at link path causes large transfers or TLS to hang",
+        "Link appears unstable or inactive",
+        "Connectivity changes after cable, dock, switch, or sleep/wake change"
+      ],
+      "tags": [
+        "l00",
+        "link",
+        "macos",
+        "tls"
+      ]
+    },
+    {
+      "id": "MAC-LINK-011",
+      "title": "Switch port PoE or EEE negotiation impacts attached audio devices",
+      "layer": "L00_physical_link",
+      "symptoms": [
+        "Observed condition: Switch port PoE or EEE negotiation impacts attached audio devices",
+        "Link appears unstable or inactive",
+        "Connectivity changes after cable, dock, switch, or sleep/wake change"
+      ],
+      "tags": [
+        "aoip",
+        "l00",
+        "link",
+        "macos",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "MAC-LINK-012",
+      "title": "AirPlay or Bonjour peer path mistaken for the main network",
+      "layer": "L00_physical_link",
+      "symptoms": [
+        "Observed condition: AirPlay or Bonjour peer path mistaken for the main network",
+        "Link appears unstable or inactive",
+        "Connectivity changes after cable, dock, switch, or sleep/wake change"
+      ],
+      "tags": [
+        "l00",
+        "link",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-SERVICE-001",
+      "title": "Network service disabled while hardware interface is active",
+      "layer": "L01_interface_service",
+      "symptoms": [
+        "Observed condition: Network service disabled while hardware interface is active",
+        "Expected network is present but macOS chooses a different service",
+        "App binds to the wrong interface"
+      ],
+      "tags": [
+        "l01",
+        "macos",
+        "service-order"
+      ]
+    },
+    {
+      "id": "MAC-SERVICE-002",
+      "title": "Service order prioritizes Wi-Fi over expected Ethernet",
+      "layer": "L01_interface_service",
+      "symptoms": [
+        "Observed condition: Service order prioritizes Wi-Fi over expected Ethernet",
+        "Expected network is present but macOS chooses a different service",
+        "App binds to the wrong interface"
+      ],
+      "tags": [
+        "l01",
+        "macos",
+        "service-order"
+      ]
+    },
+    {
+      "id": "MAC-SERVICE-003",
+      "title": "Active Network Location has stale DNS, proxy, or service settings",
+      "layer": "L01_interface_service",
+      "symptoms": [
+        "Observed condition: Active Network Location has stale DNS, proxy, or service settings",
+        "Expected network is present but macOS chooses a different service",
+        "App binds to the wrong interface"
+      ],
+      "tags": [
+        "dns",
+        "l01",
+        "macos",
+        "proxy",
+        "service-order"
+      ]
+    },
+    {
+      "id": "MAC-SERVICE-004",
+      "title": "Duplicate network services exist for the same adapter",
+      "layer": "L01_interface_service",
+      "symptoms": [
+        "Observed condition: Duplicate network services exist for the same adapter",
+        "Expected network is present but macOS chooses a different service",
+        "App binds to the wrong interface"
+      ],
+      "tags": [
+        "l01",
+        "macos",
+        "service-order"
+      ]
+    },
+    {
+      "id": "MAC-SERVICE-005",
+      "title": "Interface identity changes after OS update or adapter swap",
+      "layer": "L01_interface_service",
+      "symptoms": [
+        "Observed condition: Interface identity changes after OS update or adapter swap",
+        "Expected network is present but macOS chooses a different service",
+        "App binds to the wrong interface"
+      ],
+      "tags": [
+        "l01",
+        "macos",
+        "service-order"
+      ]
+    },
+    {
+      "id": "MAC-SERVICE-006",
+      "title": "Wi-Fi and Ethernet share a subnet and create asymmetric routing",
+      "layer": "L01_interface_service",
+      "symptoms": [
+        "Observed condition: Wi-Fi and Ethernet share a subnet and create asymmetric routing",
+        "Expected network is present but macOS chooses a different service",
+        "App binds to the wrong interface"
+      ],
+      "tags": [
+        "l01",
+        "macos",
+        "service-order"
+      ]
+    },
+    {
+      "id": "MAC-SERVICE-007",
+      "title": "Internet service and audio service have conflicting addressing goals",
+      "layer": "L01_interface_service",
+      "symptoms": [
+        "Observed condition: Internet service and audio service have conflicting addressing goals",
+        "Expected network is present but macOS chooses a different service",
+        "App binds to the wrong interface"
+      ],
+      "tags": [
+        "aoip",
+        "l01",
+        "macos",
+        "pro-audio",
+        "service-order"
+      ]
+    },
+    {
+      "id": "MAC-SERVICE-008",
+      "title": "IPv6 link-local interface is selected unexpectedly",
+      "layer": "L01_interface_service",
+      "symptoms": [
+        "Observed condition: IPv6 link-local interface is selected unexpectedly",
+        "Expected network is present but macOS chooses a different service",
+        "App binds to the wrong interface"
+      ],
+      "tags": [
+        "l01",
+        "macos",
+        "service-order"
+      ]
+    },
+    {
+      "id": "MAC-SERVICE-009",
+      "title": "Network Extension virtual service shadows physical service",
+      "layer": "L01_interface_service",
+      "symptoms": [
+        "Observed condition: Network Extension virtual service shadows physical service",
+        "Expected network is present but macOS chooses a different service",
+        "App binds to the wrong interface"
+      ],
+      "tags": [
+        "l01",
+        "macos",
+        "service-order",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "MAC-SERVICE-010",
+      "title": "Per-service DNS or proxy setting is applied to the wrong service",
+      "layer": "L01_interface_service",
+      "symptoms": [
+        "Observed condition: Per-service DNS or proxy setting is applied to the wrong service",
+        "Expected network is present but macOS chooses a different service",
+        "App binds to the wrong interface"
+      ],
+      "tags": [
+        "dns",
+        "l01",
+        "macos",
+        "proxy",
+        "service-order"
+      ]
+    },
+    {
+      "id": "MAC-SERVICE-011",
+      "title": "Service appears active but lacks router due manual configuration",
+      "layer": "L01_interface_service",
+      "symptoms": [
+        "Observed condition: Service appears active but lacks router due manual configuration",
+        "Expected network is present but macOS chooses a different service",
+        "App binds to the wrong interface"
+      ],
+      "tags": [
+        "l01",
+        "macos",
+        "service-order"
+      ]
+    },
+    {
+      "id": "MAC-SERVICE-012",
+      "title": "USB network device is not initialized cleanly after hotplug",
+      "layer": "L01_interface_service",
+      "symptoms": [
+        "Observed condition: USB network device is not initialized cleanly after hotplug",
+        "Expected network is present but macOS chooses a different service",
+        "App binds to the wrong interface"
+      ],
+      "tags": [
+        "l01",
+        "macos",
+        "service-order"
+      ]
+    },
+    {
+      "id": "MAC-SERVICE-013",
+      "title": "Legacy PPPoE or modem service remains in service order",
+      "layer": "L01_interface_service",
+      "symptoms": [
+        "Observed condition: Legacy PPPoE or modem service remains in service order",
+        "Expected network is present but macOS chooses a different service",
+        "App binds to the wrong interface"
+      ],
+      "tags": [
+        "l01",
+        "macos",
+        "service-order"
+      ]
+    },
+    {
+      "id": "MAC-SERVICE-014",
+      "title": "Network Location is switched by user, app, or migration",
+      "layer": "L01_interface_service",
+      "symptoms": [
+        "Observed condition: Network Location is switched by user, app, or migration",
+        "Expected network is present but macOS chooses a different service",
+        "App binds to the wrong interface"
+      ],
+      "tags": [
+        "l01",
+        "macos",
+        "service-order"
+      ]
+    },
+    {
+      "id": "MAC-SERVICE-015",
+      "title": "Hidden or unmanaged service persists after app uninstall",
+      "layer": "L01_interface_service",
+      "symptoms": [
+        "Observed condition: Hidden or unmanaged service persists after app uninstall",
+        "Expected network is present but macOS chooses a different service",
+        "App binds to the wrong interface"
+      ],
+      "tags": [
+        "l01",
+        "macos",
+        "service-order"
+      ]
+    },
+    {
+      "id": "MAC-SERVICE-016",
+      "title": "Application-selected interface differs from system primary",
+      "layer": "L01_interface_service",
+      "symptoms": [
+        "Observed condition: Application-selected interface differs from system primary",
+        "Expected network is present but macOS chooses a different service",
+        "App binds to the wrong interface"
+      ],
+      "tags": [
+        "l01",
+        "macos",
+        "service-order"
+      ]
+    },
+    {
+      "id": "MAC-IP-002",
+      "title": "DHCP lease stale after router or network transition",
+      "layer": "L02_ip_dhcp",
+      "symptoms": [
+        "Observed condition: DHCP lease stale after router or network transition",
+        "Link is active but address/router/subnet is wrong",
+        "Local devices cannot be reached despite active interface"
+      ],
+      "tags": [
+        "dhcp",
+        "ip",
+        "l02",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-IP-003",
+      "title": "Static IP configured on the wrong subnet",
+      "layer": "L02_ip_dhcp",
+      "symptoms": [
+        "Observed condition: Static IP configured on the wrong subnet",
+        "Link is active but address/router/subnet is wrong",
+        "Local devices cannot be reached despite active interface"
+      ],
+      "tags": [
+        "dhcp",
+        "ip",
+        "l02",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-IP-004",
+      "title": "Duplicate IP address conflict on LAN or audio network",
+      "layer": "L02_ip_dhcp",
+      "symptoms": [
+        "Observed condition: Duplicate IP address conflict on LAN or audio network",
+        "Link is active but address/router/subnet is wrong",
+        "Local devices cannot be reached despite active interface"
+      ],
+      "tags": [
+        "aoip",
+        "dhcp",
+        "ip",
+        "l02",
+        "macos",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "MAC-IP-005",
+      "title": "DHCP lease is issued by the wrong VLAN or rogue server",
+      "layer": "L02_ip_dhcp",
+      "symptoms": [
+        "Observed condition: DHCP lease is issued by the wrong VLAN or rogue server",
+        "Link is active but address/router/subnet is wrong",
+        "Local devices cannot be reached despite active interface"
+      ],
+      "tags": [
+        "dhcp",
+        "ip",
+        "l02",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-IP-006",
+      "title": "DHCP options supply bad router or DNS servers",
+      "layer": "L02_ip_dhcp",
+      "symptoms": [
+        "Observed condition: DHCP options supply bad router or DNS servers",
+        "Link is active but address/router/subnet is wrong",
+        "Local devices cannot be reached despite active interface"
+      ],
+      "tags": [
+        "dhcp",
+        "dns",
+        "ip",
+        "l02",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-IP-007",
+      "title": "IPv6-only or NAT64 environment breaks IPv4 assumptions",
+      "layer": "L02_ip_dhcp",
+      "symptoms": [
+        "Observed condition: IPv6-only or NAT64 environment breaks IPv4 assumptions",
+        "Link is active but address/router/subnet is wrong",
+        "Local devices cannot be reached despite active interface"
+      ],
+      "tags": [
+        "dhcp",
+        "dns",
+        "ip",
+        "l02",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-IP-008",
+      "title": "IPv6 privacy address confuses firewall or provider allowlist",
+      "layer": "L02_ip_dhcp",
+      "symptoms": [
+        "Observed condition: IPv6 privacy address confuses firewall or provider allowlist",
+        "Link is active but address/router/subnet is wrong",
+        "Local devices cannot be reached despite active interface"
+      ],
+      "tags": [
+        "dhcp",
+        "ip",
+        "l02",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-IP-009",
+      "title": "Multiple addresses on one interface confuse app binding",
+      "layer": "L02_ip_dhcp",
+      "symptoms": [
+        "Observed condition: Multiple addresses on one interface confuse app binding",
+        "Link is active but address/router/subnet is wrong",
+        "Local devices cannot be reached despite active interface"
+      ],
+      "tags": [
+        "dhcp",
+        "ip",
+        "l02",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-IP-010",
+      "title": "Hosts file overrides expected name to stale IP",
+      "layer": "L02_ip_dhcp",
+      "symptoms": [
+        "Observed condition: Hosts file overrides expected name to stale IP",
+        "Link is active but address/router/subnet is wrong",
+        "Local devices cannot be reached despite active interface"
+      ],
+      "tags": [
+        "dhcp",
+        "dns",
+        "ip",
+        "l02",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-IP-011",
+      "title": "Link-local audio network is mistaken for failed internet",
+      "layer": "L02_ip_dhcp",
+      "symptoms": [
+        "Observed condition: Link-local audio network is mistaken for failed internet",
+        "Link is active but address/router/subnet is wrong",
+        "Local devices cannot be reached despite active interface"
+      ],
+      "tags": [
+        "aoip",
+        "dhcp",
+        "ip",
+        "l02",
+        "macos",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "MAC-IP-012",
+      "title": "Configured gateway is outside the interface subnet",
+      "layer": "L02_ip_dhcp",
+      "symptoms": [
+        "Observed condition: Configured gateway is outside the interface subnet",
+        "Link is active but address/router/subnet is wrong",
+        "Local devices cannot be reached despite active interface"
+      ],
+      "tags": [
+        "dhcp",
+        "ip",
+        "l02",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-IP-013",
+      "title": "DHCP renewal is blocked by firewall or content filter",
+      "layer": "L02_ip_dhcp",
+      "symptoms": [
+        "Observed condition: DHCP renewal is blocked by firewall or content filter",
+        "Link is active but address/router/subnet is wrong",
+        "Local devices cannot be reached despite active interface"
+      ],
+      "tags": [
+        "dhcp",
+        "ip",
+        "l02",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-IP-014",
+      "title": "Stale ARP or neighbor cache points to old peer",
+      "layer": "L02_ip_dhcp",
+      "symptoms": [
+        "Observed condition: Stale ARP or neighbor cache points to old peer",
+        "Link is active but address/router/subnet is wrong",
+        "Local devices cannot be reached despite active interface"
+      ],
+      "tags": [
+        "dhcp",
+        "ip",
+        "l02",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-IP-015",
+      "title": "Captive portal assigns limited or quarantine network",
+      "layer": "L02_ip_dhcp",
+      "symptoms": [
+        "Observed condition: Captive portal assigns limited or quarantine network",
+        "Link is active but address/router/subnet is wrong",
+        "Local devices cannot be reached despite active interface"
+      ],
+      "tags": [
+        "dhcp",
+        "ip",
+        "l02",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-IP-016",
+      "title": "DHCP subnet overlaps VPN or container subnet",
+      "layer": "L02_ip_dhcp",
+      "symptoms": [
+        "Observed condition: DHCP subnet overlaps VPN or container subnet",
+        "Link is active but address/router/subnet is wrong",
+        "Local devices cannot be reached despite active interface"
+      ],
+      "tags": [
+        "dhcp",
+        "ip",
+        "l02",
+        "macos",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "MAC-IP-017",
+      "title": "Subnet mask mismatch between Mac and target devices",
+      "layer": "L02_ip_dhcp",
+      "symptoms": [
+        "Observed condition: Subnet mask mismatch between Mac and target devices",
+        "Link is active but address/router/subnet is wrong",
+        "Local devices cannot be reached despite active interface"
+      ],
+      "tags": [
+        "dhcp",
+        "ip",
+        "l02",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-IP-018",
+      "title": "IPv4 is disabled on selected network service",
+      "layer": "L02_ip_dhcp",
+      "symptoms": [
+        "Observed condition: IPv4 is disabled on selected network service",
+        "Link is active but address/router/subnet is wrong",
+        "Local devices cannot be reached despite active interface"
+      ],
+      "tags": [
+        "dhcp",
+        "ip",
+        "l02",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-ROUTE-003",
+      "title": "Host route to API or Git endpoint points through stale utun",
+      "layer": "L03_routing",
+      "symptoms": [
+        "Observed condition: Host route to API or Git endpoint points through stale utun",
+        "DNS may resolve but traffic exits the wrong path",
+        "Local subnet or public internet fails selectively"
+      ],
+      "tags": [
+        "developer-tool",
+        "l03",
+        "macos",
+        "routing",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "MAC-ROUTE-004",
+      "title": "Split route misses private LAN required by workflow",
+      "layer": "L03_routing",
+      "symptoms": [
+        "Observed condition: Split route misses private LAN required by workflow",
+        "DNS may resolve but traffic exits the wrong path",
+        "Local subnet or public internet fails selectively"
+      ],
+      "tags": [
+        "l03",
+        "macos",
+        "routing"
+      ]
+    },
+    {
+      "id": "MAC-ROUTE-005",
+      "title": "More-specific route hijacks the configured DNS server",
+      "layer": "L03_routing",
+      "symptoms": [
+        "Observed condition: More-specific route hijacks the configured DNS server",
+        "DNS may resolve but traffic exits the wrong path",
+        "Local subnet or public internet fails selectively"
+      ],
+      "tags": [
+        "dns",
+        "l03",
+        "macos",
+        "routing"
+      ]
+    },
+    {
+      "id": "MAC-ROUTE-006",
+      "title": "IPv6 default route is preferred but broken",
+      "layer": "L03_routing",
+      "symptoms": [
+        "Observed condition: IPv6 default route is preferred but broken",
+        "DNS may resolve but traffic exits the wrong path",
+        "Local subnet or public internet fails selectively"
+      ],
+      "tags": [
+        "l03",
+        "macos",
+        "routing"
+      ]
+    },
+    {
+      "id": "MAC-ROUTE-007",
+      "title": "Default route exists but gateway is unreachable",
+      "layer": "L03_routing",
+      "symptoms": [
+        "Observed condition: Default route exists but gateway is unreachable",
+        "DNS may resolve but traffic exits the wrong path",
+        "Local subnet or public internet fails selectively"
+      ],
+      "tags": [
+        "l03",
+        "macos",
+        "routing"
+      ]
+    },
+    {
+      "id": "MAC-ROUTE-008",
+      "title": "Multiple default routes create unstable priority",
+      "layer": "L03_routing",
+      "symptoms": [
+        "Observed condition: Multiple default routes create unstable priority",
+        "DNS may resolve but traffic exits the wrong path",
+        "Local subnet or public internet fails selectively"
+      ],
+      "tags": [
+        "l03",
+        "macos",
+        "routing"
+      ]
+    },
+    {
+      "id": "MAC-ROUTE-009",
+      "title": "Route cache or table stale after VPN or Clash exit",
+      "layer": "L03_routing",
+      "symptoms": [
+        "Observed condition: Route cache or table stale after VPN or Clash exit",
+        "DNS may resolve but traffic exits the wrong path",
+        "Local subnet or public internet fails selectively"
+      ],
+      "tags": [
+        "l03",
+        "macos",
+        "routing",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "MAC-ROUTE-010",
+      "title": "Static route from previous project remains active",
+      "layer": "L03_routing",
+      "symptoms": [
+        "Observed condition: Static route from previous project remains active",
+        "DNS may resolve but traffic exits the wrong path",
+        "Local subnet or public internet fails selectively"
+      ],
+      "tags": [
+        "l03",
+        "macos",
+        "routing"
+      ]
+    },
+    {
+      "id": "MAC-ROUTE-011",
+      "title": "LAN route overlaps with VPN route",
+      "layer": "L03_routing",
+      "symptoms": [
+        "Observed condition: LAN route overlaps with VPN route",
+        "DNS may resolve but traffic exits the wrong path",
+        "Local subnet or public internet fails selectively"
+      ],
+      "tags": [
+        "l03",
+        "macos",
+        "routing",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "MAC-ROUTE-012",
+      "title": "Docker or Colima subnet overlaps LAN or VPN",
+      "layer": "L03_routing",
+      "symptoms": [
+        "Observed condition: Docker or Colima subnet overlaps LAN or VPN",
+        "DNS may resolve but traffic exits the wrong path",
+        "Local subnet or public internet fails selectively"
+      ],
+      "tags": [
+        "developer-tool",
+        "l03",
+        "macos",
+        "routing",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "MAC-ROUTE-013",
+      "title": "Tailscale or ZeroTier subnet route captures local target",
+      "layer": "L03_routing",
+      "symptoms": [
+        "Observed condition: Tailscale or ZeroTier subnet route captures local target",
+        "DNS may resolve but traffic exits the wrong path",
+        "Local subnet or public internet fails selectively"
+      ],
+      "tags": [
+        "l03",
+        "macos",
+        "routing",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "MAC-ROUTE-014",
+      "title": "Loopback proxy route is unavailable inside subprocess or VM",
+      "layer": "L03_routing",
+      "symptoms": [
+        "Observed condition: Loopback proxy route is unavailable inside subprocess or VM",
+        "DNS may resolve but traffic exits the wrong path",
+        "Local subnet or public internet fails selectively"
+      ],
+      "tags": [
+        "l03",
+        "macos",
+        "proxy",
+        "routing"
+      ]
+    },
+    {
+      "id": "MAC-ROUTE-015",
+      "title": "pf divert or NAT route changes traffic path silently",
+      "layer": "L03_routing",
+      "symptoms": [
+        "Observed condition: pf divert or NAT route changes traffic path silently",
+        "DNS may resolve but traffic exits the wrong path",
+        "Local subnet or public internet fails selectively"
+      ],
+      "tags": [
+        "l03",
+        "macos",
+        "routing"
+      ]
+    },
+    {
+      "id": "MAC-ROUTE-016",
+      "title": "utun remains after VPN client quit",
+      "layer": "L03_routing",
+      "symptoms": [
+        "Observed condition: utun remains after VPN client quit",
+        "DNS may resolve but traffic exits the wrong path",
+        "Local subnet or public internet fails selectively"
+      ],
+      "tags": [
+        "l03",
+        "macos",
+        "routing",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "MAC-ROUTE-017",
+      "title": "ICMP is blocked while TCP works, creating route false negative",
+      "layer": "L03_routing",
+      "symptoms": [
+        "Observed condition: ICMP is blocked while TCP works, creating route false negative",
+        "DNS may resolve but traffic exits the wrong path",
+        "Local subnet or public internet fails selectively"
+      ],
+      "tags": [
+        "l03",
+        "macos",
+        "routing"
+      ]
+    },
+    {
+      "id": "MAC-ROUTE-018",
+      "title": "Path MTU or fragmentation failure breaks selected destinations",
+      "layer": "L03_routing",
+      "symptoms": [
+        "Observed condition: Path MTU or fragmentation failure breaks selected destinations",
+        "DNS may resolve but traffic exits the wrong path",
+        "Local subnet or public internet fails selectively"
+      ],
+      "tags": [
+        "l03",
+        "macos",
+        "routing"
+      ]
+    },
+    {
+      "id": "MAC-ROUTE-019",
+      "title": "Multicast route missing on chosen audio interface",
+      "layer": "L03_routing",
+      "symptoms": [
+        "Observed condition: Multicast route missing on chosen audio interface",
+        "DNS may resolve but traffic exits the wrong path",
+        "Local subnet or public internet fails selectively"
+      ],
+      "tags": [
+        "aoip",
+        "l03",
+        "macos",
+        "pro-audio",
+        "routing"
+      ]
+    },
+    {
+      "id": "MAC-ROUTE-020",
+      "title": "Service order change flips route during active session",
+      "layer": "L03_routing",
+      "symptoms": [
+        "Observed condition: Service order change flips route during active session",
+        "DNS may resolve but traffic exits the wrong path",
+        "Local subnet or public internet fails selectively"
+      ],
+      "tags": [
+        "l03",
+        "macos",
+        "routing"
+      ]
+    },
+    {
+      "id": "MAC-DNS-004",
+      "title": "Resolver points to dead local DNS proxy",
+      "layer": "L04_dns",
+      "symptoms": [
+        "Observed condition: Resolver points to dead local DNS proxy",
+        "IP reachability works but names fail",
+        "Browser/CLI/VPN resolve different answers"
+      ],
+      "tags": [
+        "dns",
+        "l04",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-DNS-005",
+      "title": "Search domain expands short hostnames to wrong destination",
+      "layer": "L04_dns",
+      "symptoms": [
+        "Observed condition: Search domain expands short hostnames to wrong destination",
+        "IP reachability works but names fail",
+        "Browser/CLI/VPN resolve different answers"
+      ],
+      "tags": [
+        "dns",
+        "l04",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-DNS-006",
+      "title": "Scoped resolver sends API domain to VPN DNS",
+      "layer": "L04_dns",
+      "symptoms": [
+        "Observed condition: Scoped resolver sends API domain to VPN DNS",
+        "IP reachability works but names fail",
+        "Browser/CLI/VPN resolve different answers"
+      ],
+      "tags": [
+        "dns",
+        "l04",
+        "macos",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "MAC-DNS-007",
+      "title": "Split DNS loses internal corporate or studio domain",
+      "layer": "L04_dns",
+      "symptoms": [
+        "Observed condition: Split DNS loses internal corporate or studio domain",
+        "IP reachability works but names fail",
+        "Browser/CLI/VPN resolve different answers"
+      ],
+      "tags": [
+        "dns",
+        "l04",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-DNS-008",
+      "title": ".local name conflict between mDNS and unicast DNS",
+      "layer": "L04_dns",
+      "symptoms": [
+        "Observed condition: .local name conflict between mDNS and unicast DNS",
+        "IP reachability works but names fail",
+        "Browser/CLI/VPN resolve different answers"
+      ],
+      "tags": [
+        "dns",
+        "l04",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-DNS-009",
+      "title": "Browser DoH or DoT bypasses system DNS and masks failure",
+      "layer": "L04_dns",
+      "symptoms": [
+        "Observed condition: Browser DoH or DoT bypasses system DNS and masks failure",
+        "IP reachability works but names fail",
+        "Browser/CLI/VPN resolve different answers"
+      ],
+      "tags": [
+        "dns",
+        "l04",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-DNS-010",
+      "title": "Fake-IP DNS map stale after Clash mode or profile switch",
+      "layer": "L04_dns",
+      "symptoms": [
+        "Observed condition: Fake-IP DNS map stale after Clash mode or profile switch",
+        "IP reachability works but names fail",
+        "Browser/CLI/VPN resolve different answers"
+      ],
+      "tags": [
+        "dns",
+        "l04",
+        "macos",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "MAC-DNS-011",
+      "title": "DNS64 or NAT64 synthesis breaks IPv4-only assumptions",
+      "layer": "L04_dns",
+      "symptoms": [
+        "Observed condition: DNS64 or NAT64 synthesis breaks IPv4-only assumptions",
+        "IP reachability works but names fail",
+        "Browser/CLI/VPN resolve different answers"
+      ],
+      "tags": [
+        "dns",
+        "l04",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-DNS-012",
+      "title": "DNS server is reachable only through disconnected VPN",
+      "layer": "L04_dns",
+      "symptoms": [
+        "Observed condition: DNS server is reachable only through disconnected VPN",
+        "IP reachability works but names fail",
+        "Browser/CLI/VPN resolve different answers"
+      ],
+      "tags": [
+        "dns",
+        "l04",
+        "macos",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "MAC-DNS-013",
+      "title": "Captive portal DNS interception returns misleading addresses",
+      "layer": "L04_dns",
+      "symptoms": [
+        "Observed condition: Captive portal DNS interception returns misleading addresses",
+        "IP reachability works but names fail",
+        "Browser/CLI/VPN resolve different answers"
+      ],
+      "tags": [
+        "dns",
+        "l04",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-DNS-014",
+      "title": "Custom /etc/resolver domain remains stale",
+      "layer": "L04_dns",
+      "symptoms": [
+        "Observed condition: Custom /etc/resolver domain remains stale",
+        "IP reachability works but names fail",
+        "Browser/CLI/VPN resolve different answers"
+      ],
+      "tags": [
+        "dns",
+        "l04",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-DNS-015",
+      "title": "/etc/hosts maps API or Git host to stale IP",
+      "layer": "L04_dns",
+      "symptoms": [
+        "Observed condition: /etc/hosts maps API or Git host to stale IP",
+        "IP reachability works but names fail",
+        "Browser/CLI/VPN resolve different answers"
+      ],
+      "tags": [
+        "developer-tool",
+        "dns",
+        "l04",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-DNS-016",
+      "title": "VPN DNS leaks into audio network service",
+      "layer": "L04_dns",
+      "symptoms": [
+        "Observed condition: VPN DNS leaks into audio network service",
+        "IP reachability works but names fail",
+        "Browser/CLI/VPN resolve different answers"
+      ],
+      "tags": [
+        "aoip",
+        "dns",
+        "l04",
+        "macos",
+        "pro-audio",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "MAC-DNS-017",
+      "title": "LAN hostname requires mDNS but CLI uses unicast resolver",
+      "layer": "L04_dns",
+      "symptoms": [
+        "Observed condition: LAN hostname requires mDNS but CLI uses unicast resolver",
+        "IP reachability works but names fail",
+        "Browser/CLI/VPN resolve different answers"
+      ],
+      "tags": [
+        "dns",
+        "l04",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-DNS-018",
+      "title": "Negative DNS cache hides recovered domain",
+      "layer": "L04_dns",
+      "symptoms": [
+        "Observed condition: Negative DNS cache hides recovered domain",
+        "IP reachability works but names fail",
+        "Browser/CLI/VPN resolve different answers"
+      ],
+      "tags": [
+        "dns",
+        "l04",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-DNS-019",
+      "title": "DNSSEC-validating resolver fails behind intercepted network",
+      "layer": "L04_dns",
+      "symptoms": [
+        "Observed condition: DNSSEC-validating resolver fails behind intercepted network",
+        "IP reachability works but names fail",
+        "Browser/CLI/VPN resolve different answers"
+      ],
+      "tags": [
+        "dns",
+        "l04",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-DNS-020",
+      "title": "AAAA record is preferred over broken IPv6 path",
+      "layer": "L04_dns",
+      "symptoms": [
+        "Observed condition: AAAA record is preferred over broken IPv6 path",
+        "IP reachability works but names fail",
+        "Browser/CLI/VPN resolve different answers"
+      ],
+      "tags": [
+        "dns",
+        "l04",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-DNS-021",
+      "title": "Per-app DNS cache stale after network transition",
+      "layer": "L04_dns",
+      "symptoms": [
+        "Observed condition: Per-app DNS cache stale after network transition",
+        "IP reachability works but names fail",
+        "Browser/CLI/VPN resolve different answers"
+      ],
+      "tags": [
+        "dns",
+        "l04",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-DNS-022",
+      "title": "Router advertises itself as DNS but forwards poorly",
+      "layer": "L04_dns",
+      "symptoms": [
+        "Observed condition: Router advertises itself as DNS but forwards poorly",
+        "IP reachability works but names fail",
+        "Browser/CLI/VPN resolve different answers"
+      ],
+      "tags": [
+        "dns",
+        "l04",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-DNS-023",
+      "title": "DNS response blocked by content filter or firewall",
+      "layer": "L04_dns",
+      "symptoms": [
+        "Observed condition: DNS response blocked by content filter or firewall",
+        "IP reachability works but names fail",
+        "Browser/CLI/VPN resolve different answers"
+      ],
+      "tags": [
+        "dns",
+        "l04",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-DNS-024",
+      "title": "Resolver order differs between browser and CLI",
+      "layer": "L04_dns",
+      "symptoms": [
+        "Observed condition: Resolver order differs between browser and CLI",
+        "IP reachability works but names fail",
+        "Browser/CLI/VPN resolve different answers"
+      ],
+      "tags": [
+        "dns",
+        "l04",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-DNS-025",
+      "title": "Wildcard corporate proxy DNS captures public domains",
+      "layer": "L04_dns",
+      "symptoms": [
+        "Observed condition: Wildcard corporate proxy DNS captures public domains",
+        "IP reachability works but names fail",
+        "Browser/CLI/VPN resolve different answers"
+      ],
+      "tags": [
+        "dns",
+        "l04",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-DNS-026",
+      "title": "Local DNS listener port collision",
+      "layer": "L04_dns",
+      "symptoms": [
+        "Observed condition: Local DNS listener port collision",
+        "IP reachability works but names fail",
+        "Browser/CLI/VPN resolve different answers"
+      ],
+      "tags": [
+        "dns",
+        "l04",
+        "macos"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-005",
+      "title": "HTTP proxy is set but HTTPS proxy is disabled",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: HTTP proxy is set but HTTPS proxy is disabled",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-006",
+      "title": "HTTPS proxy points to a SOCKS endpoint",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: HTTPS proxy points to a SOCKS endpoint",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-007",
+      "title": "SOCKS proxy is configured but app expects HTTP CONNECT",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: SOCKS proxy is configured but app expects HTTP CONNECT",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-008",
+      "title": "PAC file URL is unreachable when offline or captive",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: PAC file URL is unreachable when offline or captive",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-009",
+      "title": "PAC returns proxy for localhost or private LAN",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: PAC returns proxy for localhost or private LAN",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-010",
+      "title": "Proxy authentication required but credentials are missing or expired",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: Proxy authentication required but credentials are missing or expired",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-011",
+      "title": "System proxy bypass list omits RFC1918 or localhost ranges",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: System proxy bypass list omits RFC1918 or localhost ranges",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-012",
+      "title": "Lowercase and uppercase proxy environment variables disagree",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: Lowercase and uppercase proxy environment variables disagree",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-013",
+      "title": "LaunchAgent or GUI app inherits stale proxy variables",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: LaunchAgent or GUI app inherits stale proxy variables",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-014",
+      "title": "sudo or privilege boundary strips required proxy environment",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: sudo or privilege boundary strips required proxy environment",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-015",
+      "title": "Proxy URL contains unescaped credentials or special characters",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: Proxy URL contains unescaped credentials or special characters",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-016",
+      "title": "NO_PROXY wildcard or CIDR syntax mismatches across tools",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: NO_PROXY wildcard or CIDR syntax mismatches across tools",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-017",
+      "title": "ALL_PROXY overrides scheme-specific proxy settings",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: ALL_PROXY overrides scheme-specific proxy settings",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-018",
+      "title": "Local proxy listener is bound only to IPv4 or IPv6",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: Local proxy listener is bound only to IPv4 or IPv6",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-019",
+      "title": "Local proxy port is occupied by another process",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: Local proxy port is occupied by another process",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-020",
+      "title": "Transparent proxy interception creates double-proxy loop",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: Transparent proxy interception creates double-proxy loop",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-021",
+      "title": "Corporate proxy blocks CONNECT to target port",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: Corporate proxy blocks CONNECT to target port",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-022",
+      "title": "Bypass simple hostnames conflicts with FQDN expectation",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: Bypass simple hostnames conflicts with FQDN expectation",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-023",
+      "title": "System proxy enabled on one service while app uses another",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: System proxy enabled on one service while app uses another",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-024",
+      "title": "Proxy TLS interception lacks trusted root for CLI runtime",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: Proxy TLS interception lacks trusted root for CLI runtime",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy",
+        "tls"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-025",
+      "title": "HTTP_PROXY uppercase behavior differs from expected curl behavior",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: HTTP_PROXY uppercase behavior differs from expected curl behavior",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "developer-tool",
+        "l05",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-026",
+      "title": "PAC cache stale after network or VPN change",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: PAC cache stale after network or VPN change",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-027",
+      "title": "Electron app ignores system proxy until restart",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: Electron app ignores system proxy until restart",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-028",
+      "title": "Local proxy health check passes while upstream group is dead",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: Local proxy health check passes while upstream group is dead",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-030",
+      "title": "Authenticated proxy locks account due cached wrong password",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: Authenticated proxy locks account due cached wrong password",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-031",
+      "title": "Network Extension proxy conflicts with system proxy",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: Network Extension proxy conflicts with system proxy",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "MAC-PROXY-032",
+      "title": "Proxy points to localhost inside container or VM context",
+      "layer": "L05_proxy",
+      "symptoms": [
+        "Observed condition: Proxy points to localhost inside container or VM context",
+        "Browser works but CLI/app fails, or the reverse",
+        "Requests go to stale localhost proxy"
+      ],
+      "tags": [
+        "l05",
+        "macos",
+        "proxy"
+      ]
+    },
+    {
+      "id": "VPN-ROUTE-002",
+      "title": "VPN kill-switch blocks non-VPN traffic",
+      "layer": "L06_vpn_ne_tun",
+      "symptoms": [
+        "Observed condition: VPN kill-switch blocks non-VPN traffic",
+        "VPN/Clash/TUN changes cause total or selective outage",
+        "utun interface captures route/DNS unexpectedly"
+      ],
+      "tags": [
+        "clash",
+        "l06",
+        "tun",
+        "vpn",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "VPN-ROUTE-003",
+      "title": "Split tunnel excludes required API or Git domain",
+      "layer": "L06_vpn_ne_tun",
+      "symptoms": [
+        "Observed condition: Split tunnel excludes required API or Git domain",
+        "VPN/Clash/TUN changes cause total or selective outage",
+        "utun interface captures route/DNS unexpectedly"
+      ],
+      "tags": [
+        "clash",
+        "developer-tool",
+        "l06",
+        "tun",
+        "vpn"
+      ]
+    },
+    {
+      "id": "VPN-ROUTE-004",
+      "title": "Split tunnel includes audio LAN accidentally",
+      "layer": "L06_vpn_ne_tun",
+      "symptoms": [
+        "Observed condition: Split tunnel includes audio LAN accidentally",
+        "VPN/Clash/TUN changes cause total or selective outage",
+        "utun interface captures route/DNS unexpectedly"
+      ],
+      "tags": [
+        "aoip",
+        "clash",
+        "l06",
+        "pro-audio",
+        "tun",
+        "vpn"
+      ]
+    },
+    {
+      "id": "VPN-ROUTE-005",
+      "title": "VPN route overlaps Docker or Colima subnet",
+      "layer": "L06_vpn_ne_tun",
+      "symptoms": [
+        "Observed condition: VPN route overlaps Docker or Colima subnet",
+        "VPN/Clash/TUN changes cause total or selective outage",
+        "utun interface captures route/DNS unexpectedly"
+      ],
+      "tags": [
+        "clash",
+        "developer-tool",
+        "l06",
+        "tun",
+        "vpn",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "VPN-ROUTE-006",
+      "title": "VPN client leaves utun default route after disconnect",
+      "layer": "L06_vpn_ne_tun",
+      "symptoms": [
+        "Observed condition: VPN client leaves utun default route after disconnect",
+        "VPN/Clash/TUN changes cause total or selective outage",
+        "utun interface captures route/DNS unexpectedly"
+      ],
+      "tags": [
+        "clash",
+        "l06",
+        "tun",
+        "vpn",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "VPN-DNS-002",
+      "title": "VPN scoped resolver blackholes public DNS",
+      "layer": "L06_vpn_ne_tun",
+      "symptoms": [
+        "Observed condition: VPN scoped resolver blackholes public DNS",
+        "VPN/Clash/TUN changes cause total or selective outage",
+        "utun interface captures route/DNS unexpectedly"
+      ],
+      "tags": [
+        "clash",
+        "dns",
+        "l06",
+        "tun",
+        "vpn",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "VPN-DNS-003",
+      "title": "VPN DNS resolves internal names but becomes global resolver",
+      "layer": "L06_vpn_ne_tun",
+      "symptoms": [
+        "Observed condition: VPN DNS resolves internal names but becomes global resolver",
+        "VPN/Clash/TUN changes cause total or selective outage",
+        "utun interface captures route/DNS unexpectedly"
+      ],
+      "tags": [
+        "clash",
+        "dns",
+        "l06",
+        "tun",
+        "vpn",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "VPN-DNS-004",
+      "title": "DNS leak protection blocks system resolver",
+      "layer": "L06_vpn_ne_tun",
+      "symptoms": [
+        "Observed condition: DNS leak protection blocks system resolver",
+        "VPN/Clash/TUN changes cause total or selective outage",
+        "utun interface captures route/DNS unexpectedly"
+      ],
+      "tags": [
+        "clash",
+        "dns",
+        "l06",
+        "tun",
+        "vpn"
+      ]
+    },
+    {
+      "id": "VPN-DNS-005",
+      "title": "VPN changes search domains and causes short-name collisions",
+      "layer": "L06_vpn_ne_tun",
+      "symptoms": [
+        "Observed condition: VPN changes search domains and causes short-name collisions",
+        "VPN/Clash/TUN changes cause total or selective outage",
+        "utun interface captures route/DNS unexpectedly"
+      ],
+      "tags": [
+        "clash",
+        "l06",
+        "tun",
+        "vpn",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "VPN-NE-001",
+      "title": "Network Extension content filter intercepts traffic after VPN is off",
+      "layer": "L06_vpn_ne_tun",
+      "symptoms": [
+        "Observed condition: Network Extension content filter intercepts traffic after VPN is off",
+        "VPN/Clash/TUN changes cause total or selective outage",
+        "utun interface captures route/DNS unexpectedly"
+      ],
+      "tags": [
+        "clash",
+        "l06",
+        "tun",
+        "vpn",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "VPN-NE-002",
+      "title": "Per-app VPN excludes Terminal, Codex, or helper process",
+      "layer": "L06_vpn_ne_tun",
+      "symptoms": [
+        "Observed condition: Per-app VPN excludes Terminal, Codex, or helper process",
+        "VPN/Clash/TUN changes cause total or selective outage",
+        "utun interface captures route/DNS unexpectedly"
+      ],
+      "tags": [
+        "clash",
+        "developer-tool",
+        "l06",
+        "tun",
+        "vpn",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "VPN-NE-003",
+      "title": "MDM-managed VPN profile prevents local override",
+      "layer": "L06_vpn_ne_tun",
+      "symptoms": [
+        "Observed condition: MDM-managed VPN profile prevents local override",
+        "VPN/Clash/TUN changes cause total or selective outage",
+        "utun interface captures route/DNS unexpectedly"
+      ],
+      "tags": [
+        "clash",
+        "l06",
+        "tun",
+        "vpn",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "VPN-NE-004",
+      "title": "VPN DNS proxy process crashed while resolver still points to it",
+      "layer": "L06_vpn_ne_tun",
+      "symptoms": [
+        "Observed condition: VPN DNS proxy process crashed while resolver still points to it",
+        "VPN/Clash/TUN changes cause total or selective outage",
+        "utun interface captures route/DNS unexpectedly"
+      ],
+      "tags": [
+        "clash",
+        "dns",
+        "l06",
+        "proxy",
+        "tun",
+        "vpn",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "CLASH-TUN-001",
+      "title": "Clash/Verge TUN enabled without complete admin authorization",
+      "layer": "L06_vpn_ne_tun",
+      "symptoms": [
+        "Observed condition: Clash/Verge TUN enabled without complete admin authorization",
+        "VPN/Clash/TUN changes cause total or selective outage",
+        "utun interface captures route/DNS unexpectedly"
+      ],
+      "tags": [
+        "clash",
+        "l06",
+        "tun",
+        "vpn",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "CLASH-TUN-002",
+      "title": "TUN fake-IP map stale after profile switch",
+      "layer": "L06_vpn_ne_tun",
+      "symptoms": [
+        "Observed condition: TUN fake-IP map stale after profile switch",
+        "VPN/Clash/TUN changes cause total or selective outage",
+        "utun interface captures route/DNS unexpectedly"
+      ],
+      "tags": [
+        "clash",
+        "l06",
+        "tun",
+        "vpn",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "CLASH-TUN-003",
+      "title": "TUN hijacks LAN or multicast needed for Dante/AES67",
+      "layer": "L06_vpn_ne_tun",
+      "symptoms": [
+        "Observed condition: TUN hijacks LAN or multicast needed for Dante/AES67",
+        "VPN/Clash/TUN changes cause total or selective outage",
+        "utun interface captures route/DNS unexpectedly"
+      ],
+      "tags": [
+        "aoip",
+        "clash",
+        "l06",
+        "pro-audio",
+        "tun",
+        "vpn",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "CLASH-TUN-004",
+      "title": "Rule-set sends API or provider to blocked path",
+      "layer": "L06_vpn_ne_tun",
+      "symptoms": [
+        "Observed condition: Rule-set sends API or provider to blocked path",
+        "VPN/Clash/TUN changes cause total or selective outage",
+        "utun interface captures route/DNS unexpectedly"
+      ],
+      "tags": [
+        "clash",
+        "l06",
+        "tun",
+        "vpn"
+      ]
+    },
+    {
+      "id": "CLASH-TUN-005",
+      "title": "VPN plus Clash TUN creates double encapsulation",
+      "layer": "L06_vpn_ne_tun",
+      "symptoms": [
+        "Observed condition: VPN plus Clash TUN creates double encapsulation",
+        "VPN/Clash/TUN changes cause total or selective outage",
+        "utun interface captures route/DNS unexpectedly"
+      ],
+      "tags": [
+        "clash",
+        "l06",
+        "tun",
+        "vpn",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "CLASH-TUN-006",
+      "title": "TUN bypass or route-exclude misses RFC1918 or .local targets",
+      "layer": "L06_vpn_ne_tun",
+      "symptoms": [
+        "Observed condition: TUN bypass or route-exclude misses RFC1918 or .local targets",
+        "VPN/Clash/TUN changes cause total or selective outage",
+        "utun interface captures route/DNS unexpectedly"
+      ],
+      "tags": [
+        "clash",
+        "l06",
+        "tun",
+        "vpn",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "CLASH-TUN-007",
+      "title": "Clash controller or listener runs while core is stopped",
+      "layer": "L06_vpn_ne_tun",
+      "symptoms": [
+        "Observed condition: Clash controller or listener runs while core is stopped",
+        "VPN/Clash/TUN changes cause total or selective outage",
+        "utun interface captures route/DNS unexpectedly"
+      ],
+      "tags": [
+        "clash",
+        "l06",
+        "tun",
+        "vpn",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "PF-002",
+      "title": "pf anchor from old app blocks outbound traffic",
+      "layer": "L07_firewall_pf",
+      "symptoms": [
+        "Observed condition: pf anchor from old app blocks outbound traffic",
+        "Specific protocols or apps are blocked despite healthy route/DNS",
+        "Rules persist after app uninstall"
+      ],
+      "tags": [
+        "content-filter",
+        "firewall",
+        "l07",
+        "pf"
+      ]
+    },
+    {
+      "id": "PF-003",
+      "title": "Application Firewall blocks signed app after update",
+      "layer": "L07_firewall_pf",
+      "symptoms": [
+        "Observed condition: Application Firewall blocks signed app after update",
+        "Specific protocols or apps are blocked despite healthy route/DNS",
+        "Rules persist after app uninstall"
+      ],
+      "tags": [
+        "content-filter",
+        "firewall",
+        "l07",
+        "pf"
+      ]
+    },
+    {
+      "id": "PF-004",
+      "title": "Content filter blocks DoH, DNS, or API domain",
+      "layer": "L07_firewall_pf",
+      "symptoms": [
+        "Observed condition: Content filter blocks DoH, DNS, or API domain",
+        "Specific protocols or apps are blocked despite healthy route/DNS",
+        "Rules persist after app uninstall"
+      ],
+      "tags": [
+        "content-filter",
+        "dns",
+        "firewall",
+        "l07",
+        "pf"
+      ]
+    },
+    {
+      "id": "PF-005",
+      "title": "Little Snitch or LuLu rule remains stale",
+      "layer": "L07_firewall_pf",
+      "symptoms": [
+        "Observed condition: Little Snitch or LuLu rule remains stale",
+        "Specific protocols or apps are blocked despite healthy route/DNS",
+        "Rules persist after app uninstall"
+      ],
+      "tags": [
+        "content-filter",
+        "firewall",
+        "l07",
+        "pf"
+      ]
+    },
+    {
+      "id": "PF-006",
+      "title": "Corporate EDR SSL inspection breaks local agent",
+      "layer": "L07_firewall_pf",
+      "symptoms": [
+        "Observed condition: Corporate EDR SSL inspection breaks local agent",
+        "Specific protocols or apps are blocked despite healthy route/DNS",
+        "Rules persist after app uninstall"
+      ],
+      "tags": [
+        "content-filter",
+        "firewall",
+        "l07",
+        "pf"
+      ]
+    },
+    {
+      "id": "PF-007",
+      "title": "Packet filter NAT redirects DNS to old resolver",
+      "layer": "L07_firewall_pf",
+      "symptoms": [
+        "Observed condition: Packet filter NAT redirects DNS to old resolver",
+        "Specific protocols or apps are blocked despite healthy route/DNS",
+        "Rules persist after app uninstall"
+      ],
+      "tags": [
+        "content-filter",
+        "dns",
+        "firewall",
+        "l07",
+        "pf"
+      ]
+    },
+    {
+      "id": "PF-008",
+      "title": "pf table contains target API or provider IP",
+      "layer": "L07_firewall_pf",
+      "symptoms": [
+        "Observed condition: pf table contains target API or provider IP",
+        "Specific protocols or apps are blocked despite healthy route/DNS",
+        "Rules persist after app uninstall"
+      ],
+      "tags": [
+        "content-filter",
+        "firewall",
+        "l07",
+        "pf"
+      ]
+    },
+    {
+      "id": "PF-009",
+      "title": "Firewall blocks multicast discovery",
+      "layer": "L07_firewall_pf",
+      "symptoms": [
+        "Observed condition: Firewall blocks multicast discovery",
+        "Specific protocols or apps are blocked despite healthy route/DNS",
+        "Rules persist after app uninstall"
+      ],
+      "tags": [
+        "aoip",
+        "content-filter",
+        "firewall",
+        "l07",
+        "pf",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "PF-010",
+      "title": "Firewall blocks PTP UDP event or general messages",
+      "layer": "L07_firewall_pf",
+      "symptoms": [
+        "Observed condition: Firewall blocks PTP UDP event or general messages",
+        "Specific protocols or apps are blocked despite healthy route/DNS",
+        "Rules persist after app uninstall"
+      ],
+      "tags": [
+        "aoip",
+        "content-filter",
+        "firewall",
+        "l07",
+        "pf",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "PF-011",
+      "title": "Stealth mode blocks ICMP and creates false reachability failure",
+      "layer": "L07_firewall_pf",
+      "symptoms": [
+        "Observed condition: Stealth mode blocks ICMP and creates false reachability failure",
+        "Specific protocols or apps are blocked despite healthy route/DNS",
+        "Rules persist after app uninstall"
+      ],
+      "tags": [
+        "content-filter",
+        "firewall",
+        "l07",
+        "pf"
+      ]
+    },
+    {
+      "id": "PF-012",
+      "title": "Per-app rule blocks CLI binary path after upgrade",
+      "layer": "L07_firewall_pf",
+      "symptoms": [
+        "Observed condition: Per-app rule blocks CLI binary path after upgrade",
+        "Specific protocols or apps are blocked despite healthy route/DNS",
+        "Rules persist after app uninstall"
+      ],
+      "tags": [
+        "content-filter",
+        "firewall",
+        "l07",
+        "pf"
+      ]
+    },
+    {
+      "id": "PF-013",
+      "title": "Socket filter extension remains loaded after app quit",
+      "layer": "L07_firewall_pf",
+      "symptoms": [
+        "Observed condition: Socket filter extension remains loaded after app quit",
+        "Specific protocols or apps are blocked despite healthy route/DNS",
+        "Rules persist after app uninstall"
+      ],
+      "tags": [
+        "content-filter",
+        "firewall",
+        "l07",
+        "pf"
+      ]
+    },
+    {
+      "id": "PF-014",
+      "title": "Gatekeeper or quarantine blocks helper proxy binary",
+      "layer": "L07_firewall_pf",
+      "symptoms": [
+        "Observed condition: Gatekeeper or quarantine blocks helper proxy binary",
+        "Specific protocols or apps are blocked despite healthy route/DNS",
+        "Rules persist after app uninstall"
+      ],
+      "tags": [
+        "content-filter",
+        "firewall",
+        "l07",
+        "pf",
+        "proxy"
+      ]
+    },
+    {
+      "id": "DEV-CURL-001",
+      "title": "curl fails while browser works due proxy environment",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: curl fails while browser works due proxy environment",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08",
+        "proxy"
+      ]
+    },
+    {
+      "id": "DEV-CURL-002",
+      "title": "curl uses broken IPv6 path unless forced to IPv4",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: curl uses broken IPv6 path unless forced to IPv4",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08"
+      ]
+    },
+    {
+      "id": "DEV-CURL-003",
+      "title": "curl CA bundle differs from macOS system keychain",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: curl CA bundle differs from macOS system keychain",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08",
+        "tls"
+      ]
+    },
+    {
+      "id": "DEV-GIT-002",
+      "title": "Git remote-specific proxy overrides global setting",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: Git remote-specific proxy overrides global setting",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08",
+        "proxy"
+      ]
+    },
+    {
+      "id": "DEV-GIT-003",
+      "title": "GitHub SSH works but HTTPS clone fails",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: GitHub SSH works but HTTPS clone fails",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08"
+      ]
+    },
+    {
+      "id": "DEV-GIT-004",
+      "title": "SSH clone is blocked while HTTPS works",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: SSH clone is blocked while HTTPS works",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "l08"
+      ]
+    },
+    {
+      "id": "DEV-GIT-005",
+      "title": "Git LFS uses different endpoint or proxy",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: Git LFS uses different endpoint or proxy",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08",
+        "proxy"
+      ]
+    },
+    {
+      "id": "DEV-GH-001",
+      "title": "GitHub CLI auth or network context differs from Git",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: GitHub CLI auth or network context differs from Git",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08"
+      ]
+    },
+    {
+      "id": "DEV-NPM-002",
+      "title": "npm registry points to dead mirror or cache",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: npm registry points to dead mirror or cache",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08"
+      ]
+    },
+    {
+      "id": "DEV-NPM-003",
+      "title": "npm strict-ssl or cafile config conflicts with current network",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: npm strict-ssl or cafile config conflicts with current network",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08"
+      ]
+    },
+    {
+      "id": "DEV-NPM-004",
+      "title": "pnpm store fetch uses stale proxy or registry",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: pnpm store fetch uses stale proxy or registry",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08",
+        "proxy"
+      ]
+    },
+    {
+      "id": "DEV-YARN-001",
+      "title": "Yarn proxy or registry diverges from npm",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: Yarn proxy or registry diverges from npm",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08",
+        "proxy"
+      ]
+    },
+    {
+      "id": "DEV-BUN-001",
+      "title": "Bun install uses environment that differs from shell baseline",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: Bun install uses environment that differs from shell baseline",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08"
+      ]
+    },
+    {
+      "id": "DEV-PIP-001",
+      "title": "pip index URL or proxy is stale",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: pip index URL or proxy is stale",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08",
+        "proxy"
+      ]
+    },
+    {
+      "id": "DEV-PIP-002",
+      "title": "Python requests does not inherit macOS system proxy",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: Python requests does not inherit macOS system proxy",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08",
+        "proxy"
+      ]
+    },
+    {
+      "id": "DEV-UV-001",
+      "title": "uv registry or proxy configuration mismatch",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: uv registry or proxy configuration mismatch",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08",
+        "proxy"
+      ]
+    },
+    {
+      "id": "DEV-BREW-002",
+      "title": "Homebrew API domain works while bottles are blocked",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: Homebrew API domain works while bottles are blocked",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08"
+      ]
+    },
+    {
+      "id": "DEV-BREW-003",
+      "title": "Homebrew git fetch succeeds while curl bottle download fails",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: Homebrew git fetch succeeds while curl bottle download fails",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08"
+      ]
+    },
+    {
+      "id": "DEV-BREW-004",
+      "title": "Homebrew environment file sets stale proxy",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: Homebrew environment file sets stale proxy",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08",
+        "proxy"
+      ]
+    },
+    {
+      "id": "DEV-DOCKER-002",
+      "title": "Docker Desktop proxy differs from Docker CLI proxy",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: Docker Desktop proxy differs from Docker CLI proxy",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08",
+        "proxy"
+      ]
+    },
+    {
+      "id": "DEV-DOCKER-003",
+      "title": "Container cannot reach host localhost proxy",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: Container cannot reach host localhost proxy",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "l08",
+        "proxy"
+      ]
+    },
+    {
+      "id": "DEV-DOCKER-004",
+      "title": "BuildKit proxy environment is not passed into build",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: BuildKit proxy environment is not passed into build",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08",
+        "proxy"
+      ]
+    },
+    {
+      "id": "DEV-COLIMA-001",
+      "title": "Colima or Lima VM DNS/proxy differs from host",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: Colima or Lima VM DNS/proxy differs from host",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "dns",
+        "l08",
+        "proxy"
+      ]
+    },
+    {
+      "id": "DEV-OLLAMA-001",
+      "title": "Ollama model pull blocked by proxy, DNS, or TLS path",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: Ollama model pull blocked by proxy, DNS, or TLS path",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "dns",
+        "l08",
+        "proxy",
+        "tls"
+      ]
+    },
+    {
+      "id": "DEV-VSCODE-001",
+      "title": "VS Code extension host proxy differs from integrated terminal",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: VS Code extension host proxy differs from integrated terminal",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08",
+        "proxy"
+      ]
+    },
+    {
+      "id": "DEV-ELECTRON-001",
+      "title": "Electron app caches proxy after network change",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: Electron app caches proxy after network change",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "l08",
+        "proxy"
+      ]
+    },
+    {
+      "id": "DEV-NODE-001",
+      "title": "Node proxy-agent or global-agent state is stale",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: Node proxy-agent or global-agent state is stale",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08",
+        "proxy"
+      ]
+    },
+    {
+      "id": "DEV-PYTHON-001",
+      "title": "Python certifi CA mismatch with macOS keychain",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: Python certifi CA mismatch with macOS keychain",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08",
+        "tls"
+      ]
+    },
+    {
+      "id": "DEV-RUST-001",
+      "title": "Cargo registry or proxy mismatch",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: Cargo registry or proxy mismatch",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08",
+        "proxy"
+      ]
+    },
+    {
+      "id": "DEV-GO-001",
+      "title": "Go module GOPROXY or direct mode mismatch",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: Go module GOPROXY or direct mode mismatch",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08"
+      ]
+    },
+    {
+      "id": "DEV-JAVA-001",
+      "title": "Java app ignores system proxy or trust store",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: Java app ignores system proxy or trust store",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08",
+        "proxy",
+        "tls"
+      ]
+    },
+    {
+      "id": "DEV-OPENAI-001",
+      "title": "OpenAI API endpoint fails while generic web works",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: OpenAI API endpoint fails while generic web works",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08"
+      ]
+    },
+    {
+      "id": "DEV-ANTHROPIC-001",
+      "title": "Anthropic or Claude endpoint is blocked by proxy rules",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: Anthropic or Claude endpoint is blocked by proxy rules",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08",
+        "proxy"
+      ]
+    },
+    {
+      "id": "DEV-CODEX-002",
+      "title": "Codex shell environment policy strips proxy or CA variables",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: Codex shell environment policy strips proxy or CA variables",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08",
+        "proxy",
+        "tls"
+      ]
+    },
+    {
+      "id": "DEV-CODEX-003",
+      "title": "Codex auth or config path is corrupted or mismatched",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: Codex auth or config path is corrupted or mismatched",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08"
+      ]
+    },
+    {
+      "id": "DEV-CODEX-004",
+      "title": "Codex sandbox cannot access network while host can",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: Codex sandbox cannot access network while host can",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08"
+      ]
+    },
+    {
+      "id": "DEV-CODEX-005",
+      "title": "Codex project config overrides global provider or base URL",
+      "layer": "L08_app_connectivity",
+      "symptoms": [
+        "Observed condition: Codex project config overrides global provider or base URL",
+        "One developer/agent tool fails while general network works",
+        "Different tools disagree on proxy/DNS/TLS"
+      ],
+      "tags": [
+        "app-connectivity",
+        "developer",
+        "developer-tool",
+        "l08"
+      ]
+    },
+    {
+      "id": "TLS-TRUST-001",
+      "title": "Corporate root CA is not trusted by CLI runtime",
+      "layer": "L09_tls_identity",
+      "symptoms": [
+        "Observed condition: Corporate root CA is not trusted by CLI runtime",
+        "TCP connects but HTTPS/auth fails",
+        "Errors mention certificate, issuer, SNI, clock, or handshake"
+      ],
+      "tags": [
+        "certificate",
+        "l09",
+        "tls"
+      ]
+    },
+    {
+      "id": "TLS-TRUST-002",
+      "title": "certifi or runtime CA bundle is stale",
+      "layer": "L09_tls_identity",
+      "symptoms": [
+        "Observed condition: certifi or runtime CA bundle is stale",
+        "TCP connects but HTTPS/auth fails",
+        "Errors mention certificate, issuer, SNI, clock, or handshake"
+      ],
+      "tags": [
+        "certificate",
+        "l09",
+        "tls"
+      ]
+    },
+    {
+      "id": "TLS-TRUST-003",
+      "title": "Expired or missing intermediate certificate cached by runtime",
+      "layer": "L09_tls_identity",
+      "symptoms": [
+        "Observed condition: Expired or missing intermediate certificate cached by runtime",
+        "TCP connects but HTTPS/auth fails",
+        "Errors mention certificate, issuer, SNI, clock, or handshake"
+      ],
+      "tags": [
+        "certificate",
+        "l09",
+        "tls"
+      ]
+    },
+    {
+      "id": "TLS-TRUST-004",
+      "title": "SNI mismatch appears through proxy or custom base URL",
+      "layer": "L09_tls_identity",
+      "symptoms": [
+        "Observed condition: SNI mismatch appears through proxy or custom base URL",
+        "TCP connects but HTTPS/auth fails",
+        "Errors mention certificate, issuer, SNI, clock, or handshake"
+      ],
+      "tags": [
+        "certificate",
+        "l09",
+        "proxy",
+        "tls"
+      ]
+    },
+    {
+      "id": "TLS-TRUST-005",
+      "title": "HTTPS interception is rejected by pinned app",
+      "layer": "L09_tls_identity",
+      "symptoms": [
+        "Observed condition: HTTPS interception is rejected by pinned app",
+        "TCP connects but HTTPS/auth fails",
+        "Errors mention certificate, issuer, SNI, clock, or handshake"
+      ],
+      "tags": [
+        "certificate",
+        "l09",
+        "tls"
+      ]
+    },
+    {
+      "id": "TLS-TRUST-006",
+      "title": "OCSP or CRL is blocked causing handshake delay or failure",
+      "layer": "L09_tls_identity",
+      "symptoms": [
+        "Observed condition: OCSP or CRL is blocked causing handshake delay or failure",
+        "TCP connects but HTTPS/auth fails",
+        "Errors mention certificate, issuer, SNI, clock, or handshake"
+      ],
+      "tags": [
+        "certificate",
+        "l09",
+        "tls"
+      ]
+    },
+    {
+      "id": "TLS-TRUST-007",
+      "title": "System clock or timezone skew breaks TLS validation",
+      "layer": "L09_tls_identity",
+      "symptoms": [
+        "Observed condition: System clock or timezone skew breaks TLS validation",
+        "TCP connects but HTTPS/auth fails",
+        "Errors mention certificate, issuer, SNI, clock, or handshake"
+      ],
+      "tags": [
+        "aoip",
+        "certificate",
+        "l09",
+        "pro-audio",
+        "tls"
+      ]
+    },
+    {
+      "id": "TLS-TRUST-008",
+      "title": "Keychain trust setting changed for corporate or private root",
+      "layer": "L09_tls_identity",
+      "symptoms": [
+        "Observed condition: Keychain trust setting changed for corporate or private root",
+        "TCP connects but HTTPS/auth fails",
+        "Errors mention certificate, issuer, SNI, clock, or handshake"
+      ],
+      "tags": [
+        "certificate",
+        "l09",
+        "tls"
+      ]
+    },
+    {
+      "id": "TLS-TRUST-009",
+      "title": "mTLS client certificate is missing or wrong",
+      "layer": "L09_tls_identity",
+      "symptoms": [
+        "Observed condition: mTLS client certificate is missing or wrong",
+        "TCP connects but HTTPS/auth fails",
+        "Errors mention certificate, issuer, SNI, clock, or handshake"
+      ],
+      "tags": [
+        "certificate",
+        "l09",
+        "tls"
+      ]
+    },
+    {
+      "id": "TLS-TRUST-010",
+      "title": "API base URL certificate name mismatch",
+      "layer": "L09_tls_identity",
+      "symptoms": [
+        "Observed condition: API base URL certificate name mismatch",
+        "TCP connects but HTTPS/auth fails",
+        "Errors mention certificate, issuer, SNI, clock, or handshake"
+      ],
+      "tags": [
+        "certificate",
+        "l09",
+        "tls"
+      ]
+    },
+    {
+      "id": "TLS-TRUST-011",
+      "title": "Private registry self-signed certificate not imported",
+      "layer": "L09_tls_identity",
+      "symptoms": [
+        "Observed condition: Private registry self-signed certificate not imported",
+        "TCP connects but HTTPS/auth fails",
+        "Errors mention certificate, issuer, SNI, clock, or handshake"
+      ],
+      "tags": [
+        "certificate",
+        "l09",
+        "tls"
+      ]
+    },
+    {
+      "id": "TLS-TRUST-012",
+      "title": "Java truststore missing corporate CA",
+      "layer": "L09_tls_identity",
+      "symptoms": [
+        "Observed condition: Java truststore missing corporate CA",
+        "TCP connects but HTTPS/auth fails",
+        "Errors mention certificate, issuer, SNI, clock, or handshake"
+      ],
+      "tags": [
+        "certificate",
+        "developer-tool",
+        "l09",
+        "tls"
+      ]
+    },
+    {
+      "id": "TLS-TRUST-013",
+      "title": "Node or Python custom CA environment variable is wrong",
+      "layer": "L09_tls_identity",
+      "symptoms": [
+        "Observed condition: Node or Python custom CA environment variable is wrong",
+        "TCP connects but HTTPS/auth fails",
+        "Errors mention certificate, issuer, SNI, clock, or handshake"
+      ],
+      "tags": [
+        "certificate",
+        "developer-tool",
+        "l09",
+        "tls"
+      ]
+    },
+    {
+      "id": "TLS-TRUST-014",
+      "title": "TLS protocol or cipher is blocked by middlebox",
+      "layer": "L09_tls_identity",
+      "symptoms": [
+        "Observed condition: TLS protocol or cipher is blocked by middlebox",
+        "TCP connects but HTTPS/auth fails",
+        "Errors mention certificate, issuer, SNI, clock, or handshake"
+      ],
+      "tags": [
+        "certificate",
+        "l09",
+        "tls"
+      ]
+    },
+    {
+      "id": "MDNS-001",
+      "title": "Bonjour or mDNS blocked on selected interface",
+      "layer": "L10_multicast_discovery",
+      "symptoms": [
+        "Observed condition: Bonjour or mDNS blocked on selected interface",
+        "Devices or streams are not visible but IP ping may work",
+        "Visibility differs by NIC/VLAN/switch port"
+      ],
+      "tags": [
+        "aoip",
+        "discovery",
+        "dns",
+        "l10",
+        "multicast"
+      ]
+    },
+    {
+      "id": "MDNS-002",
+      "title": ".local name collision between mDNS and unicast DNS",
+      "layer": "L10_multicast_discovery",
+      "symptoms": [
+        "Observed condition: .local name collision between mDNS and unicast DNS",
+        "Devices or streams are not visible but IP ping may work",
+        "Visibility differs by NIC/VLAN/switch port"
+      ],
+      "tags": [
+        "aoip",
+        "discovery",
+        "dns",
+        "l10",
+        "multicast"
+      ]
+    },
+    {
+      "id": "MDNS-003",
+      "title": "AWDL or peer discovery creates ghost devices",
+      "layer": "L10_multicast_discovery",
+      "symptoms": [
+        "Observed condition: AWDL or peer discovery creates ghost devices",
+        "Devices or streams are not visible but IP ping may work",
+        "Visibility differs by NIC/VLAN/switch port"
+      ],
+      "tags": [
+        "aoip",
+        "discovery",
+        "l10",
+        "multicast"
+      ]
+    },
+    {
+      "id": "MDNS-004",
+      "title": "Multiple NICs announce mDNS on the wrong interface",
+      "layer": "L10_multicast_discovery",
+      "symptoms": [
+        "Observed condition: Multiple NICs announce mDNS on the wrong interface",
+        "Devices or streams are not visible but IP ping may work",
+        "Visibility differs by NIC/VLAN/switch port"
+      ],
+      "tags": [
+        "aoip",
+        "discovery",
+        "dns",
+        "l10",
+        "multicast"
+      ]
+    },
+    {
+      "id": "MDNS-005",
+      "title": "VPN blocks local multicast discovery",
+      "layer": "L10_multicast_discovery",
+      "symptoms": [
+        "Observed condition: VPN blocks local multicast discovery",
+        "Devices or streams are not visible but IP ping may work",
+        "Visibility differs by NIC/VLAN/switch port"
+      ],
+      "tags": [
+        "aoip",
+        "discovery",
+        "l10",
+        "multicast",
+        "pro-audio",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "DANTE-DISC-001",
+      "title": "Dante Controller visibility is partial due multicast filtering",
+      "layer": "L10_multicast_discovery",
+      "symptoms": [
+        "Observed condition: Dante Controller visibility is partial due multicast filtering",
+        "Devices or streams are not visible but IP ping may work",
+        "Visibility differs by NIC/VLAN/switch port"
+      ],
+      "tags": [
+        "aoip",
+        "discovery",
+        "l10",
+        "multicast",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "DANTE-DISC-002",
+      "title": "Dante devices are discovered but subscriptions fail at route boundary",
+      "layer": "L10_multicast_discovery",
+      "symptoms": [
+        "Observed condition: Dante devices are discovered but subscriptions fail at route boundary",
+        "Devices or streams are not visible but IP ping may work",
+        "Visibility differs by NIC/VLAN/switch port"
+      ],
+      "tags": [
+        "aoip",
+        "discovery",
+        "l10",
+        "multicast",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "DANTE-DISC-003",
+      "title": "Dante device names or cache remain stale",
+      "layer": "L10_multicast_discovery",
+      "symptoms": [
+        "Observed condition: Dante device names or cache remain stale",
+        "Devices or streams are not visible but IP ping may work",
+        "Visibility differs by NIC/VLAN/switch port"
+      ],
+      "tags": [
+        "aoip",
+        "discovery",
+        "l10",
+        "multicast",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "DANTE-DISC-004",
+      "title": "Dante secondary network is connected to primary switch",
+      "layer": "L10_multicast_discovery",
+      "symptoms": [
+        "Observed condition: Dante secondary network is connected to primary switch",
+        "Devices or streams are not visible but IP ping may work",
+        "Visibility differs by NIC/VLAN/switch port"
+      ],
+      "tags": [
+        "aoip",
+        "discovery",
+        "l10",
+        "multicast",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "DANTE-DISC-005",
+      "title": "Dante Domain Manager or domain segmentation hides devices",
+      "layer": "L10_multicast_discovery",
+      "symptoms": [
+        "Observed condition: Dante Domain Manager or domain segmentation hides devices",
+        "Devices or streams are not visible but IP ping may work",
+        "Visibility differs by NIC/VLAN/switch port"
+      ],
+      "tags": [
+        "aoip",
+        "discovery",
+        "l10",
+        "multicast",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "AES67-DISC-001",
+      "title": "SAP announcements are not forwarded",
+      "layer": "L10_multicast_discovery",
+      "symptoms": [
+        "Observed condition: SAP announcements are not forwarded",
+        "Devices or streams are not visible but IP ping may work",
+        "Visibility differs by NIC/VLAN/switch port"
+      ],
+      "tags": [
+        "aoip",
+        "discovery",
+        "l10",
+        "multicast",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "AES67-DISC-002",
+      "title": "NMOS or RAVENNA discovery endpoint unreachable",
+      "layer": "L10_multicast_discovery",
+      "symptoms": [
+        "Observed condition: NMOS or RAVENNA discovery endpoint unreachable",
+        "Devices or streams are not visible but IP ping may work",
+        "Visibility differs by NIC/VLAN/switch port"
+      ],
+      "tags": [
+        "aoip",
+        "discovery",
+        "l10",
+        "multicast",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "AES67-DISC-003",
+      "title": "IGMP snooping enabled without querier",
+      "layer": "L10_multicast_discovery",
+      "symptoms": [
+        "Observed condition: IGMP snooping enabled without querier",
+        "Devices or streams are not visible but IP ping may work",
+        "Visibility differs by NIC/VLAN/switch port"
+      ],
+      "tags": [
+        "aoip",
+        "discovery",
+        "l10",
+        "multicast",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "AES67-DISC-004",
+      "title": "Unmanaged switch floods multicast under load",
+      "layer": "L10_multicast_discovery",
+      "symptoms": [
+        "Observed condition: Unmanaged switch floods multicast under load",
+        "Devices or streams are not visible but IP ping may work",
+        "Visibility differs by NIC/VLAN/switch port"
+      ],
+      "tags": [
+        "aoip",
+        "discovery",
+        "l10",
+        "multicast",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "AES67-DISC-005",
+      "title": "VLAN carries audio but not discovery or control",
+      "layer": "L10_multicast_discovery",
+      "symptoms": [
+        "Observed condition: VLAN carries audio but not discovery or control",
+        "Devices or streams are not visible but IP ping may work",
+        "Visibility differs by NIC/VLAN/switch port"
+      ],
+      "tags": [
+        "aoip",
+        "discovery",
+        "l10",
+        "multicast",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "AES67-DISC-006",
+      "title": "Multicast TTL or scope is wrong",
+      "layer": "L10_multicast_discovery",
+      "symptoms": [
+        "Observed condition: Multicast TTL or scope is wrong",
+        "Devices or streams are not visible but IP ping may work",
+        "Visibility differs by NIC/VLAN/switch port"
+      ],
+      "tags": [
+        "aoip",
+        "discovery",
+        "l10",
+        "multicast",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "AUDIO-DISC-001",
+      "title": "Control app is bound to Wi-Fi instead of audio NIC",
+      "layer": "L10_multicast_discovery",
+      "symptoms": [
+        "Observed condition: Control app is bound to Wi-Fi instead of audio NIC",
+        "Devices or streams are not visible but IP ping may work",
+        "Visibility differs by NIC/VLAN/switch port"
+      ],
+      "tags": [
+        "aoip",
+        "discovery",
+        "l10",
+        "multicast",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "AUDIO-DISC-002",
+      "title": "Host firewall blocks multicast on Mac",
+      "layer": "L10_multicast_discovery",
+      "symptoms": [
+        "Observed condition: Host firewall blocks multicast on Mac",
+        "Devices or streams are not visible but IP ping may work",
+        "Visibility differs by NIC/VLAN/switch port"
+      ],
+      "tags": [
+        "aoip",
+        "discovery",
+        "l10",
+        "multicast",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "AUDIO-DISC-003",
+      "title": "Switch storm-control drops multicast audio or discovery",
+      "layer": "L10_multicast_discovery",
+      "symptoms": [
+        "Observed condition: Switch storm-control drops multicast audio or discovery",
+        "Devices or streams are not visible but IP ping may work",
+        "Visibility differs by NIC/VLAN/switch port"
+      ],
+      "tags": [
+        "aoip",
+        "discovery",
+        "l10",
+        "multicast",
+        "pro-audio"
+      ]
+    },
+    {
+      "id": "PTP-001",
+      "title": "PTP messages are not reaching Mac or device",
+      "layer": "L11_ptp_clock",
+      "symptoms": [
+        "Observed condition: PTP messages are not reaching Mac or device",
+        "Devices visible but audio muted/clicking/unstable",
+        "Clock leader changes or devices unlock"
+      ],
+      "tags": [
+        "aoip",
+        "clock",
+        "l11",
+        "pro-audio",
+        "ptp"
+      ]
+    },
+    {
+      "id": "PTP-002",
+      "title": "Multiple clock leaders fight or flap",
+      "layer": "L11_ptp_clock",
+      "symptoms": [
+        "Observed condition: Multiple clock leaders fight or flap",
+        "Devices visible but audio muted/clicking/unstable",
+        "Clock leader changes or devices unlock"
+      ],
+      "tags": [
+        "aoip",
+        "clock",
+        "l11",
+        "pro-audio",
+        "ptp"
+      ]
+    },
+    {
+      "id": "PTP-003",
+      "title": "Dante PTPv1 and AES67 PTPv2 domain confusion",
+      "layer": "L11_ptp_clock",
+      "symptoms": [
+        "Observed condition: Dante PTPv1 and AES67 PTPv2 domain confusion",
+        "Devices visible but audio muted/clicking/unstable",
+        "Clock leader changes or devices unlock"
+      ],
+      "tags": [
+        "aoip",
+        "clock",
+        "l11",
+        "pro-audio",
+        "ptp"
+      ]
+    },
+    {
+      "id": "PTP-004",
+      "title": "AES67 PTP domain mismatch",
+      "layer": "L11_ptp_clock",
+      "symptoms": [
+        "Observed condition: AES67 PTP domain mismatch",
+        "Devices visible but audio muted/clicking/unstable",
+        "Clock leader changes or devices unlock"
+      ],
+      "tags": [
+        "aoip",
+        "clock",
+        "l11",
+        "pro-audio",
+        "ptp"
+      ]
+    },
+    {
+      "id": "PTP-005",
+      "title": "Grandmaster selected from unstable endpoint",
+      "layer": "L11_ptp_clock",
+      "symptoms": [
+        "Observed condition: Grandmaster selected from unstable endpoint",
+        "Devices visible but audio muted/clicking/unstable",
+        "Clock leader changes or devices unlock"
+      ],
+      "tags": [
+        "aoip",
+        "clock",
+        "l11",
+        "pro-audio",
+        "ptp"
+      ]
+    },
+    {
+      "id": "PTP-006",
+      "title": "Boundary or transparent clock is misconfigured",
+      "layer": "L11_ptp_clock",
+      "symptoms": [
+        "Observed condition: Boundary or transparent clock is misconfigured",
+        "Devices visible but audio muted/clicking/unstable",
+        "Clock leader changes or devices unlock"
+      ],
+      "tags": [
+        "aoip",
+        "clock",
+        "l11",
+        "pro-audio",
+        "ptp"
+      ]
+    },
+    {
+      "id": "PTP-007",
+      "title": "Switch QoS deprioritizes PTP",
+      "layer": "L11_ptp_clock",
+      "symptoms": [
+        "Observed condition: Switch QoS deprioritizes PTP",
+        "Devices visible but audio muted/clicking/unstable",
+        "Clock leader changes or devices unlock"
+      ],
+      "tags": [
+        "aoip",
+        "clock",
+        "l11",
+        "pro-audio",
+        "ptp"
+      ]
+    },
+    {
+      "id": "PTP-008",
+      "title": "EEE or power saving introduces clock jitter",
+      "layer": "L11_ptp_clock",
+      "symptoms": [
+        "Observed condition: EEE or power saving introduces clock jitter",
+        "Devices visible but audio muted/clicking/unstable",
+        "Clock leader changes or devices unlock"
+      ],
+      "tags": [
+        "aoip",
+        "clock",
+        "l11",
+        "pro-audio",
+        "ptp"
+      ]
+    },
+    {
+      "id": "PTP-009",
+      "title": "Wi-Fi or mesh path is used for PTP",
+      "layer": "L11_ptp_clock",
+      "symptoms": [
+        "Observed condition: Wi-Fi or mesh path is used for PTP",
+        "Devices visible but audio muted/clicking/unstable",
+        "Clock leader changes or devices unlock"
+      ],
+      "tags": [
+        "aoip",
+        "clock",
+        "l11",
+        "pro-audio",
+        "ptp"
+      ]
+    },
+    {
+      "id": "PTP-010",
+      "title": "PTP multicast address is filtered",
+      "layer": "L11_ptp_clock",
+      "symptoms": [
+        "Observed condition: PTP multicast address is filtered",
+        "Devices visible but audio muted/clicking/unstable",
+        "Clock leader changes or devices unlock"
+      ],
+      "tags": [
+        "aoip",
+        "clock",
+        "l11",
+        "pro-audio",
+        "ptp"
+      ]
+    },
+    {
+      "id": "PTP-011",
+      "title": "PTP announce timeout after switch topology change",
+      "layer": "L11_ptp_clock",
+      "symptoms": [
+        "Observed condition: PTP announce timeout after switch topology change",
+        "Devices visible but audio muted/clicking/unstable",
+        "Clock leader changes or devices unlock"
+      ],
+      "tags": [
+        "aoip",
+        "clock",
+        "l11",
+        "pro-audio",
+        "ptp"
+      ]
+    },
+    {
+      "id": "PTP-012",
+      "title": "Sample-rate pull-up/down creates separate clock domain",
+      "layer": "L11_ptp_clock",
+      "symptoms": [
+        "Observed condition: Sample-rate pull-up/down creates separate clock domain",
+        "Devices visible but audio muted/clicking/unstable",
+        "Clock leader changes or devices unlock"
+      ],
+      "tags": [
+        "aoip",
+        "clock",
+        "l11",
+        "pro-audio",
+        "ptp"
+      ]
+    },
+    {
+      "id": "PTP-013",
+      "title": "Device firmware PTP bug or stuck state",
+      "layer": "L11_ptp_clock",
+      "symptoms": [
+        "Observed condition: Device firmware PTP bug or stuck state",
+        "Devices visible but audio muted/clicking/unstable",
+        "Clock leader changes or devices unlock"
+      ],
+      "tags": [
+        "aoip",
+        "clock",
+        "l11",
+        "pro-audio",
+        "ptp"
+      ]
+    },
+    {
+      "id": "PTP-014",
+      "title": "PTP unicast/multicast profile mismatch",
+      "layer": "L11_ptp_clock",
+      "symptoms": [
+        "Observed condition: PTP unicast/multicast profile mismatch",
+        "Devices visible but audio muted/clicking/unstable",
+        "Clock leader changes or devices unlock"
+      ],
+      "tags": [
+        "aoip",
+        "clock",
+        "l11",
+        "pro-audio",
+        "ptp"
+      ]
+    },
+    {
+      "id": "PTP-015",
+      "title": "Audio app is not locked to expected clock source",
+      "layer": "L11_ptp_clock",
+      "symptoms": [
+        "Observed condition: Audio app is not locked to expected clock source",
+        "Devices visible but audio muted/clicking/unstable",
+        "Clock leader changes or devices unlock"
+      ],
+      "tags": [
+        "aoip",
+        "clock",
+        "l11",
+        "pro-audio",
+        "ptp"
+      ]
+    },
+    {
+      "id": "PTP-016",
+      "title": "House sync or GPS grandmaster mismatch",
+      "layer": "L11_ptp_clock",
+      "symptoms": [
+        "Observed condition: House sync or GPS grandmaster mismatch",
+        "Devices visible but audio muted/clicking/unstable",
+        "Clock leader changes or devices unlock"
+      ],
+      "tags": [
+        "aoip",
+        "clock",
+        "l11",
+        "pro-audio",
+        "ptp"
+      ]
+    },
+    {
+      "id": "AUDIO-RTP-001",
+      "title": "RTP flow subscribed but no audio packets received",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Observed condition: RTP flow subscribed but no audio packets received",
+        "Devices visible and clocked but audio does not pass cleanly",
+        "Subscriptions exist but media is silent, distorted, or intermittent"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "media",
+        "pro-audio",
+        "rtp"
+      ]
+    },
+    {
+      "id": "AUDIO-RTP-002",
+      "title": "RTP packets arrive but no sound due channel mapping",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Observed condition: RTP packets arrive but no sound due channel mapping",
+        "Devices visible and clocked but audio does not pass cleanly",
+        "Subscriptions exist but media is silent, distorted, or intermittent"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "media",
+        "pro-audio",
+        "rtp"
+      ]
+    },
+    {
+      "id": "AUDIO-RTP-003",
+      "title": "Packet time mismatch between sender and receiver",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Observed condition: Packet time mismatch between sender and receiver",
+        "Devices visible and clocked but audio does not pass cleanly",
+        "Subscriptions exist but media is silent, distorted, or intermittent"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "media",
+        "rtp"
+      ]
+    },
+    {
+      "id": "AUDIO-RTP-004",
+      "title": "Sample format or bit-depth mismatch",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Observed condition: Sample format or bit-depth mismatch",
+        "Devices visible and clocked but audio does not pass cleanly",
+        "Subscriptions exist but media is silent, distorted, or intermittent"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "media",
+        "rtp"
+      ]
+    },
+    {
+      "id": "AUDIO-RTP-005",
+      "title": "Latency buffer too low under network jitter",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Observed condition: Latency buffer too low under network jitter",
+        "Devices visible and clocked but audio does not pass cleanly",
+        "Subscriptions exist but media is silent, distorted, or intermittent"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "media",
+        "rtp"
+      ]
+    },
+    {
+      "id": "AUDIO-RTP-006",
+      "title": "QoS markings absent, rewritten, or mapped to wrong queue",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Observed condition: QoS markings absent, rewritten, or mapped to wrong queue",
+        "Devices visible and clocked but audio does not pass cleanly",
+        "Subscriptions exist but media is silent, distorted, or intermittent"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "media",
+        "pro-audio",
+        "rtp"
+      ]
+    },
+    {
+      "id": "AUDIO-RTP-007",
+      "title": "Multicast stream is not joined by receiver",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Observed condition: Multicast stream is not joined by receiver",
+        "Devices visible and clocked but audio does not pass cleanly",
+        "Subscriptions exist but media is silent, distorted, or intermittent"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "media",
+        "pro-audio",
+        "rtp"
+      ]
+    },
+    {
+      "id": "AUDIO-RTP-008",
+      "title": "Unicast flow limit exceeded",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Observed condition: Unicast flow limit exceeded",
+        "Devices visible and clocked but audio does not pass cleanly",
+        "Subscriptions exist but media is silent, distorted, or intermittent"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "media",
+        "rtp"
+      ]
+    },
+    {
+      "id": "AUDIO-RTP-009",
+      "title": "Device transmit scheduler overloaded",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Observed condition: Device transmit scheduler overloaded",
+        "Devices visible and clocked but audio does not pass cleanly",
+        "Subscriptions exist but media is silent, distorted, or intermittent"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "media",
+        "rtp"
+      ]
+    },
+    {
+      "id": "AUDIO-RTP-010",
+      "title": "IGMP leave or fast-leave drops active stream",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Observed condition: IGMP leave or fast-leave drops active stream",
+        "Devices visible and clocked but audio does not pass cleanly",
+        "Subscriptions exist but media is silent, distorted, or intermittent"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "media",
+        "pro-audio",
+        "rtp"
+      ]
+    },
+    {
+      "id": "AUDIO-RTP-011",
+      "title": "VLAN trunk missing audio VLAN",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Observed condition: VLAN trunk missing audio VLAN",
+        "Devices visible and clocked but audio does not pass cleanly",
+        "Subscriptions exist but media is silent, distorted, or intermittent"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "media",
+        "pro-audio",
+        "rtp"
+      ]
+    },
+    {
+      "id": "AUDIO-RTP-012",
+      "title": "DSCP queue mapping wrong on switch",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Observed condition: DSCP queue mapping wrong on switch",
+        "Devices visible and clocked but audio does not pass cleanly",
+        "Subscriptions exist but media is silent, distorted, or intermittent"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "media",
+        "pro-audio",
+        "rtp"
+      ]
+    },
+    {
+      "id": "AUDIO-RTP-013",
+      "title": "Jumbo frame or MTU mismatch",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Observed condition: Jumbo frame or MTU mismatch",
+        "Devices visible and clocked but audio does not pass cleanly",
+        "Subscriptions exist but media is silent, distorted, or intermittent"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "media",
+        "rtp"
+      ]
+    },
+    {
+      "id": "AUDIO-RTP-014",
+      "title": "Network congestion from backups or cloud sync causes dropouts",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Observed condition: Network congestion from backups or cloud sync causes dropouts",
+        "Devices visible and clocked but audio does not pass cleanly",
+        "Subscriptions exist but media is silent, distorted, or intermittent"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "media",
+        "rtp"
+      ]
+    },
+    {
+      "id": "AUDIO-RTP-015",
+      "title": "Wi-Fi is used for media stream",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Observed condition: Wi-Fi is used for media stream",
+        "Devices visible and clocked but audio does not pass cleanly",
+        "Subscriptions exist but media is silent, distorted, or intermittent"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "media",
+        "rtp"
+      ]
+    },
+    {
+      "id": "AUDIO-RTP-016",
+      "title": "Redundant network duplicate packets reach receiver",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Observed condition: Redundant network duplicate packets reach receiver",
+        "Devices visible and clocked but audio does not pass cleanly",
+        "Subscriptions exist but media is silent, distorted, or intermittent"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "media",
+        "rtp"
+      ]
+    },
+    {
+      "id": "AUDIO-RTP-017",
+      "title": "Primary and secondary Dante networks are bridged",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Observed condition: Primary and secondary Dante networks are bridged",
+        "Devices visible and clocked but audio does not pass cleanly",
+        "Subscriptions exist but media is silent, distorted, or intermittent"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "media",
+        "pro-audio",
+        "rtp"
+      ]
+    },
+    {
+      "id": "AUDIO-RTP-018",
+      "title": "RAVENNA SDP channel count mismatch",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Observed condition: RAVENNA SDP channel count mismatch",
+        "Devices visible and clocked but audio does not pass cleanly",
+        "Subscriptions exist but media is silent, distorted, or intermittent"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "media",
+        "pro-audio",
+        "rtp"
+      ]
+    },
+    {
+      "id": "AUDIO-RTP-019",
+      "title": "AES67 multicast address conflict",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Observed condition: AES67 multicast address conflict",
+        "Devices visible and clocked but audio does not pass cleanly",
+        "Subscriptions exist but media is silent, distorted, or intermittent"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "media",
+        "pro-audio",
+        "rtp"
+      ]
+    },
+    {
+      "id": "AUDIO-RTP-020",
+      "title": "Receiver latency incompatible with transmitter",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Observed condition: Receiver latency incompatible with transmitter",
+        "Devices visible and clocked but audio does not pass cleanly",
+        "Subscriptions exist but media is silent, distorted, or intermittent"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "media",
+        "rtp"
+      ]
+    },
+    {
+      "id": "AUDIO-RTP-021",
+      "title": "Sample rate follows DAW instead of Dante Controller state",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Observed condition: Sample rate follows DAW instead of Dante Controller state",
+        "Devices visible and clocked but audio does not pass cleanly",
+        "Subscriptions exist but media is silent, distorted, or intermittent"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "media",
+        "pro-audio",
+        "rtp"
+      ]
+    },
+    {
+      "id": "AUDIO-RTP-022",
+      "title": "Virtual soundcard selects wrong CoreAudio device",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Observed condition: Virtual soundcard selects wrong CoreAudio device",
+        "Devices visible and clocked but audio does not pass cleanly",
+        "Subscriptions exist but media is silent, distorted, or intermittent"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "media",
+        "pro-audio",
+        "rtp"
+      ]
+    },
+    {
+      "id": "AUDIO-RTP-023",
+      "title": "Audio device firmware or software version incompatibility",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Observed condition: Audio device firmware or software version incompatibility",
+        "Devices visible and clocked but audio does not pass cleanly",
+        "Subscriptions exist but media is silent, distorted, or intermittent"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "media",
+        "pro-audio",
+        "rtp"
+      ]
+    },
+    {
+      "id": "AUDIO-RTP-024",
+      "title": "Clock is stable but media blocked by ACL",
+      "layer": "L12_aoip_media",
+      "symptoms": [
+        "Observed condition: Clock is stable but media blocked by ACL",
+        "Devices visible and clocked but audio does not pass cleanly",
+        "Subscriptions exist but media is silent, distorted, or intermittent"
+      ],
+      "tags": [
+        "aoip",
+        "l12",
+        "media",
+        "pro-audio",
+        "rtp"
+      ]
+    },
+    {
+      "id": "EXT-PROVIDER-002",
+      "title": "ISP DNS or resolver outage mistaken for Mac failure",
+      "layer": "L13_external_provider",
+      "symptoms": [
+        "Observed condition: ISP DNS or resolver outage mistaken for Mac failure",
+        "Local checks pass but remote service remains unreachable",
+        "Only one provider/region/domain fails"
+      ],
+      "tags": [
+        "dns",
+        "external",
+        "l13",
+        "provider"
+      ]
+    },
+    {
+      "id": "EXT-PROVIDER-003",
+      "title": "API service region or CDN partial outage",
+      "layer": "L13_external_provider",
+      "symptoms": [
+        "Observed condition: API service region or CDN partial outage",
+        "Local checks pass but remote service remains unreachable",
+        "Only one provider/region/domain fails"
+      ],
+      "tags": [
+        "external",
+        "l13",
+        "provider"
+      ]
+    },
+    {
+      "id": "EXT-PROVIDER-004",
+      "title": "VPN or proxy provider node is dead or degraded",
+      "layer": "L13_external_provider",
+      "symptoms": [
+        "Observed condition: VPN or proxy provider node is dead or degraded",
+        "Local checks pass but remote service remains unreachable",
+        "Only one provider/region/domain fails"
+      ],
+      "tags": [
+        "developer-tool",
+        "external",
+        "l13",
+        "provider",
+        "proxy",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "EXT-PROVIDER-005",
+      "title": "Captive or guest network upstream outage",
+      "layer": "L13_external_provider",
+      "symptoms": [
+        "Observed condition: Captive or guest network upstream outage",
+        "Local checks pass but remote service remains unreachable",
+        "Only one provider/region/domain fails"
+      ],
+      "tags": [
+        "external",
+        "l13",
+        "provider"
+      ]
+    },
+    {
+      "id": "EXT-PROVIDER-006",
+      "title": "Corporate gateway rate limits or blocks target",
+      "layer": "L13_external_provider",
+      "symptoms": [
+        "Observed condition: Corporate gateway rate limits or blocks target",
+        "Local checks pass but remote service remains unreachable",
+        "Only one provider/region/domain fails"
+      ],
+      "tags": [
+        "external",
+        "l13",
+        "provider"
+      ]
+    },
+    {
+      "id": "EXT-PROVIDER-007",
+      "title": "Public DNS anycast route degraded",
+      "layer": "L13_external_provider",
+      "symptoms": [
+        "Observed condition: Public DNS anycast route degraded",
+        "Local checks pass but remote service remains unreachable",
+        "Only one provider/region/domain fails"
+      ],
+      "tags": [
+        "dns",
+        "external",
+        "l13",
+        "provider"
+      ]
+    },
+    {
+      "id": "POLICY-001",
+      "title": "User lacks admin permission for required system network change",
+      "layer": "L14_user_policy",
+      "symptoms": [
+        "Observed condition: User lacks admin permission for required system network change",
+        "Required setting cannot be changed or persists after change",
+        "Admin prompt/policy/profile blocks repair"
+      ],
+      "tags": [
+        "l14",
+        "permissions",
+        "policy"
+      ]
+    },
+    {
+      "id": "POLICY-002",
+      "title": "MDM profile locks proxy, VPN, DNS, or content filter",
+      "layer": "L14_user_policy",
+      "symptoms": [
+        "Observed condition: MDM profile locks proxy, VPN, DNS, or content filter",
+        "Required setting cannot be changed or persists after change",
+        "Admin prompt/policy/profile blocks repair"
+      ],
+      "tags": [
+        "dns",
+        "l14",
+        "permissions",
+        "policy",
+        "proxy",
+        "vpn-tun"
+      ]
+    },
+    {
+      "id": "POLICY-003",
+      "title": "Remote support cannot authorize privileged prompts",
+      "layer": "L14_user_policy",
+      "symptoms": [
+        "Observed condition: Remote support cannot authorize privileged prompts",
+        "Required setting cannot be changed or persists after change",
+        "Admin prompt/policy/profile blocks repair"
+      ],
+      "tags": [
+        "l14",
+        "permissions",
+        "policy"
+      ]
+    },
+    {
+      "id": "POLICY-004",
+      "title": "User changed Network Location or profile without trace",
+      "layer": "L14_user_policy",
+      "symptoms": [
+        "Observed condition: User changed Network Location or profile without trace",
+        "Required setting cannot be changed or persists after change",
+        "Admin prompt/policy/profile blocks repair"
+      ],
+      "tags": [
+        "l14",
+        "permissions",
+        "policy"
+      ]
+    },
+    {
+      "id": "POLICY-005",
+      "title": "Automation lacks permission to read or modify required config",
+      "layer": "L14_user_policy",
+      "symptoms": [
+        "Observed condition: Automation lacks permission to read or modify required config",
+        "Required setting cannot be changed or persists after change",
+        "Admin prompt/policy/profile blocks repair"
+      ],
+      "tags": [
+        "l14",
+        "permissions",
+        "policy"
+      ]
+    }
+  ]
+}

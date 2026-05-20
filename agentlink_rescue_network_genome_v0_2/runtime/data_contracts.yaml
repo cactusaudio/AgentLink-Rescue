@@ -1,0 +1,35 @@
+version: 0.2B
+snapshot_contract:
+  required_sections:
+  - system
+  - interfaces
+  - routes
+  - dns
+  - proxy
+  - vpn_tun
+  - firewall
+  - developer_tools
+  - aoip_manual_if_applicable
+  redaction_required:
+  - API keys
+  - tokens
+  - proxy credentials
+  - private repo URLs if requested
+  mutation_allowed: false
+planner_input:
+  snapshot_features: dict
+  user_symptom: string
+  candidate_cards: list[failure_card]
+planner_output:
+  hypotheses: max 3
+  next_observations: ordered list
+  recipe_candidates: human-confirmed only
+  blocked_actions: list
+executor_input:
+  recipe: validated recipe
+  snapshot_id: string
+  approval: explicit
+executor_output:
+  verifier_result: pass|fail|partial
+  rollback_used: bool
+  report: markdown

@@ -1,0 +1,78 @@
+version: 0.2B
+route_id: SYM-VPN-LAN-LOSS
+user_phrase:
+- VPN on local network disappears
+- LAN unavailable with VPN
+- Dante gone after VPN
+priority_layers:
+- L06_vpn_ne_tun
+- L03_routing
+- L04_dns
+- L10_multicast_discovery
+candidate_cards:
+- MAC-ROUTE-001
+- MAC-ROUTE-002
+- MAC-DNS-001
+- MAC-DNS-002
+- MAC-DNS-003
+- VPN-ROUTE-001
+- VPN-DNS-001
+- CLASH-DNS-001
+- CLASH-ROUTE-001
+- DANTE-NIC-001
+- DANTE-PRIMARY-SECONDARY-001
+- AES67-MCAST-001
+- MAC-ROUTE-003
+- MAC-ROUTE-004
+- MAC-ROUTE-005
+- MAC-ROUTE-006
+- MAC-ROUTE-007
+- MAC-ROUTE-008
+- MAC-ROUTE-009
+- MAC-ROUTE-010
+- MAC-ROUTE-011
+- MAC-ROUTE-012
+- MAC-ROUTE-013
+- MAC-ROUTE-014
+- MAC-ROUTE-015
+- MAC-ROUTE-016
+- MAC-ROUTE-017
+- MAC-ROUTE-018
+- MAC-ROUTE-019
+- MAC-ROUTE-020
+- MAC-DNS-004
+- MAC-DNS-005
+- MAC-DNS-006
+- MAC-DNS-007
+- MAC-DNS-008
+- MAC-DNS-009
+- MAC-DNS-010
+- MAC-DNS-011
+- MAC-DNS-012
+- MAC-DNS-013
+- MAC-DNS-014
+- MAC-DNS-015
+- MAC-DNS-016
+- MAC-DNS-017
+- MAC-DNS-018
+- MAC-DNS-019
+- MAC-DNS-020
+- MAC-DNS-021
+- MAC-DNS-022
+- MAC-DNS-023
+- MAC-DNS-024
+- MAC-DNS-025
+- MAC-DNS-026
+- VPN-ROUTE-002
+- VPN-ROUTE-003
+- VPN-ROUTE-004
+- VPN-ROUTE-005
+- VPN-ROUTE-006
+- VPN-DNS-002
+- VPN-DNS-003
+first_verifiers:
+- route -n get LAN target
+- scutil --dns
+- ifconfig utun
+- multicast discovery check
+safety_gate: read_only_first; require explicit confirmation for any mutation; AoIP/manual-only if layer L10-L12 appears

@@ -1,0 +1,80 @@
+version: 0.2B
+route_id: SYM-AES67-CLOCK-MEDIA
+user_phrase:
+- AES67 no audio
+- RAVENNA stream silent
+- PTP unlock
+- subscription but no sound
+priority_layers:
+- L10_multicast_discovery
+- L11_ptp_clock
+- L12_aoip_media
+- L02_ip_dhcp
+- L07_firewall_pf
+candidate_cards:
+- MAC-IP-001
+- PF-001
+- DANTE-NIC-001
+- DANTE-SAMPLE-001
+- DANTE-CLOCK-001
+- DANTE-PRIMARY-SECONDARY-001
+- AES67-PTP-001
+- AES67-MCAST-001
+- AES67-SDP-001
+- AUDIO-SWITCH-EEE-001
+- AUDIO-QOS-001
+- MAC-IP-002
+- MAC-IP-003
+- MAC-IP-004
+- MAC-IP-005
+- MAC-IP-006
+- MAC-IP-007
+- MAC-IP-008
+- MAC-IP-009
+- MAC-IP-010
+- MAC-IP-011
+- MAC-IP-012
+- MAC-IP-013
+- MAC-IP-014
+- MAC-IP-015
+- MAC-IP-016
+- MAC-IP-017
+- MAC-IP-018
+- PF-002
+- PF-003
+- PF-004
+- PF-005
+- PF-006
+- PF-007
+- PF-008
+- PF-009
+- PF-010
+- PF-011
+- PF-012
+- PF-013
+- PF-014
+- MDNS-001
+- MDNS-002
+- MDNS-003
+- MDNS-004
+- MDNS-005
+- DANTE-DISC-001
+- DANTE-DISC-002
+- DANTE-DISC-003
+- DANTE-DISC-004
+- DANTE-DISC-005
+- AES67-DISC-001
+- AES67-DISC-002
+- AES67-DISC-003
+- AES67-DISC-004
+- AES67-DISC-005
+- AES67-DISC-006
+- AUDIO-DISC-001
+- AUDIO-DISC-002
+- AUDIO-DISC-003
+first_verifiers:
+- PTP lock/status
+- SAP/SDP stream params
+- IGMP/QoS switch state
+- receiver latency/channel map
+safety_gate: read_only_first; require explicit confirmation for any mutation; AoIP/manual-only if layer L10-L12 appears
