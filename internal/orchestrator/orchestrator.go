@@ -499,23 +499,23 @@ func writeIncident(report Report, home string) string {
 		return ""
 	}
 	dir := filepath.Join(home, "Library", "Application Support", system.AppName, "incidents", time.Now().Format("20060102-150405"))
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		return ""
 	}
 	data, _ := json.MarshalIndent(report, "", "  ")
-	if err := os.WriteFile(filepath.Join(dir, "incident.json"), data, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "incident.json"), data, 0600); err != nil {
 		return ""
 	}
 	human := "Cactus AgentLink Rescue incident\n\nStatus: " + report.Status + "\nSummary: " + report.HumanSummary + "\nNext: " + report.NextAction + "\n"
-	_ = os.WriteFile(filepath.Join(dir, "human-report.txt"), []byte(human), 0644)
-	_ = os.WriteFile(filepath.Join(dir, "agent-dispatch.md"), []byte(human), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "human-report.txt"), []byte(human), 0600)
+	_ = os.WriteFile(filepath.Join(dir, "agent-dispatch.md"), []byte(human), 0600)
 	for _, cycle := range report.Cycles {
 		writeArtifact := func(name string, value any) {
 			if value == nil {
 				return
 			}
 			data, _ := json.MarshalIndent(value, "", "  ")
-			_ = os.WriteFile(filepath.Join(dir, name), data, 0644)
+			_ = os.WriteFile(filepath.Join(dir, name), data, 0600)
 		}
 		if cycle.SupervisorDecision != nil {
 			writeArtifact("supervisor-decision.json", cycle.SupervisorDecision)
@@ -538,7 +538,7 @@ func writeIncident(report Report, home string) string {
 	if report.RestartGate != nil {
 		writeArtifact := func(name string, value any) {
 			data, _ := json.MarshalIndent(value, "", "  ")
-			_ = os.WriteFile(filepath.Join(dir, name), data, 0644)
+			_ = os.WriteFile(filepath.Join(dir, name), data, 0600)
 		}
 		writeArtifact("restart-gate.json", report.RestartGate)
 	}

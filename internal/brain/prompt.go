@@ -111,38 +111,6 @@ func BuildPlannerUserPrompt(in PlanPromptInput) string {
 	return b.String()
 }
 
-func oldBuildPlannerUserPrompt(in PlanPromptInput) string {
-	payload := map[string]any{
-		"target":     in.Target,
-		"dryRun":     in.DryRun,
-		"yes":        in.Yes,
-		"online":     in.Online,
-		"riskPolicy": "auto brain may execute only read_only, safe_patch, and reversible_patch with --yes; network_action requires --online; privileged_action and destructive_action are refused",
-		"facts":      in.Facts,
-		"schema": planner.Decision{
-			SchemaVersion: 1,
-			Intent:        "repair|probe|report|rollback",
-			FailureClass:  "string",
-			Confidence:    0.55,
-			SelectedRecipe: planner.SelectedRecipe{
-				ID:     "recipe-id",
-				Params: map[string]string{},
-			},
-			Risk:                 "read_only|safe_patch|reversible_patch|network_action|privileged_action|destructive_action",
-			RequiresUserApproval: false,
-			ExpectedVerifiers:    []string{},
-			FallbackRecipes:      []string{},
-			ExplanationForUser:   "short redacted explanation",
-			Evidence:             []string{},
-			StopReason:           "",
-		},
-		"lastVerifierResults": in.LastVerifierJSON,
-		"failureBudget":       in.FailureBudget,
-	}
-	data, _ := json.MarshalIndent(payload, "", "  ")
-	return "Return only one PlannerDecision JSON object. Do not wrap it in Markdown.\n" + string(data)
-}
-
 func factsPromptSummary(f facts.Facts) string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("- os=%s arch=%s shell=%s home=%s\n", f.OS, f.Arch, f.Shell, f.Home))

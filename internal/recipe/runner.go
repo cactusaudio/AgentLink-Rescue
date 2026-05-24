@@ -317,7 +317,7 @@ func applyPatch(ctx context.Context, runner command.Runner, holder *snapshotHold
 		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 			return "", err
 		}
-		if err := os.WriteFile(path, []byte(Interpolate(patch.Template, home, params)), 0644); err != nil {
+		if err := os.WriteFile(path, []byte(Interpolate(patch.Template, home, params)), 0600); err != nil {
 			return "", err
 		}
 		return path, nil
@@ -366,7 +366,7 @@ func updateJSONField(holder *snapshotHolder, path, key, value string) (string, e
 	}
 	m[key] = value
 	out, _ := json.MarshalIndent(m, "", "  ")
-	if err := os.WriteFile(path, append(out, '\n'), 0644); err != nil {
+	if err := os.WriteFile(path, append(out, '\n'), 0600); err != nil {
 		return "", err
 	}
 	return path, nil

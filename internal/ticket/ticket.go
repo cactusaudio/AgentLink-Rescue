@@ -45,7 +45,7 @@ func Create(ctx context.Context, runner command.Runner, opts Options) Report {
 	id := time.Now().Format("20060102-150405")
 	root := filepath.Join(opts.Home, "Library", "Application Support", system.AppName, "tickets", id)
 	report := Report{SchemaVersion: 1, ToolVersion: opts.Version, Type: opts.Type, ID: id, Directory: root, Files: map[string]string{}, Status: "created"}
-	if err := os.MkdirAll(root, 0755); err != nil {
+	if err := os.MkdirAll(root, 0700); err != nil {
 		report.Status = "failed"
 		report.Error = err.Error()
 		return report
@@ -75,7 +75,7 @@ func Create(ctx context.Context, runner command.Runner, opts Options) Report {
 	readme := "Cactus AgentLink Rescue Terminal Repair Ticket\n\nNo password is stored in these files. macOS Terminal may ask for your sudo password.\nRun the .command file, then return to AgentLink and click Verify.\n"
 	report.write(root, "README.txt", readme)
 	data, _ := json.MarshalIndent(report, "", "  ")
-	_ = os.WriteFile(filepath.Join(root, "ticket.json"), data, 0644)
+	_ = os.WriteFile(filepath.Join(root, "ticket.json"), data, 0600)
 	report.Files["ticket"] = filepath.Join(root, "ticket.json")
 	return report
 }

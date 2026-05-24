@@ -137,7 +137,7 @@ func run(ctx context.Context, runner command.Runner, reg recipe.Registry, opts O
 		sess.LoopStateTransitions = append(sess.LoopStateTransitions, c.StateTransitions...)
 	}
 
-	f := facts.Facts{}
+	var f facts.Facts
 	if factsOverride != nil {
 		f = *factsOverride
 	} else {
@@ -176,6 +176,7 @@ func run(ctx context.Context, runner command.Runner, reg recipe.Registry, opts O
 
 	attempted := map[string]bool{}
 	verifierFailures := 0
+	//lint:ignore SA4008 maxCycles is a static bound; loop terminates via early return or i++
 	for i := 1; i <= maxCycles; i++ {
 		c := Cycle{
 			Index:            i,

@@ -1376,18 +1376,18 @@ func Collect(ctx context.Context, out, privacy string) (SnapshotManifest, error)
 				rawText = redactedText
 			}
 		}
-		if err := os.WriteFile(filepath.Join(rawDir, name), []byte(rawText), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(rawDir, name), []byte(rawText), 0600); err != nil {
 			return SnapshotManifest{}, err
 		}
-		if err := os.WriteFile(filepath.Join(redactedDir, name), []byte(redactedText), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(redactedDir, name), []byte(redactedText), 0600); err != nil {
 			return SnapshotManifest{}, err
 		}
 	}
 	dockerText := dockerConfigSummary()
-	if err := os.WriteFile(filepath.Join(rawDir, "docker_config_hint.txt"), []byte(dockerText), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(rawDir, "docker_config_hint.txt"), []byte(dockerText), 0600); err != nil {
 		return SnapshotManifest{}, err
 	}
-	if err := os.WriteFile(filepath.Join(redactedDir, "docker_config_hint.txt"), []byte(dockerText), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(redactedDir, "docker_config_hint.txt"), []byte(dockerText), 0600); err != nil {
 		return SnapshotManifest{}, err
 	}
 	envText := proxyEnvText()
@@ -1396,8 +1396,8 @@ func Collect(ctx context.Context, out, privacy string) (SnapshotManifest, error)
 	if allowUnredactedRaw {
 		rawEnv = envText
 	}
-	_ = os.WriteFile(filepath.Join(rawDir, "shell_proxy_env.txt"), []byte(rawEnv), 0644)
-	_ = os.WriteFile(filepath.Join(redactedDir, "shell_proxy_env.txt"), []byte(redactedEnv), 0644)
+	_ = os.WriteFile(filepath.Join(rawDir, "shell_proxy_env.txt"), []byte(rawEnv), 0600)
+	_ = os.WriteFile(filepath.Join(redactedDir, "shell_proxy_env.txt"), []byte(redactedEnv), 0600)
 	featuresPath := filepath.Join(featuresDir, "snapshot_features.json")
 	manifest := SnapshotManifest{
 		SchemaVersion: 1,
@@ -1414,7 +1414,7 @@ func Collect(ctx context.Context, out, privacy string) (SnapshotManifest, error)
 		manifest.HostOS = strings.TrimSpace(string(data))
 	}
 	manifestData, _ := json.MarshalIndent(manifest, "", "  ")
-	if err := os.WriteFile(filepath.Join(out, "snapshot_manifest.json"), manifestData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(out, "snapshot_manifest.json"), manifestData, 0600); err != nil {
 		return SnapshotManifest{}, err
 	}
 	sf, err := ExtractFeatures(out)
@@ -1422,7 +1422,7 @@ func Collect(ctx context.Context, out, privacy string) (SnapshotManifest, error)
 		return SnapshotManifest{}, err
 	}
 	featuresData, _ := json.MarshalIndent(sf, "", "  ")
-	if err := os.WriteFile(featuresPath, featuresData, 0644); err != nil {
+	if err := os.WriteFile(featuresPath, featuresData, 0600); err != nil {
 		return SnapshotManifest{}, err
 	}
 	return manifest, nil
@@ -1687,7 +1687,7 @@ func LoadFeatures(snapshot string) (SnapshotFeatures, error) {
 		}
 		data, _ := json.MarshalIndent(sf, "", "  ")
 		_ = os.MkdirAll(filepath.Dir(path), 0755)
-		_ = os.WriteFile(path, data, 0644)
+		_ = os.WriteFile(path, data, 0600)
 		return sf, nil
 	}
 	var sf SnapshotFeatures
@@ -1737,7 +1737,7 @@ func WriteReport(root, format, snapshot, symptom, out string) (string, error) {
 	if out == "" {
 		return string(data), nil
 	}
-	if err := os.WriteFile(out, data, 0644); err != nil {
+	if err := os.WriteFile(out, data, 0600); err != nil {
 		return "", err
 	}
 	return out, nil

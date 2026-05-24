@@ -27,7 +27,7 @@ func (s Store) SessionDir(id string) string {
 
 func (s Store) Save(sess *Session) error {
 	dir := s.SessionDir(sess.SessionID)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		return err
 	}
 	if sess.HumanReportPath == "" {
@@ -36,20 +36,20 @@ func (s Store) Save(sess *Session) error {
 	if sess.AgentDispatchPath == "" {
 		sess.AgentDispatchPath = filepath.Join(dir, "agent-dispatch.json")
 	}
-	if err := os.WriteFile(sess.HumanReportPath, []byte(HumanReport(*sess)), 0644); err != nil {
+	if err := os.WriteFile(sess.HumanReportPath, []byte(HumanReport(*sess)), 0600); err != nil {
 		return err
 	}
-	if err := os.WriteFile(sess.AgentDispatchPath, []byte(AgentDispatch(*sess)), 0644); err != nil {
+	if err := os.WriteFile(sess.AgentDispatchPath, []byte(AgentDispatch(*sess)), 0600); err != nil {
 		return err
 	}
 	data, err := json.MarshalIndent(sess, "", "  ")
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(dir, "session.json"), data, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "session.json"), data, 0600); err != nil {
 		return err
 	}
-	_ = os.WriteFile(filepath.Join(s.Dir(), "latest"), []byte(sess.SessionID), 0644)
+	_ = os.WriteFile(filepath.Join(s.Dir(), "latest"), []byte(sess.SessionID), 0600)
 	return nil
 }
 

@@ -140,9 +140,9 @@ func buildMatrix() []famScn {
 	}
 	for v := 0; v < 6; v++ { // app-residue — 6
 		r := map[string]any{"schemaVersion": 1,
-			"network":   netRO(true, "en0", ip(v), nil),
+			"network":    netRO(true, "en0", ip(v), nil),
 			"userConfig": map[string]any{"envProxy": map[string]any{"ALL_PROXY": "socks5://127.0.0.1:1080"}},
-			"residues":  res("appSupport", "V2RayU")}
+			"residues":   res("appSupport", "V2RayU")}
 		add(famScn{fmt.Sprintf("appres-%d", v), "app-residue", true, true, r})
 	}
 	for v := 0; v < 6; v++ { // mdm-profile — 6
@@ -256,7 +256,7 @@ func TestV0301SandboxKernelMatrix(t *testing.T) {
 	})
 	mj, _ := json.MarshalIndent(map[string]any{
 		"schemaVersion": 1, "pack": "v0301-sandbox", "count": len(manifest),
-		"note": "Fixture-driven near-real macOS net sandbox; kernel owns truth; graphs/ are compact redacted diagnosis graphs; no real host mutation.",
+		"note":      "Fixture-driven near-real macOS net sandbox; kernel owns truth; graphs/ are compact redacted diagnosis graphs; no real host mutation.",
 		"scenarios": manifest}, "", " ")
 	os.WriteFile(filepath.Join(graphDir, "..", "matrix.json"), mj, 0644)
 

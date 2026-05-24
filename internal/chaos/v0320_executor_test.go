@@ -362,7 +362,7 @@ func TestV0320ExecutorMatrix(t *testing.T) {
 	})
 	mj, _ := json.MarshalIndent(map[string]any{
 		"schemaVersion": 1, "pack": "v0320-sandbox", "count": len(manifest),
-		"note": "v0.3.2 Tier-C executor sandbox; kernel owns truth; graphs/ are compact redacted diagnosis graphs; every repairable scenario also passes the R5 executor safety invariant (dry-run, isolated temp HOME, never applied/worsened); no real host mutation.",
+		"note":      "v0.3.2 Tier-C executor sandbox; kernel owns truth; graphs/ are compact redacted diagnosis graphs; every repairable scenario also passes the R5 executor safety invariant (dry-run, isolated temp HOME, never applied/worsened); no real host mutation.",
 		"scenarios": manifest}, "", " ")
 	os.WriteFile(filepath.Join(graphDir, "..", "matrix.json"), mj, 0644)
 
@@ -414,15 +414,15 @@ func TestV0320TransactionDiscipline(t *testing.T) {
 			continue
 		}
 		var d struct {
-			ID           string `json:"id"`
-			Risk         string `json:"risk"`
-			RequiresRoot bool   `json:"requiresRoot"`
-			AutoAllowed  bool   `json:"autoAllowed"`
-			Preconditions []any `json:"preconditions"`
-			Verify        []any `json:"verify"`
-			Rollback      []any `json:"rollback"`
-			Patches       []any `json:"patches"`
-			Docs          []any `json:"docs"`
+			ID            string `json:"id"`
+			Risk          string `json:"risk"`
+			RequiresRoot  bool   `json:"requiresRoot"`
+			AutoAllowed   bool   `json:"autoAllowed"`
+			Preconditions []any  `json:"preconditions"`
+			Verify        []any  `json:"verify"`
+			Rollback      []any  `json:"rollback"`
+			Patches       []any  `json:"patches"`
+			Docs          []any  `json:"docs"`
 		}
 		if json.Unmarshal([]byte(io), &d) != nil {
 			t.Errorf("[%s] inspect parse", rc.ID)

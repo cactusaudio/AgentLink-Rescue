@@ -55,7 +55,7 @@ func AppendManagedBlockIfMissing(path, marker, content string) PatchResult {
 	b.WriteString("\n")
 	b.WriteString(EndMarker(marker))
 	b.WriteString("\n")
-	if err := os.WriteFile(path, []byte(b.String()), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(b.String()), existingModeOr(path, 0600)); err != nil {
 		return PatchResult{Path: path, Message: err.Error()}
 	}
 	return PatchResult{Path: path, Changed: true, Message: "managed block appended"}
@@ -85,8 +85,15 @@ func RemoveManagedBlock(path, marker string) PatchResult {
 	if strings.TrimSpace(updated) == "" {
 		updated = ""
 	}
-	if err := os.WriteFile(path, []byte(updated), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(updated), existingModeOr(path, 0600)); err != nil {
 		return PatchResult{Path: path, Message: err.Error()}
 	}
 	return PatchResult{Path: path, Changed: true, Message: "managed block removed"}
+}
+
+func existingModeOr(path string, fallback os.FileMode) os.FileMode {
+	if info, err := os.Lstat(path); err == nil && info.Mode().IsRegular() {
+		return info.Mode().Perm()
+	}
+	return fallback
 }

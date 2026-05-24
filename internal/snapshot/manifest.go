@@ -93,10 +93,10 @@ func NewRestorePointWithPolicy(baseDir string, version string, policy system.Mut
 	for i := 1; system.Exists(root); i++ {
 		root = filepath.Join(baseDir, fmt.Sprintf("%s-%02d", id, i))
 	}
-	if err := os.MkdirAll(filepath.Join(root, "files"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "files"), 0700); err != nil {
 		return RestorePoint{}, err
 	}
-	if err := os.MkdirAll(filepath.Join(root, "quarantine"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "quarantine"), 0700); err != nil {
 		return RestorePoint{}, err
 	}
 	rp := RestorePoint{
@@ -163,7 +163,7 @@ func (rp *RestorePoint) Save() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(rp.Path, "manifest.json"), data, 0644)
+	return os.WriteFile(filepath.Join(rp.Path, "manifest.json"), data, 0600)
 }
 
 func (rp *RestorePoint) WriteJSON(name string, v any) (string, error) {
@@ -172,7 +172,7 @@ func (rp *RestorePoint) WriteJSON(name string, v any) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := os.WriteFile(path, data, 0600); err != nil {
 		return "", err
 	}
 	switch name {
@@ -189,7 +189,7 @@ func (rp *RestorePoint) WriteJSON(name string, v any) (string, error) {
 }
 
 func (rp *RestorePoint) WriteHumanReport(text string) error {
-	if err := os.WriteFile(rp.Manifest.HumanReportPath, []byte(text), 0644); err != nil {
+	if err := os.WriteFile(rp.Manifest.HumanReportPath, []byte(text), 0600); err != nil {
 		return err
 	}
 	return rp.Save()
@@ -225,7 +225,7 @@ func (rp *RestorePoint) BackupPath(path string) (FileEntry, error) {
 	rel := strings.TrimPrefix(filepath.Clean(path), string(os.PathSeparator))
 	target := filepath.Join(rp.Path, "files", rel)
 	entry.BackupPath = target
-	if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(target), 0700); err != nil {
 		return FileEntry{}, err
 	}
 	if info.IsDir() {
@@ -258,7 +258,7 @@ func (rp *RestorePoint) QuarantinePath(path string) (FileEntry, error) {
 	entry.BackupPath = backupTarget
 	target := uniquePath(filepath.Join(rp.Path, "quarantine", filepath.Base(path)))
 	entry.QuarantinePath = target
-	if err := os.MkdirAll(filepath.Dir(backupTarget), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(backupTarget), 0700); err != nil {
 		return FileEntry{}, err
 	}
 	if info.IsDir() {
@@ -269,7 +269,7 @@ func (rp *RestorePoint) QuarantinePath(path string) (FileEntry, error) {
 	if err != nil {
 		return FileEntry{}, err
 	}
-	if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(target), 0700); err != nil {
 		return FileEntry{}, err
 	}
 	if err := os.Rename(path, target); err != nil {
@@ -516,7 +516,7 @@ func copyDir(src, dst string) error {
 		if d.IsDir() {
 			return os.MkdirAll(target, info.Mode().Perm())
 		}
-		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(target), 0700); err != nil {
 			return err
 		}
 		return copyFileOrSymlink(path, target, info)
@@ -534,7 +534,7 @@ func (rp *RestorePoint) restoreBackup(entry FileEntry) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(entry.OriginalPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(entry.OriginalPath), 0700); err != nil {
 		return err
 	}
 	if info.IsDir() {
@@ -561,7 +561,7 @@ func (rp *RestorePoint) restoreQuarantine(entry FileEntry) error {
 	if _, err := os.Lstat(entry.QuarantinePath); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(entry.OriginalPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(entry.OriginalPath), 0700); err != nil {
 		return err
 	}
 	if system.Exists(entry.OriginalPath) {

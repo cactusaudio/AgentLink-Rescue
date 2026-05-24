@@ -74,13 +74,13 @@ func StartServer(ctx context.Context, runner command.Runner, home string, port i
 		rep.Error = "llama-server missing or not executable"
 		return rep
 	}
-	if err := os.MkdirAll(filepath.Dir(rep.PIDFile), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(rep.PIDFile), 0700); err != nil {
 		rep.Status = "failed"
 		rep.Error = err.Error()
 		return rep
 	}
 	logDir := serverLogDir(home)
-	if err := os.MkdirAll(logDir, 0755); err != nil {
+	if err := os.MkdirAll(logDir, 0700); err != nil {
 		rep.Status = "failed"
 		rep.Error = err.Error()
 		return rep
@@ -121,7 +121,7 @@ func StartServer(ctx context.Context, runner command.Runner, home string, port i
 	rep.PID = cmd.Process.Pid
 	rep.StdoutLog = stdoutPath
 	rep.StderrLog = stderrPath
-	_ = os.WriteFile(rep.PIDFile, []byte(strconv.Itoa(rep.PID)), 0644)
+	_ = os.WriteFile(rep.PIDFile, []byte(strconv.Itoa(rep.PID)), 0600)
 	time.Sleep(500 * time.Millisecond)
 	if listening(port) {
 		rep.Status = "running"

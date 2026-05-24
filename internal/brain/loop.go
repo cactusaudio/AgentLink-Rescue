@@ -209,11 +209,11 @@ func writePlannerRaw(home string, sess *session.Session, raw string) error {
 	}
 	store := session.NewStore(home)
 	dir := store.SessionDir(sess.SessionID)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		return err
 	}
 	path := filepath.Join(dir, "planner-raw-1.txt")
-	if err := os.WriteFile(path, []byte(safety.RedactSensitive(raw)), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(safety.RedactSensitive(raw)), 0600); err != nil {
 		return err
 	}
 	sess.PlannerRawOutputPath = path

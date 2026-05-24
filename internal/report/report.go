@@ -27,7 +27,7 @@ func WriteDiagnosticForUser(r *diagnose.DiagnosticReport, u system.UserInfo) (st
 		}
 	}
 	dir := system.UserReportDir(home)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		return "", err
 	}
 	id := strings.ReplaceAll(strings.ReplaceAll(r.CreatedAt, ":", ""), "-", "")
@@ -39,17 +39,17 @@ func WriteDiagnosticForUser(r *diagnose.DiagnosticReport, u system.UserInfo) (st
 	if err != nil {
 		return "", err
 	}
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := os.WriteFile(path, data, 0600); err != nil {
 		return "", err
 	}
 	latest := filepath.Join(dir, "latest.json")
-	_ = os.WriteFile(latest, data, 0644)
+	_ = os.WriteFile(latest, data, 0600)
 	warningCount := len(r.Warnings)
 	chownDiagnosticOutputs(r, u, dir, path, latest)
 	if len(r.Warnings) != warningCount {
 		if updated, err := json.MarshalIndent(r, "", "  "); err == nil {
-			_ = os.WriteFile(path, updated, 0644)
-			_ = os.WriteFile(latest, updated, 0644)
+			_ = os.WriteFile(path, updated, 0600)
+			_ = os.WriteFile(latest, updated, 0600)
 			chownDiagnosticOutputs(r, u, path, latest)
 		}
 	}

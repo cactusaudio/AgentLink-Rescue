@@ -72,7 +72,7 @@ func Create(ctx context.Context, runner command.Runner, home, output string, cat
 			"latest session metadata",
 		},
 	}
-	if err := os.MkdirAll(filepath.Dir(output), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(output), 0700); err != nil {
 		rep.Status = "failed"
 		rep.Warnings = append(rep.Warnings, err.Error())
 		return rep
@@ -158,11 +158,11 @@ func writeJSON(rep *Report, dir, name string, v any) {
 
 func writeText(rep *Report, dir, name, text string) {
 	path := filepath.Join(dir, name)
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		rep.Warnings = append(rep.Warnings, name+": "+err.Error())
 		return
 	}
-	if err := os.WriteFile(path, []byte(safety.RedactSensitive(text)), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(safety.RedactSensitive(text)), 0600); err != nil {
 		rep.Warnings = append(rep.Warnings, name+": "+err.Error())
 		return
 	}
@@ -182,6 +182,16 @@ func zipDir(src, dst string) error {
 			return err
 		}
 		if d.IsDir() {
+			return nil
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return nil
+		}
+		if !info.Mode().IsRegular() {
 			return nil
 		}
 		rel, err := filepath.Rel(src, path)

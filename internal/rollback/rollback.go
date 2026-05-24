@@ -139,7 +139,7 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 	classify.Apply(&post)
 	data, _ := json.MarshalIndent(post, "", "  ")
 	reportPath := filepath.Join(rp.Path, "rollback-diagnostic.json")
-	_ = os.WriteFile(reportPath, data, 0644)
+	_ = os.WriteFile(reportPath, data, 0600)
 	result.ReportPath = reportPath
 	if result.Status == "" {
 		result.Status = "rollback complete"

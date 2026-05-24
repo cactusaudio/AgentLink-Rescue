@@ -3,7 +3,6 @@ package verifier
 import (
 	"context"
 	"net"
-	"os"
 	"strings"
 	"time"
 
@@ -126,10 +125,6 @@ func configMatches(ctx Context, path string, args []string, want string) Result 
 	}
 	res := runner.Run(ctx.Context, path, args...)
 	return resultFromBool(strings.TrimSpace(res.Stdout) == want, path+" config matches")
-}
-
-func currentEnv(key string) string {
-	return os.Getenv(key)
 }
 
 func verifierConfigToolPath(tool string) string {

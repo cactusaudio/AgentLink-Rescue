@@ -80,7 +80,7 @@ func Save(ctx context.Context, runner command.Runner, opts Options) Report {
 	id := time.Now().Format("20060102-150405")
 	root := filepath.Join(system.UserLastGoodDir(home), id)
 	rep := Report{SchemaVersion: 1, ToolVersion: version, Action: "save", Status: "saved", ProfileID: id, ProfilePath: root}
-	if err := os.MkdirAll(filepath.Join(root, "files"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "files"), 0700); err != nil {
 		rep.Status = "failed"
 		rep.Warnings = append(rep.Warnings, err.Error())
 		return rep
@@ -96,7 +96,7 @@ func Save(ctx context.Context, runner command.Runner, opts Options) Report {
 	f := facts.Collect(ctx, runner, home, false)
 	proxyPath := filepath.Join(root, "proxy-readiness.json")
 	if data, err := json.MarshalIndent(map[string]any{"proxyEnv": f.ProxyEnv, "ports": f.Ports}, "", "  "); err == nil {
-		_ = os.WriteFile(proxyPath, data, 0644)
+		_ = os.WriteFile(proxyPath, data, 0600)
 		m.Items = append(m.Items, SavedItem{ID: "proxy-readiness", Kind: "report", StoredPath: proxyPath, Exists: true, Restorable: false})
 	}
 	data, err := json.MarshalIndent(m, "", "  ")
@@ -105,12 +105,12 @@ func Save(ctx context.Context, runner command.Runner, opts Options) Report {
 		rep.Warnings = append(rep.Warnings, err.Error())
 		return rep
 	}
-	if err := os.WriteFile(filepath.Join(root, "manifest.json"), data, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "manifest.json"), data, 0600); err != nil {
 		rep.Status = "failed"
 		rep.Warnings = append(rep.Warnings, err.Error())
 		return rep
 	}
-	_ = os.WriteFile(filepath.Join(system.UserLastGoodDir(home), "latest"), []byte(id), 0644)
+	_ = os.WriteFile(filepath.Join(system.UserLastGoodDir(home), "latest"), []byte(id), 0600)
 	rep.NextAction = "Use last-good inspect " + id + " or last-good restore --id " + id + " --yes."
 	return rep
 }
@@ -277,7 +277,7 @@ func saveItem(root string, spec itemSpec) SavedItem {
 	}
 	item.Mode = fmt.Sprintf("%04o", uint32(info.Mode().Perm()))
 	stored := filepath.Join(root, "files", strings.TrimPrefix(filepath.Clean(spec.path), string(os.PathSeparator)))
-	if err := os.MkdirAll(filepath.Dir(stored), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(stored), 0700); err != nil {
 		item.Restorable = false
 		return item
 	}

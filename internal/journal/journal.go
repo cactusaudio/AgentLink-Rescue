@@ -95,7 +95,7 @@ func (m Manager) Start(opts StartOptions) (*Transaction, error) {
 		PackageRoot:   opts.PackageRoot,
 		RequiresAdmin: opts.RequiresAdmin,
 	}
-	if err := os.MkdirAll(m.txDir(id), 0755); err != nil {
+	if err := os.MkdirAll(m.txDir(id), 0700); err != nil {
 		return nil, err
 	}
 	return tx, m.Save(tx)
@@ -109,10 +109,10 @@ func (m Manager) Save(tx *Transaction) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(m.txDir(tx.TransactionID), 0755); err != nil {
+	if err := os.MkdirAll(m.txDir(tx.TransactionID), 0700); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(m.txDir(tx.TransactionID), "transaction.json"), data, 0644)
+	return os.WriteFile(filepath.Join(m.txDir(tx.TransactionID), "transaction.json"), data, 0600)
 }
 
 func (m Manager) WriteJSON(tx *Transaction, name string, v any) error {
@@ -126,7 +126,7 @@ func (m Manager) WriteJSON(tx *Transaction, name string, v any) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(m.txDir(tx.TransactionID), name), data, 0644)
+	return os.WriteFile(filepath.Join(m.txDir(tx.TransactionID), name), data, 0600)
 }
 
 func (m Manager) AppendMutation(tx *Transaction, entry MutationEntry) error {

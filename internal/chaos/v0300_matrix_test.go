@@ -105,9 +105,15 @@ func TestV0300DeterministicScenarioMatrix(t *testing.T) {
 		})
 	}
 
-	det("version", func(t *testing.T) bool { o, c := run(t, b, rec, "version"); return c == 0 && strings.Contains(o, "agentlink") })
+	det("version", func(t *testing.T) bool {
+		o, c := run(t, b, rec, "version")
+		return c == 0 && strings.Contains(o, "agentlink")
+	})
 	det("selftest", func(t *testing.T) bool { _, c := run(t, b, rec, "selftest"); return c == 0 })
-	det("manifest-validate", func(t *testing.T) bool { o, c := run(t, b, rec, "manifest", "validate"); return c == 0 && strings.Contains(o, "OK") })
+	det("manifest-validate", func(t *testing.T) bool {
+		o, c := run(t, b, rec, "manifest", "validate")
+		return c == 0 && strings.Contains(o, "OK")
+	})
 	det("manifest-json-30tools", func(t *testing.T) bool {
 		o, c := run(t, b, rec, "manifest", "--json")
 		var m struct {
@@ -115,7 +121,10 @@ func TestV0300DeterministicScenarioMatrix(t *testing.T) {
 		}
 		return c == 0 && json.Unmarshal([]byte(o), &m) == nil && len(m.Tools) >= 30
 	})
-	det("manifest-family-diagnosis", func(t *testing.T) bool { o, c := run(t, b, rec, "manifest", "--family", "diagnosis", "--json"); return c == 0 && strings.Contains(o, "agentlink.doctor") })
+	det("manifest-family-diagnosis", func(t *testing.T) bool {
+		o, c := run(t, b, rec, "manifest", "--family", "diagnosis", "--json")
+		return c == 0 && strings.Contains(o, "agentlink.doctor")
+	})
 	det("manifest-edition-recommend-no-hosttxn", func(t *testing.T) bool {
 		o, c := run(t, b, rec, "manifest", "--edition", "recommend", "--json")
 		return c == 0 && !strings.Contains(o, `"mutationClass": "host_txn"`)
@@ -230,19 +239,6 @@ func TestV0300DeterministicScenarioMatrix(t *testing.T) {
 	if pass < 50 {
 		t.Errorf("acceptance: need >=50 deterministic scenario passes, got %d", pass)
 	}
-}
-
-func stripVolatile(s string) string {
-	// drop session/timestamp lines so idempotency compares the plan.
-	var keep []string
-	for _, ln := range strings.Split(s, "\n") {
-		if strings.Contains(ln, "sessionId") || strings.Contains(ln, "humanReportPath") ||
-			strings.Contains(ln, "At\"") || strings.Contains(ln, "timestamp") {
-			continue
-		}
-		keep = append(keep, ln)
-	}
-	return strings.Join(keep, "\n")
 }
 
 func TestV0300ChaosAdversarialMatrix(t *testing.T) {

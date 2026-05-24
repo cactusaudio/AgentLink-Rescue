@@ -162,9 +162,7 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 			for _, a := range buildTunPreActions(pre) {
 				result.Actions = append(result.Actions, dryAction(a))
 			}
-			for _, a := range buildQuarantinePlan(pre, opts.Level) {
-				result.Actions = append(result.Actions, a)
-			}
+			result.Actions = append(result.Actions, buildQuarantinePlan(pre, opts.Level)...)
 			for _, a := range buildTunPostActions(pre) {
 				result.Actions = append(result.Actions, dryAction(a))
 			}
@@ -172,13 +170,9 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 			for _, a := range buildActions(opts.Level, pre) {
 				result.Actions = append(result.Actions, dryAction(a))
 			}
-			for _, a := range buildQuarantinePlan(pre, opts.Level) {
-				result.Actions = append(result.Actions, a)
-			}
+			result.Actions = append(result.Actions, buildQuarantinePlan(pre, opts.Level)...)
 		}
-		for _, a := range buildDeepPlan(opts, nil) {
-			result.Actions = append(result.Actions, a)
-		}
+		result.Actions = append(result.Actions, buildDeepPlan(opts, nil)...)
 		result.Status = "dry run only; no changes made"
 		result.ExitCode = 0
 		return result
@@ -791,18 +785,6 @@ func buildDeepPlan(opts Options, _ *snapshot.RestorePoint) []ActionResult {
 	return out
 }
 
-func shouldUseSystemReset(pre diagnose.DiagnosticReport) bool {
-	if !pre.Network.DefaultRoute.Present {
-		return true
-	}
-	for _, class := range pre.Classifications {
-		if class == classify.NoActiveInterface || class == classify.NetworkLocationSuspected || class == classify.SysconfigSuspected {
-			return true
-		}
-	}
-	return false
-}
-
 func eligibleResidues(pre diagnose.DiagnosticReport) []diagnose.ResidueMatch {
 	var out []diagnose.ResidueMatch
 	add := func(items []diagnose.ResidueMatch) {
@@ -1155,10 +1137,7 @@ func safeDHCPGateway(gateway string) bool {
 		return true
 	}
 	lower := strings.ToLower(gateway)
-	if strings.HasPrefix(lower, "fdfe:dcba:9876") {
-		return false
-	}
-	return true
+	return !strings.HasPrefix(lower, "fdfe:dcba:9876")
 }
 
 func anyProbeOK(m map[string]diagnose.ProbeResult) bool {
