@@ -159,6 +159,38 @@ func TestGenomeAdvisoryAttachesForNetworkClass(t *testing.T) {
 	}
 }
 
+// TestConnectivityBrokenDetection covers the "NIC up but no internet" trigger
+// that gates the nuclear connectivity-first offer.
+func TestConnectivityBrokenDetection(t *testing.T) {
+	online := diagnose.DiagnosticReport{
+		Network: diagnose.NetworkInfo{DefaultRoute: diagnose.DefaultRoute{Present: true}},
+		Reachability: diagnose.ReachabilityInfo{
+			RawIPs:       map[string]diagnose.ProbeResult{"1.1.1.1": {OK: true}},
+			DNSNames:     map[string]diagnose.ProbeResult{"apple.com": {OK: true}},
+			HTTPSTargets: map[string]diagnose.ProbeResult{"https://apple.com/": {OK: true}},
+		},
+	}
+	if connectivityBroken(online) {
+		t.Fatal("healthy machine reported as connectivity-broken")
+	}
+	noRoute := online
+	noRoute.Network.DefaultRoute.Present = false
+	if !connectivityBroken(noRoute) {
+		t.Fatal("missing default route must be connectivity-broken")
+	}
+	nicUpNoNet := diagnose.DiagnosticReport{
+		Network: diagnose.NetworkInfo{DefaultRoute: diagnose.DefaultRoute{Present: true}},
+		Reachability: diagnose.ReachabilityInfo{
+			RawIPs:       map[string]diagnose.ProbeResult{"1.1.1.1": {OK: false}},
+			DNSNames:     map[string]diagnose.ProbeResult{"apple.com": {OK: false}},
+			HTTPSTargets: map[string]diagnose.ProbeResult{"https://apple.com/": {OK: false}},
+		},
+	}
+	if !connectivityBroken(nicUpNoNet) {
+		t.Fatal("NIC up but all probes failing must be connectivity-broken")
+	}
+}
+
 func hasCycle(rep Report, state string) bool {
 	for _, c := range rep.Cycles {
 		if c.State == state {

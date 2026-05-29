@@ -99,9 +99,19 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Report {
 	if contains(report.FailureClasses, classify.ProtectedAudioVLANRouteTrap) || contains(report.FailureClasses, classify.ProtectedTopologyConstraint) || diagnose.HasProtectedTopologyConstraint(diag) {
 		decision := topologyBoundaryDecision(diag)
 		report.Status = "manual_action_required"
-		report.HumanSummary = decision.ExplanationForUser
-		report.NextAction = "agentlink support bundle --json"
-		report.Cycles = append(report.Cycles, Cycle{Index: 2, State: "TopologyBoundary", SupervisorDecision: decision, Result: "repair_corridor_refused"})
+		if connectivityBroken(diag) {
+			// Connectivity is the first imperative: even under a protected
+			// topology, offer the nuclear reset to get this Mac back online. It
+			// overrides the protected boundary and is reversible via a captured
+			// network snapshot.
+			report.HumanSummary = "Protected topology detected, but this Mac cannot get online. Restoring internet is the first priority — the nuclear network reset will get it back online (it overrides protected topology and is reversible via a captured snapshot)."
+			report.NextAction = "sudo ./bin/agentlink rescue --level nuclear --yes --json"
+			report.Cycles = append(report.Cycles, Cycle{Index: 2, State: "TopologyBoundary", SupervisorDecision: decision, Result: "connectivity_first_nuclear_offered"})
+		} else {
+			report.HumanSummary = decision.ExplanationForUser
+			report.NextAction = "agentlink support bundle --json"
+			report.Cycles = append(report.Cycles, Cycle{Index: 2, State: "TopologyBoundary", SupervisorDecision: decision, Result: "protected_topology_online_no_action"})
+		}
 		return finish(report, opts.Home)
 	}
 	brainBackend := opts.BrainBackend
@@ -202,6 +212,12 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Report {
 				report.HumanSummary = "No high-confidence targeted rescue plan is available."
 			}
 			report.NextAction = "agentlink support bundle"
+		}
+		// Connectivity-first: if no bounded repair restored the network, the
+		// nuclear reset is the decisive get-online action.
+		if report.Status == "manual_action_required" && connectivityBroken(diag) {
+			report.HumanSummary = "No bounded repair restored connectivity. The nuclear network reset is the decisive get-online action — it resets this Mac to a clean, online-capable baseline (reversible via a captured snapshot)."
+			report.NextAction = "sudo ./bin/agentlink rescue --level nuclear --yes --json"
 		}
 		return finish(report, opts.Home)
 	}
@@ -493,6 +509,27 @@ func isProtectedBoundaryPlan(plan RescuePlanDecision) bool {
 
 func healthy(diag diagnose.DiagnosticReport, tun diagnose.TunReport) bool {
 	return len(diag.Classifications) == 1 && diag.Classifications[0] == classify.OK && tun.RecommendedRepair == ""
+}
+
+// connectivityBroken reports the core "NIC up but no internet" condition: no
+// default route, or every raw-IP / DNS / HTTPS probe failing. It is the trigger
+// for offering the nuclear connectivity-first reset.
+func connectivityBroken(diag diagnose.DiagnosticReport) bool {
+	if !diag.Network.DefaultRoute.Present {
+		return true
+	}
+	allFail := func(m map[string]diagnose.ProbeResult) bool {
+		if len(m) == 0 {
+			return false
+		}
+		for _, p := range m {
+			if p.OK {
+				return false
+			}
+		}
+		return true
+	}
+	return allFail(diag.Reachability.RawIPs) || allFail(diag.Reachability.DNSNames) || allFail(diag.Reachability.HTTPSTargets)
 }
 
 func mode(opts Options) string {

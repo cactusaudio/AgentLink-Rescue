@@ -163,8 +163,8 @@ func TestPlanEscalationLadderAndCoFaults(t *testing.T) {
 	if len(d.Escalation) == 0 || d.Escalation[0] != LevelStandard {
 		t.Fatalf("escalation ladder must start at standard: %v", d.Escalation)
 	}
-	if d.Escalation[len(d.Escalation)-1] != "last-resort:"+lastResortRecipe {
-		t.Fatalf("escalation must end at last-resort clean baseline: %v", d.Escalation)
+	if d.Escalation[len(d.Escalation)-1] != LevelNuclear {
+		t.Fatalf("escalation must end at the nuclear connectivity-first reset: %v", d.Escalation)
 	}
 	found := false
 	for _, r := range d.CoFaults {

@@ -29,23 +29,21 @@ type Decision struct {
 	StopReason         string   `json:"stopReason,omitempty"`
 }
 
-// lastResortRecipe is the privileged clean-baseline reset — the terminal rung
-// of every network escalation ladder, offered only with explicit consent.
-const lastResortRecipe = "macos-clean-network-baseline-reset"
-
 // escalationFor returns the graduated next-tier ladder beyond the chosen repair
 // (level or reversible recipe) — the distilled "if this does not resolve it,
 // escalate to..." judgment.
 func escalationFor(level string) []string {
 	switch level {
 	case LevelSafe:
-		return []string{LevelStandard, LevelDeep, "last-resort:" + lastResortRecipe}
+		return []string{LevelStandard, LevelDeep, LevelNuclear}
 	case LevelStandard:
-		return []string{LevelDeep, "last-resort:" + lastResortRecipe}
+		return []string{LevelDeep, LevelNuclear}
 	case LevelDeep:
-		return []string{"last-resort:" + lastResortRecipe}
+		return []string{LevelNuclear}
+	case LevelNuclear:
+		return nil // terminal: nothing escalates beyond the connectivity-first full reset
 	default: // reversible user-config recipe: escalate into the network tiers
-		return []string{LevelSafe, LevelStandard, "last-resort:" + lastResortRecipe}
+		return []string{LevelSafe, LevelStandard, LevelNuclear}
 	}
 }
 
@@ -57,6 +55,10 @@ const (
 	LevelStandard = "standard"
 	LevelDeep     = "deep"
 	LevelTun      = "tun"
+	// LevelNuclear is the connectivity-first full reset — the terminal rung of
+	// every escalation ladder. It always restores an online-capable baseline on
+	// any Apple Silicon Mac.
+	LevelNuclear = "nuclear"
 )
 
 func validRepairLevel(level string) bool {

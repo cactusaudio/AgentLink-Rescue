@@ -15,7 +15,7 @@ The 2026-05-29 review scored **distillation ≈70%, topology-into-kernel ≈20%*
   - `recipe → planner → orchestrator → verifier → safety`: every emittable class routes deterministically through `planner.Plan` → `planner.ValidateDecision` (registry + verifier + rollback gates) → `recipe.Run` (config) **or** `repair.Run(level)` (network-state, snapshot+rollback). No orphan classes; no dead routing keys.
 - **Distillation — 100%.** Claude's repair judgment is encoded in the pure, test-stable `planner.Plan`: class→recipe/level routing, confidence floor, least-invasive-first, network-tier spread, protected-refusal, graduated escalation ladder, multi-fault co-fault surfacing. The 300-card genome is anchored to the kernel taxonomy (`genomekernel.ClassLayer`) and surfaced read-only into the live decision (`Report.GenomeAdvisory`).
 
-The strong safety topology (dry-run default, terminal-ticket instead of GUI sudo, auto-rollback on worsening, restart gate, protected-topology refusal) is preserved unchanged. **No mutation was added in the protected-topology zone** — a deliberate safety decision (the review's strongest invariant; protects Dante/AES67 audio VLANs).
+The safety topology (dry-run default, terminal-ticket instead of GUI sudo, auto-rollback on worsening, restart gate) is preserved. **Connectivity-first override (operator directive 2026-05-29):** Dante/AES67 protection is no longer the top priority — when the NIC is up but the machine cannot get online, restoring internet is the first imperative. The graduated levels still respect the protected boundary, but the **nuclear button** (`--level nuclear`) deliberately overrides it. See §6.
 
 ---
 
@@ -61,7 +61,7 @@ Every repair carries a graduated `Escalation` ladder (safe→standard→deep→l
 
 ## 4. Deliberate decisions (sovereignty / safety boundaries — surfaced, not unilaterally crossed)
 
-1. **No protected-zone mutation.** The P1.4 protected-route-rehome (mutating routes near protected audio VLANs) was NOT added. The review's strongest invariant is protected-topology refusal; auto-mutation there is a net loss. Protected classes route to refuse/report. A rehome capability, if wanted, is an explicit user-owned decision.
+1. **Connectivity-first overrides protected topology (operator directive).** Earlier this refactor preserved protected-topology refusal as the strongest invariant. The operator then ruled: do NOT prioritize protecting Dante/AES67 — getting online is the first imperative. So the graduated levels still respect the boundary, but the nuclear button overrides it by design (§6). This was an explicit user-owned call.
 2. **P0.1 via bridge, not codegen.** Genome-as-source-of-truth is implemented as `genomekernel.ClassLayer` (classify classes anchored to the genome's own 15-layer ontology) + a drift-guard test, NOT a 300-card→classify codegen (which the review flagged for a Codex/GPT-Pro second pass and which risks regressing the tuned classifier).
 
 ---
@@ -74,3 +74,17 @@ Every repair carries a graduated `Escalation` ladder (safe→standard→deep→l
 - verification rigor + zero-test coverage (Task 7) + this scorecard (Task 8).
 
 Gate at completion: `go build ./...` exit 0; `go vet ./...` clean; all internal packages test green (3 foreground shards).
+
+---
+
+## 6. Connectivity-first nuclear button (operator directive 2026-05-29)
+
+Mission: **NIC is up but the Mac can't get online → get online; first priority.** Plus a "nuclear button" that resets the network to a clean, online-capable baseline on ANY Apple Silicon Mac.
+
+- **`repair.LevelNuclear`** — the maximal reset (`buildNuclearActions`): tear down route-hijacking interference + TUN/NetworkExtension residue first (pkill clash/mihomo, bootout launch items, down stale `utun` interfaces holding the default route, kick `nesessionmanager`/`networkextensiond`/`nehelper`), then the full clean baseline (switch to Automatic location, reset **every** network service's web/secure/SOCKS/auto proxy + DNS + search + DHCP + IPv6, rebuild the default route from DHCP, flush DNS). Universal macOS commands (`networksetup`/`ipconfig`/`route`/`ifconfig`/`launchctl`/`dscacheutil`) + dynamic service enumeration → works on any M-chip Mac. Reversible via the captured network snapshot (rollback engine restores it).
+- **Overrides the protected-topology boundary** (`buildActions`/`plannedActions`/`Run` skip the boundary for `LevelNuclear`) — connectivity outranks audio-VLAN preservation, with a transparent warning when it does so.
+- **Entry point:** `sudo agentlink rescue --level nuclear --yes` (CLI auto-sudo-reexecs when not root; `--yes` gated). GUI never runs sudo — it offers the command.
+- **Connectivity-first routing:** `connectivityBroken(diag)` (no default route, or all raw-IP/DNS/HTTPS probes failing) gates the offer. When a protected topology is detected but the Mac is offline, the orchestrator now offers the nuclear button instead of refusing; when no bounded repair restores connectivity, the nuclear button is the decisive `NextAction`. The planner escalation ladder terminates at `nuclear`.
+- **Success is online-gated:** `compare()` reports success only when the post-state clears the critical connectivity classes (or reaches OK); `criticalWorsened` auto-rolls-back if the reset loses the route/DNS/HTTPS.
+
+Evidence: `TestNuclearBypassesProtectedTopology`, `TestNuclearPlanCoversOnlineKillers`, `TestNuclearRequiresYesForMutation`, `TestNuclearSuccessRequiresOnlineCapablePostState` (repair); `TestConnectivityBrokenDetection` (orchestrator); `TestPlanEscalationLadderAndCoFaults` terminal rung = nuclear (planner). go build ./... green; all package tests green.

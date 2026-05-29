@@ -29,6 +29,13 @@ const (
 	LevelTun                 = "tun"
 	LevelCleanBaseline       = "clean-baseline"
 	LevelStandardSystemReset = "standard-system-reset"
+	// LevelNuclear is the connectivity-first "nuclear button": the maximal
+	// network reset on any Apple Silicon Mac. It bypasses the protected-topology
+	// boundary by design — when the NIC is up but the machine cannot get online,
+	// restoring connectivity is the first imperative and outranks preserving a
+	// protected (e.g. audio-VLAN) topology. Reversible via the captured network
+	// snapshot.
+	LevelNuclear = "nuclear"
 )
 
 type Options struct {
@@ -126,6 +133,12 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 		result.Error = "clean-baseline rescue requires --yes"
 		return result
 	}
+	if opts.Level == LevelNuclear && !opts.DryRun && !opts.Yes {
+		result.ExitCode = 50
+		result.Status = "nuclear rescue refused"
+		result.Error = "nuclear network reset requires --yes"
+		return result
+	}
 	if opts.Level == LevelTun && !opts.DryRun && !opts.Yes {
 		result.ExitCode = 50
 		result.Status = "tun rescue refused"
@@ -143,8 +156,11 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 	pre := engine.Run(ctx)
 	classify.Apply(&pre)
 	result.Preflight = append([]string(nil), pre.Classifications...)
-	if protectedTopologyBoundary(pre) {
-		result.Warnings = append(result.Warnings, "protected topology repair boundary detected; refusing mutating rescue to preserve protected interfaces/services")
+	if opts.Level == LevelNuclear && protectedTopologyBoundary(pre) {
+		result.Warnings = append(result.Warnings, "connectivity-first nuclear reset is OVERRIDING the protected-topology boundary; protected (e.g. audio-VLAN) state may be reset to restore internet access")
+	}
+	if opts.Level != LevelNuclear && protectedTopologyBoundary(pre) {
+		result.Warnings = append(result.Warnings, "protected topology repair boundary detected; refusing mutating rescue to preserve protected interfaces/services (use --level nuclear to override for connectivity-first reset)")
 		if opts.DryRun {
 			result.ExitCode = 0
 			result.Status = "protected_topology_report_only"
@@ -152,7 +168,7 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 		}
 		result.ExitCode = 50
 		result.Status = "protected_topology_refused"
-		result.Error = "protected topology repair boundary detected; use a support bundle / incident report before any route, DHCP, proxy, TUN, clean-baseline, or VLAN mutation"
+		result.Error = "protected topology repair boundary detected; use a support bundle / incident report, or --level nuclear to override for a connectivity-first reset"
 		return result
 	}
 	planned := plannedActions(opts.Level, pre)
@@ -311,12 +327,12 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Result {
 }
 
 func validLevel(level string) bool {
-	return level == LevelSafe || level == LevelTun || level == LevelStandard || level == LevelCleanBaseline || level == LevelStandardSystemReset || level == LevelDeep
+	return level == LevelSafe || level == LevelTun || level == LevelStandard || level == LevelCleanBaseline || level == LevelStandardSystemReset || level == LevelDeep || level == LevelNuclear
 }
 
 func plannedActions(level string, pre diagnose.DiagnosticReport) []ActionResult {
 	var out []ActionResult
-	if protectedTopologyBoundary(pre) {
+	if level != LevelNuclear && protectedTopologyBoundary(pre) {
 		return out
 	}
 	if level == LevelTun {
@@ -367,6 +383,11 @@ func shellQuote(s string) string {
 }
 
 func buildActions(level string, pre diagnose.DiagnosticReport) []action {
+	if level == LevelNuclear {
+		// Connectivity-first: the nuclear reset deliberately bypasses the
+		// protected-topology boundary.
+		return buildNuclearActions(pre)
+	}
 	if protectedTopologyBoundary(pre) {
 		return nil
 	}
@@ -503,6 +524,34 @@ func buildCleanBaselineActions(pre diagnose.DiagnosticReport) []action {
 		action{Stage: "4_route_dns_awdl_verify_baseline", ID: "clean.awdl.up", Description: "Bring AWDL up for AirDrop discovery", Path: "/sbin/ifconfig", Args: []string{"awdl0", "up"}, IgnoreFailure: true},
 		action{Stage: "4_route_dns_awdl_verify_baseline", ID: "clean.sharingd.restart", Description: "Restart sharingd for AirDrop receive discovery", Path: "/usr/bin/killall", Args: []string{"sharingd"}, IgnoreFailure: true},
 	)
+	return actions
+}
+
+// buildNuclearActions is the connectivity-first "nuclear button": the maximal
+// reset that restores a clean, online-capable baseline on any Apple Silicon
+// Mac. It tears down route-hijacking interference + TUN/NetworkExtension
+// residue first (so a dead Clash/Mihomo TUN releases the default route), then
+// applies the full clean baseline (Automatic location, every service's
+// proxy/DNS/DHCP/IPv6 reset, default-route rebuild, DNS flush). It does NOT
+// preserve protected topology — connectivity is the first imperative.
+func buildNuclearActions(pre diagnose.DiagnosticReport) []action {
+	var actions []action
+	// 1. Stop interference runtimes + boot out their launch items.
+	actions = append(actions, buildTunPreActions(pre)...)
+	// 1b. Down stale utun interfaces still holding a route.
+	for _, iface := range diagnose.DiagnoseTun(pre).UTunInterfaces {
+		if !iface.Suspicious {
+			continue
+		}
+		actions = append(actions, action{Stage: "1b_down_stale_utun", ID: "nuclear.ifconfig.down." + sanitizeID(iface.Name), Description: "Down stale TUN interface " + iface.Name, Path: "/sbin/ifconfig", Args: []string{iface.Name, "down"}, IgnoreFailure: true})
+	}
+	// 1c. Kick NetworkExtension daemons so a dead NE releases its claim.
+	for _, label := range []string{"system/com.apple.nesessionmanager", "system/com.apple.networkextensiond", "system/com.apple.nehelper"} {
+		actions = append(actions, action{Stage: "1c_kick_network_extension", ID: "nuclear.ne.kick." + sanitizeID(label), Description: "Kickstart " + label, Path: "/bin/launchctl", Args: []string{"kickstart", "-k", label}, IgnoreFailure: true})
+	}
+	// 2. Full clean baseline (Automatic location + every service proxy/DNS/DHCP +
+	//    default-route rebuild + DNS flush).
+	actions = append(actions, buildCleanBaselineActions(pre)...)
 	return actions
 }
 

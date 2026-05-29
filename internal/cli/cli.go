@@ -1914,7 +1914,7 @@ func runTicket(ctx context.Context, runner command.Runner, args []string, stdout
 func runRescue(ctx context.Context, runner command.Runner, rulesDir string, args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("rescue", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	level := fs.String("level", repair.LevelSafe, "safe, tun, standard, clean-baseline, standard-system-reset, or deep")
+	level := fs.String("level", repair.LevelSafe, "safe, tun, standard, clean-baseline, standard-system-reset, deep, or nuclear (connectivity-first full reset)")
 	yes := fs.Bool("yes", false, "confirm destructive steps")
 	dryRun := fs.Bool("dry-run", false, "show actions without changing system")
 	jsonOut := fs.Bool("json", false, "print JSON")
@@ -1933,6 +1933,10 @@ func runRescue(ctx context.Context, runner command.Runner, rulesDir string, args
 	}
 	if *level == repair.LevelCleanBaseline && !*dryRun && !*yes {
 		fmt.Fprintln(stderr, "clean-baseline rescue requires --yes")
+		return 50
+	}
+	if *level == repair.LevelNuclear && !*dryRun && !*yes {
+		fmt.Fprintln(stderr, "nuclear network reset requires --yes (connectivity-first; overrides protected topology)")
 		return 50
 	}
 	if *level == repair.LevelTun && !*dryRun && !*yes {
@@ -2309,7 +2313,7 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "  agentlink repair --auto --brain --target path|proxy|codex|keys|network [--dry-run] [--yes] [--online] [--json]")
 	fmt.Fprintln(w, "  agentlink diagnose [--json] [--verbose]")
 	fmt.Fprintln(w, "  agentlink classify [--json]")
-	fmt.Fprintln(w, "  agentlink rescue [--level safe|tun|standard|clean-baseline|standard-system-reset|deep] [--yes] [--dry-run] [--json]")
+	fmt.Fprintln(w, "  agentlink rescue [--level safe|tun|standard|clean-baseline|standard-system-reset|deep|nuclear] [--yes] [--dry-run] [--json]")
 	fmt.Fprintln(w, "  agentlink rollback [--last | --id RESTORE_POINT_ID] [--dry-run] [--json]")
 	fmt.Fprintln(w, "  agentlink report [--latest | --id REPORT_ID] [--json]")
 	fmt.Fprintln(w, "  agentlink selftest")
