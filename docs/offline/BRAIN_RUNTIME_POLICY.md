@@ -1,6 +1,7 @@
 # Brain Runtime Policy
 
-v0.5.1 Brain mode is bounded:
+v0.5.x Brain mode is bounded. The current v0.5.2 GUI field beta keeps the same
+Brain boundary:
 
 - Gemma is controller/planner, not executor.
 - Gemma outputs only `PlannerDecision` JSON.

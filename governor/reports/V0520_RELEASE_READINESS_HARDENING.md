@@ -1,6 +1,7 @@
 # AgentLink v0.5.2 Release-Readiness Hardening
 
 Date: 2026-05-20
+Updated: 2026-05-24 post-alpha hardening and portable-beta packaging
 
 Status: implementation in review, not pushed.
 
@@ -190,6 +191,46 @@ Still not proven by this hardening pass:
 - real GUI manual visual QA beyond selftest;
 - Gemma/Qwen model-runtime behavior;
 - third-party external audit of this exact new package.
+
+## 2026-05-24 Hardening Addendum
+
+Post-alpha commit:
+
+```text
+01ced16 Harden AgentLink field beta
+```
+
+Scope:
+
+- private diagnostic/session/report/journal/snapshot-style files tightened to
+  `0600`;
+- private AgentLink-owned directories tightened to `0700`;
+- user config-file patching preserves existing file modes and defaults new
+  files to `0600`;
+- support-bundle zipping skips symlinks and non-regular files;
+- dead code removed;
+- fuzz harnesses added for redaction, planner decisions, recipe decoding, and
+  diagnosis-graph JSON build input;
+- accidental root-level `agentlink` build artifact ignored.
+
+Verification rerun:
+
+```text
+go test ./... -count=1 -timeout 35m
+go vet ./...
+staticcheck ./...
+```
+
+Portable beta:
+
+```text
+/Volumes/CTS Dark/Cactus-AgentLink-Rescue-v0.5.2-field-beta-hardened-portable-universal-20260524T012027Z.zip
+SHA256 e9347c39c50c42920240cadca55f3a28f49079561822604919f8dda81caa17eb
+```
+
+The portable bundle contains a universal app, fallback launcher, manifest,
+checksum verifier, and no model/runtime/DMG payload. It is ad-hoc signed and
+verified locally, not notarized.
 
 ## Truth Notes
 

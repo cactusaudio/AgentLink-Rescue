@@ -1,6 +1,9 @@
 # GPT Pro Audit Entry: AgentLink Rescue v0.5.2 GUI Field Beta
 
-This package audits the AgentLink Rescue v0.5.2 GUI field beta line.
+This package audits the AgentLink Rescue v0.5.2 GUI field beta line. If the
+package was built after commit `01ced16`, also verify the post-alpha hardening
+claims: private permissions, support-bundle symlink skip, fuzz harnesses, and
+portable-package metadata.
 
 It is an engineering audit package, not a public release package. It does not
 prove signing, notarization, installer DMG behavior, model-runtime behavior, or
@@ -13,6 +16,7 @@ PACKAGE_MANIFEST.json
 docs/testing/GPT_PRO_V052_GUI_FIELD_BETA_AUDIT_PROMPT.md
 governor/reports/V0521_GUI_FIELD_BETA_READINESS.md
 docs/offline/GUI_DOGFOOD.md
+docs/offline/FIELD_BETA_STATUS.md
 ```
 
 Main command:

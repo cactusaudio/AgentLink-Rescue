@@ -1,6 +1,6 @@
 # Multi-Mac Dogfood Plan
 
-This is a manual checklist for v0.5.1 portability. It is not a release blocker for every local build, but it defines the next real-world confidence surface.
+This is a manual checklist for v0.5.2 field-beta portability. It is not a release blocker for every local build, but it defines the next real-world confidence surface.
 
 ## Machines
 
@@ -20,6 +20,8 @@ This is a manual checklist for v0.5.1 portability. It is not a release blocker f
 - Package copied to Downloads
 - Package copied to a path with spaces
 - Package opened after quarantine/xattr
+- Portable field-beta folder with top-level `Cactus AgentLink Rescue.app`
+- Portable zip verified by `VERIFY-CHECKSUMS.command`
 
 ## Host Variants
 
@@ -42,6 +44,7 @@ Run on every machine:
 ./bin/agentlink readiness doctor --json
 ./bin/agentlink support bundle --json
 ./bin/agentlink orchestrator rescue --target auto --dry-run --json
+./bin/agentlink guided rescue --target auto --dry-run --json
 ./bin/agentlink package repair --dry-run --json
 ```
 
@@ -53,6 +56,9 @@ GUI checks:
 - Package health badge is visible.
 - No mutation happens without explicit consent.
 - No GUI sudo/password prompt appears.
+- `Run Field Beta Check` returns ready or ready-with-warnings without mutation.
+- Support bundle export succeeds and does not expose raw secrets.
+- The app and embedded CLI report universal binaries on both Intel and Apple Silicon Macs.
 
 ## Mutating Pass
 

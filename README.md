@@ -2,13 +2,37 @@
 
 Cactus AgentLink Rescue is an offline, portable, reversible macOS rescue tool for restoring the broken path between a Mac and AI agents such as Codex, Claude, GitHub, and API endpoints.
 
-v0.5.1 is the Rescue Core reliability hardening release. It keeps the v0.5 Rescue Orchestrator shape but adds package self-healing checks, a durable transaction journal, safe-mode diagnostics, idempotence tests, command timeouts/output caps, chaos fixtures, and stronger support-bundle evidence. Gemma 4 E4B-it Q4_K_M remains explanation/shadow-only for rescue decisions; deterministic rules, policy validation, recipes, verifier, rollback, and restart gate own release behavior. There is still no telemetry, daemon, privileged helper, SMAppService, RAG, queue, remote mutation, sudo execution in the GUI, or arbitrary shell execution.
+Current line: v0.5.2 GUI field beta, hardened at commit `01ced16` (`Harden AgentLink field beta`). The shared CLI core still reports `agentlink 0.5.1`; v0.5.2 is the GUI/audit/portable-beta product line. The current verified portable bundle is a universal macOS app (`arm64` + `x86_64`) with dry-run-first GUI rescue, support-bundle export, tighter private file permissions, symlink-safe support-bundle zipping, config-mode preservation, and fuzz coverage for redaction, planner decisions, recipe decoding, and diagnosis-graph JSON input.
+
+This is still a controlled field beta, not a notarized public release. Gemma 4 E4B-it Q4_K_M remains explanation/shadow-only for rescue decisions; deterministic rules, policy validation, recipes, verifier, rollback, and restart gate own release behavior. There is still no telemetry, daemon, privileged helper, SMAppService, RAG, queue, remote mutation, sudo execution in the GUI, or arbitrary shell execution.
 
 ## Product Thesis
 
 Remote AI agents cannot help when the local machine is offline, trapped behind stale proxy settings, missing routes, broken DNS, or blocked agent endpoints. AgentLink Rescue is the local fallback layer: it diagnoses the Mac, classifies the failure, applies bounded repairs, and keeps every mutating action reversible.
 
 This is not a generic network reset tool and not a cleanup app.
+
+## Current Verified Artifact
+
+Latest local portable beta:
+
+```text
+/Volumes/CTS Dark/Cactus-AgentLink-Rescue-v0.5.2-field-beta-hardened-portable-universal-20260524T012027Z/
+/Volumes/CTS Dark/Cactus-AgentLink-Rescue-v0.5.2-field-beta-hardened-portable-universal-20260524T012027Z.zip
+SHA256 e9347c39c50c42920240cadca55f3a28f49079561822604919f8dda81caa17eb
+```
+
+Verified properties:
+
+- top-level double-clickable `Cactus AgentLink Rescue.app`;
+- fallback `Open AgentLink Rescue.command`;
+- `VERIFY-CHECKSUMS.command`, `CHECKSUMS.txt`, `PACKAGE-MANIFEST.json`, and `README-FIRST.txt`;
+- app binary and embedded `bin/agentlink` are universal Mach-O (`arm64` + `x86_64`);
+- ad-hoc codesign verification passes;
+- no model weights, GGUF, llama runtime, DMG installer, `node_modules`, build metadata, or Finder metadata in the portable package;
+- `--selftest-gui` reports `ready_for_field_beta`;
+- embedded CLI `guided rescue --target auto --dry-run --json` runs dry-run only;
+- actual `open` launch from the external USB path was verified and cleaned up.
 
 ## What It Does
 
@@ -187,11 +211,24 @@ If `lipo` is available, `scripts/build.sh` creates a universal `bin/agentlink` w
 ## Test
 
 ```bash
-go test ./...
+go test ./... -count=1 -timeout 35m
+go vet ./...
+staticcheck ./...
 ./bin/agentlink selftest
 ./bin/agentlink rescue --level safe --dry-run
 ./bin/agentlink rescue --level standard --dry-run
 ```
+
+The v0.5.2 hardening pass additionally ran 64-way concurrency, chaos, race, audit, and fuzz pressure. Four fuzz harnesses live under:
+
+```text
+internal/safety/redact_fuzz_test.go
+internal/planner/fuzz_test.go
+internal/recipe/fuzz_test.go
+internal/diagnosisgraph/fuzz_test.go
+```
+
+The latest local hardening run reported roughly 15.6M fuzz mutations across those harnesses with no panic or missed seeded secret-redaction contract.
 
 Brain dogfood, when assets are present:
 
@@ -215,7 +252,7 @@ dist/Cactus-AgentLink-Rescue/
 dist/Cactus-AgentLink-Rescue-v0.5.1-core.zip
 ```
 
-It can be copied to Downloads and launched with `agentlink.command`.
+It can be copied to Downloads and launched with `agentlink.command`. The zip filename remains `v0.5.1-core` because the shared CLI core still reports `agentlink 0.5.1`; the current GUI/audit/portable beta line is v0.5.2.
 
 To build the optional Brain package after fetching the model/runtime:
 
@@ -243,6 +280,8 @@ GUI package outputs:
 dist/Cactus-AgentLink-Rescue-v0.5.1-core-gui.zip
 dist/Cactus-AgentLink-Rescue-v0.5.1-brain-gui-gemma4-e4b-q4km.zip
 ```
+
+For a self-contained double-clickable portable beta, assemble the universal GUI binary and core package into a top-level app bundle plus launcher/checksum files. The latest verified portable beta is recorded in the "Current Verified Artifact" section above.
 
 If a Clash Verge Rev DMG has been fetched, `scripts/package_gui_brain.sh` also emits:
 

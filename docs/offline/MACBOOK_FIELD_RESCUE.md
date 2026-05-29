@@ -1,6 +1,7 @@
 # MacBook Field Rescue
 
-v0.5.1 can build a copy-to-another-Mac package for Clash Verge TUN-related network breakage:
+The v0.5.x line can build a copy-to-another-Mac package for Clash Verge
+TUN-related network breakage:
 
 ```bash
 ./scripts/package_macbook_field_rescue.sh
@@ -11,6 +12,9 @@ Output:
 ```text
 dist/Cactus-AgentLink-Rescue-v0.5.1-macbook-field-gui-proxykit.zip
 ```
+
+The filename still carries `v0.5.1` because the shared CLI core reports
+`agentlink 0.5.1`. The current GUI/audit/portable-beta line is v0.5.2.
 
 The package unzips to `Cactus MacBook Network Rescue/` and includes:
 

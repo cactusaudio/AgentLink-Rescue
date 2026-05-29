@@ -17,5 +17,8 @@ Rules:
 11. Network rescue safe/standard/deep is shown as copyable Terminal commands.
 12. Core GUI remains usable without Brain assets.
 13. Brain GUI planning is local and offline when bundled assets are present.
+14. Normal v0.5.2 field-beta GUI rescue remains dry-run-first.
+15. The GUI selftest must expose machine-readable readiness and no-sudo fields.
+16. Portable packages must include a fallback launcher and checksum verifier.
 
 The GUI may show status, command output, reports, dry-runs, copyable commands, and rollback/report paths. It must not bypass `agentlink`.

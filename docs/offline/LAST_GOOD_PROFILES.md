@@ -2,7 +2,7 @@
 
 Last-Good Profiles save known-good AI-path configuration so AgentLink can restore the path back to AI agents without reinstalling everything.
 
-Saved scope in v0.5.1:
+Saved scope in v0.5.x:
 
 - Codex config
 - Claude settings

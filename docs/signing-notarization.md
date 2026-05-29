@@ -18,8 +18,13 @@ security find-identity -v -p codesigning
 ```
 
 That means notarization is a credentials/Apple-account boundary, not a product
-runtime proof. The current package proof is unsigned local zip integrity plus
-GUI selftest, not public distribution readiness.
+runtime proof. The current portable field-beta proof is ad-hoc signed local zip
+integrity plus GUI selftest, not public distribution readiness.
+
+The latest portable beta on `CTS Dark` was ad-hoc signed with `codesign -s -`
+and verified with `codesign --verify --deep --strict`. Ad-hoc signing improves
+local bundle consistency but is not Developer ID signing and is not
+notarization.
 
 Do not attempt notarization from the rescue kernel unless the operator
 explicitly supplies Developer ID credentials and approves that release step.

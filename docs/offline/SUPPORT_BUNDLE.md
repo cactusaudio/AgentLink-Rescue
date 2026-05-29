@@ -28,6 +28,11 @@ Excluded:
 
 Support bundles are redacted, but they may still reveal local paths, installed tool presence, network/proxy state, and session metadata. Review before sharing outside the trusted repair flow.
 
+v0.5.2 hardening note: bundle staging files are private by default, bundle
+directories are created with restrictive permissions, and zip creation skips
+symlinks plus non-regular files. The support bundle is still a diagnostic
+handoff artifact, not a public telemetry stream.
+
 CLI:
 
 ```bash

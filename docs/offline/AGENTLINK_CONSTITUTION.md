@@ -12,4 +12,6 @@
 10. Redact secrets by default.
 11. Deterministic runner owns execution.
 12. Verifier owns truth.
-
+13. Private diagnostic artifacts are private by default.
+14. Support bundles must not follow symlinks outside their staging tree.
+15. Field-beta GUI rescue remains dry-run-first.

@@ -1,12 +1,26 @@
 # AgentLink v0.5.2 GUI Field Beta Readiness
 
 Date: 2026-05-21
+Updated: 2026-05-24 hardening addendum
 
-Status: controlled field beta candidate, not public release, local review diff, not pushed.
+Status: controlled field beta candidate, not public release. The original
+GUI field-beta alpha was committed/tagged as `v0.5.2-gui-field-beta-alpha`;
+the later hardening commit is `01ced16` and remains local unless explicitly
+pushed.
 
 Version note: `v0.5.2-gui-field-beta-alpha` is the GUI/audit-package line.
 The shared CLI core still reports `agentlink 0.5.1` until the public release
 version bump.
+
+Hardening note: post-alpha commit `01ced16` tightened private file/directory
+permissions, preserved config-file modes, skipped symlinks/non-regular files in
+support bundles, and added four fuzz harnesses. The portable universal beta was
+rebuilt on external USB `CTS Dark`:
+
+```text
+/Volumes/CTS Dark/Cactus-AgentLink-Rescue-v0.5.2-field-beta-hardened-portable-universal-20260524T012027Z.zip
+SHA256 e9347c39c50c42920240cadca55f3a28f49079561822604919f8dda81caa17eb
+```
 
 ## Objective
 
@@ -96,6 +110,6 @@ Still outside this proof:
 
 ## Recommendation
 
-Accept as controlled GUI field beta candidate after review. Do not call it a
-public release until signing/notarization, cross-Mac GUI QA, and real disposable
-mutation/rollback proof are complete.
+Accept as controlled GUI field beta candidate after review and local hardening.
+Do not call it a public release until signing/notarization, cross-Mac GUI QA,
+and real disposable mutation/rollback proof are complete.

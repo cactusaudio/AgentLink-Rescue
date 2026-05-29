@@ -1,4 +1,7 @@
-Cactus AgentLink Rescue 0.5.1
+Cactus AgentLink Rescue 0.5.x
+
+Current line: v0.5.2 GUI field beta with shared CLI core version
+`agentlink 0.5.1`.
 
 1. Put this folder anywhere, for example Downloads.
 2. Double-click agentlink.command.
@@ -68,7 +71,7 @@ Brain package offline checks:
   ./bin/agentlink repair --auto --brain --target path --dry-run
 
 Brain mode is planner-only:
-- Gemma may explain or shadow-plan rescue decisions, but v0.5.1 release behavior is deterministic.
+- Gemma may explain or shadow-plan rescue decisions, but current v0.5.x field-beta behavior is deterministic.
 - The deterministic runner executes only local recipes.
 - Gemma never executes arbitrary shell.
 - For Network/TUN rescue, deterministic failure classes and validated recipes own the repair path; Gemma output is not a gated supervisor.
@@ -106,7 +109,8 @@ GUI mode is a shell:
 - Network rescue safe/tun/standard/clean-baseline/standard-system-reset/deep commands are shown for Terminal copy/paste inside Developer Mode.
 - The GUI does not implement its own repair engine.
 
-v0.5.1 also includes offline recipe and Brain docs:
+v0.5.x also includes offline recipe and Brain docs:
+- docs/offline/FIELD_BETA_STATUS.md
 - docs/offline/AGENTLINK_CONSTITUTION.md
 - docs/offline/RECIPE_AUTHORING.md
 - docs/offline/PLANNER_CONTRACT.md

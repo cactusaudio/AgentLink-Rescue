@@ -29,6 +29,7 @@ runtimes/llama.cpp/arm64/llama-cli
 runtimes/llama.cpp/arm64/*.dylib
 installers/clash-verge-rev/macos-arm64/*.dmg
 releases/v0.5.1/*.zip
+releases/v0.5.2/*.zip
 ASSET_MANIFEST_SHA256.txt
 ```
 

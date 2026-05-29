@@ -2,6 +2,17 @@
 
 This package is for GPT Pro cloud fixture/read-only/dry-run stress testing of Cactus AgentLink Rescue.
 
+For the current v0.5.2 GUI field-beta audit line, prefer:
+
+```text
+README_FIRST_FOR_GPT_PRO_V052_GUI_BETA_AUDIT.md
+docs/testing/GPT_PRO_V052_GUI_FIELD_BETA_AUDIT_PROMPT.md
+docs/offline/FIELD_BETA_STATUS.md
+```
+
+This older stress entry remains useful for fixture/read-only/dry-run package
+checks, but it is not the full GUI field-beta readiness prompt.
+
 Run this from the extracted package root:
 
 ```bash
@@ -91,4 +102,3 @@ Use the detailed guide here:
 ```text
 docs/testing/GPT_PRO_PRERELEASE_STRESS_GUIDE.md
 ```
-

@@ -1,6 +1,6 @@
 # Clash / Mihomo TUN Rescue
 
-AgentLink v0.5.1 treats stale Clash, Clash Verge, ClashX, and Mihomo TUN state as a targeted failure class, not a generic network reset.
+AgentLink v0.5.x treats stale Clash, Clash Verge, ClashX, and Mihomo TUN state as a targeted failure class, not a generic network reset.
 
 High-confidence signatures:
 

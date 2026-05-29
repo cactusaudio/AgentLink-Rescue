@@ -2,6 +2,11 @@
 
 You are auditing an AgentLink Rescue v0.5.2 GUI field beta package.
 
+If the package source commit is `01ced16` or later, include the post-alpha
+hardening layer in scope: private file/directory permissions, support-bundle
+symlink/non-regular-file handling, fuzz harness presence, and portable-package
+metadata.
+
 This is a source/runtime audit and controlled field-beta readiness review. It is
 not a public release gate, not a notarization proof, not model proof, and not
 real mutating network repair proof.
@@ -35,6 +40,7 @@ README_FIRST_FOR_GPT_PRO_V052_GUI_BETA_AUDIT.md
 PACKAGE_MANIFEST.json
 governor/reports/V0521_GUI_FIELD_BETA_READINESS.md
 docs/offline/GUI_DOGFOOD.md
+docs/offline/FIELD_BETA_STATUS.md
 docs/offline/GUI_SAFETY_MODEL.md
 gui/CactusAgentLinkRescue/Sources/CactusAgentLinkRescue/AppState.swift
 gui/CactusAgentLinkRescue/Sources/CactusAgentLinkRescue/AgentlinkClient.swift
@@ -111,6 +117,8 @@ betaReadiness has mainActionDryRunOnly=true, noSudoInGUI=true, adminRepairsUseTe
 scripts/dogfood_gui_core.sh asserts betaReadiness.ready and safety fields
 docs/gui-dogfood/v0.5.2/after/beta-readiness-dashboard.jpg exists and contains no literal /Users/jack or /Users/bowei string
 v0.5.1 FTS/privacy/phase audit remains pass
+if present, docs/offline/FIELD_BETA_STATUS.md records the latest portable beta and hardening boundary
+if present, four fuzz harnesses exist under internal/safety, internal/planner, internal/recipe, and internal/diagnosisgraph
 go vet ./... passes
 FULL=1: go test ./... passes
 ```

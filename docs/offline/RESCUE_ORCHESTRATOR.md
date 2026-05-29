@@ -1,6 +1,6 @@
 # Rescue Orchestrator
 
-v0.5.1 turns AgentLink from a feature panel into a bounded local rescue orchestrator.
+v0.5.x turns AgentLink from a feature panel into a bounded local rescue orchestrator. The current field-beta packaging line is v0.5.2; the shared CLI core still reports `agentlink 0.5.1`.
 
 Flow:
 

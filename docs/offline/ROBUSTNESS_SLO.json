@@ -1,12 +1,16 @@
 {
   "schemaVersion": 1,
   "toolVersion": "0.5.1",
+  "productLine": "v0.5.2-gui-field-beta-hardened",
   "core": {
     "packageDoctorP95Seconds": 5,
     "doctorWorksWithoutBrainAssets": true,
     "dryRunMutatesSystem": false,
     "supportBundleClearFailureRequired": true,
-    "guiIndefiniteRunningAllowed": false
+    "guiIndefiniteRunningAllowed": false,
+    "privateDiagnosticFileMode": "0600",
+    "privateDiagnosticDirMode": "0700",
+    "preserveExistingConfigFileMode": true
   },
   "network": {
     "highConfidenceTunChoosesStandardFirst": false,
@@ -23,12 +27,22 @@
     "coreZipMayContainModel": false,
     "coreZipMayContainRuntime": false,
     "zipFinderMetadataAllowed": false,
-    "largeAssetsInSourceAllowed": false
+    "largeAssetsInSourceAllowed": false,
+    "supportBundleFollowsSymlinks": false,
+    "portableGuiUniversalRequired": true,
+    "portablePackageChecksumRequired": true
   },
   "ux": {
     "mainPathOneButton": true,
     "advancedHiddenUnderDeveloperMode": true,
     "disabledActionsRequireReason": true,
-    "sudoViaTerminalTicket": true
+    "sudoViaTerminalTicket": true,
+    "guiFieldBetaSelftestRequired": true
+  },
+  "fuzz": {
+    "redactionHarnessRequired": true,
+    "plannerDecisionDecodeHarnessRequired": true,
+    "recipeDecodeHarnessRequired": true,
+    "diagnosisGraphBuildHarnessRequired": true
   }
 }
