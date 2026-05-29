@@ -12,6 +12,8 @@ import (
 	"cactus-agentlink-rescue/internal/command"
 	"cactus-agentlink-rescue/internal/diagnose"
 	"cactus-agentlink-rescue/internal/diagnosisgraph"
+	"cactus-agentlink-rescue/internal/genome"
+	"cactus-agentlink-rescue/internal/genomekernel"
 	"cactus-agentlink-rescue/internal/networkverify"
 	"cactus-agentlink-rescue/internal/planner"
 	"cactus-agentlink-rescue/internal/recipe"
@@ -30,6 +32,7 @@ type Options struct {
 	TimeoutSeconds int
 	RulesDir       string
 	RecipesDir     string
+	GenomeDir      string
 	Home           string
 	PackageRoot    string
 	BrainBackend   brain.BrainBackend
@@ -68,6 +71,10 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Report {
 	// confidence/edge-weighted diagnosis graph so the kernel routes on a
 	// ranked primary hypothesis, not a flat unordered class set.
 	graph := diagnosisgraph.Build(diag, true)
+	// Knowledge integration: surface the distilled genome cards for the primary
+	// class as read-only advisory context. Best-effort — it never blocks a
+	// rescue and never influences the decision.
+	report.GenomeAdvisory = genomeAdvisory(graph, opts.GenomeDir)
 	tun := diagnose.DiagnoseTun(diag)
 	report.FailureClasses = append([]string(nil), diag.Classifications...)
 	if tun.RecommendedRepair == "tun" && !contains(report.FailureClasses, classify.ClashTunActiveOrStale) {
@@ -718,6 +725,24 @@ func runLevelRepair(ctx context.Context, runner command.Runner, pd planner.Decis
 		report.NextAction = "agentlink support bundle"
 	}
 	return finish(report, opts.Home)
+}
+
+// genomeAdvisory best-effort projects the distilled genome cards for the
+// graph's primary class into read-only report context. A missing/unreadable
+// corpus returns nil and must never block a rescue.
+func genomeAdvisory(graph diagnosisgraph.Graph, genomeDir string) *genomekernel.Advisory {
+	if graph.PrimaryClass == "" || graph.PrimaryClass == classify.OK {
+		return nil
+	}
+	corpus, err := genome.Load(genomeDir)
+	if err != nil {
+		return nil
+	}
+	adv, ok := genomekernel.AdvisoryForClass(corpus, graph.PrimaryClass, 3)
+	if !ok {
+		return nil
+	}
+	return &adv
 }
 
 func contains(values []string, target string) bool {

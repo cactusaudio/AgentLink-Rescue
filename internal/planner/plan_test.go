@@ -147,6 +147,36 @@ func TestPlanNetworkTierSpreadAndProtectedRefusal(t *testing.T) {
 	}
 }
 
+func TestPlanEscalationLadderAndCoFaults(t *testing.T) {
+	reg, err := recipe.LoadRegistry("../../recipes")
+	if err != nil {
+		t.Fatalf("load registry: %v", err)
+	}
+	d := Plan(Inputs{
+		PrimaryClass: classify.SystemProxyDirty,
+		Classes:      []string{classify.SystemProxyDirty, classify.GitProxyDirty},
+		Confidence:   0.85,
+	}, reg)
+	if d.Intent != "repair" || d.RepairLevel != LevelSafe {
+		t.Fatalf("expected safe-tier repair, got %+v", d)
+	}
+	if len(d.Escalation) == 0 || d.Escalation[0] != LevelStandard {
+		t.Fatalf("escalation ladder must start at standard: %v", d.Escalation)
+	}
+	if d.Escalation[len(d.Escalation)-1] != "last-resort:"+lastResortRecipe {
+		t.Fatalf("escalation must end at last-resort clean baseline: %v", d.Escalation)
+	}
+	found := false
+	for _, r := range d.CoFaults {
+		if r == "npm-git-proxy-conflict-repair" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("GIT_PROXY_DIRTY co-fault recipe not surfaced: %v", d.CoFaults)
+	}
+}
+
 func TestPlanBrewProxyRoutesToReversibleRecipe(t *testing.T) {
 	reg, err := recipe.LoadRegistry("../../recipes")
 	if err != nil {

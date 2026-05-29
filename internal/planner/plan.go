@@ -65,7 +65,7 @@ func Plan(in Inputs, reg recipe.Registry) Decision {
 		// No user-config recipe routes this class. If it mutates system network
 		// state, route it to the privileged repair tier (reversible via captured
 		// network snapshot + rollback); otherwise stay read-only.
-		return planNetworkLevel(in)
+		return planNetworkLevel(in, reg)
 	}
 
 	best := candidates[0]
@@ -87,6 +87,8 @@ func Plan(in Inputs, reg recipe.Registry) Decision {
 			RequiresUserApproval: recipe.WritableRisk(best.Risk),
 			ExpectedVerifiers:    verifierIDs(best),
 			FallbackRecipes:      fallbacks,
+			Escalation:           escalationFor(""),
+			CoFaults:             coFaultRecipes(in, reg, best.ID),
 			ExplanationForUser:   "Least-invasive reversible recipe routed to " + in.PrimaryClass + "; snapshot + verifier + rollback are enforced by the runner.",
 		}
 	case recipe.RiskReadOnly, recipe.RiskNetworkAction:
@@ -95,7 +97,7 @@ func Plan(in Inputs, reg recipe.Registry) Decision {
 		// network state. Route through the graduated network-level path (which
 		// picks the appropriate tier from RecommendedRepairLevel) rather than
 		// jumping to a heavy privileged recipe.
-		return planNetworkLevel(in)
+		return planNetworkLevel(in, reg)
 	}
 }
 
@@ -126,7 +128,7 @@ var networkStateClasses = map[string]bool{
 // planNetworkLevel routes a class that has no user-config recipe. If the class
 // is a known network-state class it goes to the privileged repair tier (tier
 // from classify.RecommendedRepairLevel); everything else stays read-only.
-func planNetworkLevel(in Inputs) Decision {
+func planNetworkLevel(in Inputs, reg recipe.Registry) Decision {
 	conf := clamp01(in.Confidence)
 	if isProtectedClass(in.PrimaryClass) {
 		return reportDecision(in.PrimaryClass, conf, "protected topology class; read-only, no network mutation")
@@ -156,8 +158,40 @@ func planNetworkLevel(in Inputs) Decision {
 		RepairLevel:          level,
 		Risk:                 risk,
 		RequiresUserApproval: true,
+		Escalation:           escalationFor(level),
+		CoFaults:             coFaultRecipes(in, reg, ""),
 		ExplanationForUser:   "System network-state repair (" + level + " tier) routed to " + in.PrimaryClass + "; privileged and reversible via the captured network snapshot + rollback.",
 	}
+}
+
+// coFaultRecipes surfaces recipes for OTHER independent reversible user-config
+// faults present alongside the primary class (multi-fault awareness). Only
+// reversible, non-privileged, non-root config recipes are listed — they can be
+// applied as bounded follow-ups without escalating risk.
+func coFaultRecipes(in Inputs, reg recipe.Registry, excludeRecipe string) []string {
+	seen := map[string]bool{}
+	if excludeRecipe != "" {
+		seen[excludeRecipe] = true
+	}
+	var out []string
+	for _, c := range in.Classes {
+		if c == in.PrimaryClass {
+			continue
+		}
+		rec, ok := reg.LowestRiskRecipeForClass(c)
+		if !ok {
+			continue
+		}
+		if rec.RequiresRoot || rec.Risk == recipe.RiskPrivilegedAction || !recipe.WritableRisk(rec.Risk) {
+			continue
+		}
+		if seen[rec.ID] {
+			continue
+		}
+		seen[rec.ID] = true
+		out = append(out, rec.ID)
+	}
+	return out
 }
 
 func reportDecision(class string, conf float64, reason string) Decision {

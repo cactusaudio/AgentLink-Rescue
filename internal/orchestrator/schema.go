@@ -3,6 +3,8 @@ package orchestrator
 import (
 	"encoding/json"
 	"fmt"
+
+	"cactus-agentlink-rescue/internal/genomekernel"
 )
 
 type Report struct {
@@ -37,6 +39,7 @@ type Report struct {
 	HumanSummary                string         `json:"humanSummary"`
 	NextAction                  string         `json:"nextAction,omitempty"`
 	Warnings                    []string       `json:"warnings,omitempty"`
+	GenomeAdvisory              *genomekernel.Advisory `json:"genomeAdvisory,omitempty"`
 }
 
 type Cycle struct {

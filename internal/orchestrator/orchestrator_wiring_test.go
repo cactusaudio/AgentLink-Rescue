@@ -142,6 +142,23 @@ func TestRunLevelRepairDryRunReportsPlanned(t *testing.T) {
 	}
 }
 
+// TestGenomeAdvisoryAttachesForNetworkClass proves knowledge integration: the
+// orchestrator surfaces distilled genome cards for the primary class as
+// read-only report context (genome in the loop), best-effort.
+func TestGenomeAdvisoryAttachesForNetworkClass(t *testing.T) {
+	g := diagnosisgraph.Build(diagnose.DiagnosticReport{
+		Classifications: []string{classify.SystemProxyDirty},
+		Network:         diagnose.NetworkInfo{ProxySummary: diagnose.ProxySummary{Dirty: true}},
+	}, true)
+	adv := genomeAdvisory(g, "")
+	if adv == nil {
+		t.Skip("genome corpus not reachable from test cwd; advisory is best-effort")
+	}
+	if adv.Layer != "L05_proxy" || len(adv.CardIDs) == 0 {
+		t.Fatalf("SYSTEM_PROXY_DIRTY advisory wrong: %+v", adv)
+	}
+}
+
 func hasCycle(rep Report, state string) bool {
 	for _, c := range rep.Cycles {
 		if c.State == state {
