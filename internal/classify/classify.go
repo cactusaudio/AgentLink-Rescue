@@ -27,8 +27,6 @@ const (
 	NetworkExtensionSessionStale          = "NETWORK_EXTENSION_SESSION_STALE"
 	TunRouteOwnershipSuspected            = "TUN_ROUTE_OWNERSHIP_SUSPECTED"
 	AirDropDiscoveryDegraded              = "AIRDROP_DISCOVERY_DEGRADED"
-	ClashCleanReinstallRequired           = "CLASH_CLEAN_REINSTALL_REQUIRED"
-	RestartGateRequired                   = "RESTART_GATE_REQUIRED"
 	NetworkLocationSuspected              = "NETWORK_LOCATION_SUSPECTED"
 	SysconfigSuspected                    = "SYSCONFIG_SUSPECTED"
 	MDMProfileSuspected                   = "MDM_PROFILE_SUSPECTED"
@@ -127,6 +125,32 @@ func Classify(r diagnose.DiagnosticReport) []string {
 	if rawOK && dnsOK && httpsOK && len(r.Reachability.AgentTargets) > 0 && !agentOK {
 		add(GeneralInternetOKAgentEndpointBlocked)
 	}
+	// NETWORK_LOCATION_SUSPECTED: a non-default macOS network Location is active
+	// while the internet is broken — the selected location set may carry stale
+	// scoped service/proxy/DNS config (reads the previously-dead CurrentLocation
+	// input field).
+	if internetBroken && !protectedTrap && !protectedConstraint {
+		loc := strings.TrimSpace(r.Network.CurrentLocation)
+		if loc != "" && !strings.EqualFold(loc, "Automatic") {
+			add(NetworkLocationSuspected)
+		}
+	}
+	// NETWORK_EXTENSION_SESSION_STALE: a NetworkExtension/system-extension is
+	// still resident while a TUN runtime is active — the NE session has not
+	// cleanly released. Distinct from NETWORK_EXTENSION_SUSPECTED (filter
+	// residue with a clean proxy); here the live TUN is the tell.
+	if len(r.Residues.SystemExtensions) > 0 && tun.RecommendedRepair == "tun" && !protectedTrap && !protectedConstraint {
+		add(NetworkExtensionSessionStale)
+	}
+	// SYSCONFIG_SUSPECTED: diagnosis of exclusion. The link is locally healthy
+	// (default route present, gateway answers) yet nothing beyond the gateway is
+	// reachable, with no proxy / TUN / agent-residue cause. SystemConfiguration
+	// or scoped-service corruption is the residual hypothesis -> deeper repair.
+	if r.Network.DefaultRoute.Present && r.Reachability.Gateway.Target != "" && r.Reachability.Gateway.OK &&
+		!rawOK && proxyClean(r) && len(allResidues(r.Residues)) == 0 &&
+		tun.RecommendedRepair != "tun" && !protectedTrap && !protectedConstraint {
+		add(SysconfigSuspected)
+	}
 	if protectedTrap {
 		add(ProtectedAudioVLANRouteTrap)
 	} else if protectedConstraint {
@@ -172,6 +196,22 @@ func RecommendedRepairLevel(classes []string) string {
 		return "none"
 	}
 	return "safe"
+}
+
+// AllClasses returns every deterministic failure class Classify can emit
+// (excluding the UNKNOWN supervisor sentinel, which is never a routing key).
+// It is the canonical taxonomy consumed by routing-completeness and
+// genome-consistency checks — the single list that must stay drift-free.
+func AllClasses() []string {
+	return []string{
+		OK, NoActiveInterface, LinkLocalOnly, NoDHCPLease, NoDefaultRoute,
+		GatewayUnreachable, RawIPUnreachable, DNSFail, HTTPSFail,
+		SystemProxyDirty, UserProxyDirty, GitProxyDirty, NpmProxyDirty, BrewProxyDirty,
+		KnownAgentResidue, NetworkExtensionSuspected, ClashTunActiveOrStale,
+		NetworkExtensionSessionStale, TunRouteOwnershipSuspected, AirDropDiscoveryDegraded,
+		NetworkLocationSuspected, SysconfigSuspected, MDMProfileSuspected,
+		GeneralInternetOKAgentEndpointBlocked, ProtectedTopologyConstraint, ProtectedAudioVLANRouteTrap,
+	}
 }
 
 func hasClassValue(values []string, target string) bool {

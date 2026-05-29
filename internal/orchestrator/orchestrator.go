@@ -151,11 +151,17 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Report {
 	if decision.Intent != "repair" {
 		// recipe -> planner -> orchestrator -> verifier -> safety: the
 		// deterministic TUN supervisor produced no executable privileged
-		// repair, so consult the registry-driven planner for a bounded,
-		// reversible repair routed to the diagnosis graph's primary class.
+		// repair, so consult the registry-driven planner for a bounded repair
+		// routed to the diagnosis graph's primary class — either a reversible
+		// user-config recipe (recipe.Run) or a privileged network-state tier
+		// (repair.Run, reversible via captured network snapshot).
 		if reg, regErr := recipe.LoadRegistry(opts.RecipesDir); regErr == nil {
-			if pd, ok := reversibleRepairPlan(graph, reg, verifier.NewRegistry()); ok {
+			pd, kind := plannerRepairPlan(graph, reg, verifier.NewRegistry())
+			switch kind {
+			case "recipe":
 				return runReversibleRepair(ctx, runner, reg, pd, opts, report)
+			case "level":
+				return runLevelRepair(ctx, runner, pd, opts, report)
 			}
 		}
 		report.SelectedRecipe = decision.SelectedRecipe
@@ -565,34 +571,32 @@ func writeIncident(report Report, home string) string {
 	return dir
 }
 
-// reversibleRepairPlan consults the registry-driven planner (the distilled
-// routing judgment) for a bounded repair when the deterministic supervisor
-// produced no executable privileged repair. It returns the validated decision
-// and true ONLY when the decision is an executable reversible/safe repair, so
-// recipe.Run is the correct executor. Privileged / root / network recipes are
-// refused here — they belong to the deterministic supervisor or the
-// user-approved terminal-ticket / last-resort path.
-func reversibleRepairPlan(graph diagnosisgraph.Graph, reg recipe.Registry, vreg verifier.Registry) (planner.Decision, bool) {
+// plannerRepairPlan consults the registry-driven planner (the distilled routing
+// judgment) for a bounded repair when the deterministic supervisor produced no
+// executable privileged repair. It returns the validated decision and a kind:
+//   - "recipe": an executable reversible/safe user-config recipe (recipe.Run,
+//     no root) is the correct executor;
+//   - "level":  a privileged network-state repair tier (repair.Run) is the
+//     correct executor — reversible via the engine's captured network snapshot;
+//   - "":       not an executable repair (report/probe/invalid) — fall through.
+func plannerRepairPlan(graph diagnosisgraph.Graph, reg recipe.Registry, vreg verifier.Registry) (planner.Decision, string) {
 	pd := planner.Plan(planner.Inputs{
 		PrimaryClass:      graph.PrimaryClass,
 		Classes:           graph.FailureClasses,
 		Confidence:        graph.Confidence,
 		ProtectedTopology: len(graph.ProtectedConstraints) > 0,
 	}, reg)
-	if planner.ValidateDecision(pd, reg, vreg) != nil {
-		return pd, false
+	if planner.ValidateDecision(pd, reg, vreg) != nil || pd.Intent != "repair" {
+		return pd, ""
 	}
-	if pd.Intent != "repair" {
-		return pd, false
+	if pd.RepairLevel != "" {
+		return pd, "level"
 	}
 	rec, ok := reg.Get(pd.SelectedRecipe.ID)
-	if !ok {
-		return pd, false
+	if !ok || rec.RequiresRoot || rec.Risk == recipe.RiskPrivilegedAction || !recipe.WritableRisk(rec.Risk) {
+		return pd, ""
 	}
-	if rec.RequiresRoot || rec.Risk == recipe.RiskPrivilegedAction || !recipe.WritableRisk(rec.Risk) {
-		return pd, false
-	}
-	return pd, true
+	return pd, "recipe"
 }
 
 // runReversibleRepair executes a planner-selected reversible recipe through
@@ -653,6 +657,64 @@ func runReversibleRepair(ctx context.Context, runner command.Runner, reg recipe.
 		if report.HumanSummary == "" {
 			report.HumanSummary = "Reversible repair did not complete; see recipe result."
 		}
+		report.NextAction = "agentlink support bundle"
+	}
+	return finish(report, opts.Home)
+}
+
+// runLevelRepair executes a planner-selected privileged network-state repair
+// tier through the repair engine. The engine captures a network snapshot and
+// auto-rolls-back on postflight worsening; the orchestrator never runs sudo in
+// the GUI, so without root it produces the dry-run plan and a privileged
+// NextAction. Yes=true is passed only to unlock the plan/level gate — DryRun
+// guarantees no mutation unless the caller is genuinely root + consented.
+func runLevelRepair(ctx context.Context, runner command.Runner, pd planner.Decision, opts Options, report Report) Report {
+	report.SupervisorMode = "deterministic_planner"
+	report.PlanSource = "planner"
+	report.SelectedRecipe = "rescue:" + pd.RepairLevel
+	report.RequiresAdmin = true
+	report.Cycles = append(report.Cycles, Cycle{
+		Index:              len(report.Cycles) + 1,
+		State:              "PlannerDecision",
+		FailureClasses:     report.FailureClasses,
+		SupervisorDecision: pd,
+		PlanValidation:     map[string]any{"ok": true, "planSource": "planner", "repairLevel": pd.RepairLevel, "risk": pd.Risk},
+		Result:             "plan_validated",
+	})
+	dry := opts.DryRun || !opts.Yes || !system.IsRoot()
+	res := repair.Run(ctx, runner, repair.Options{Level: pd.RepairLevel, Yes: true, DryRun: dry, RulesDir: opts.RulesDir})
+	execCycle := Cycle{Index: len(report.Cycles) + 1, State: "DryRunOrExecute", Execution: res, Result: res.Status}
+	if dry {
+		execCycle.DryRun = res
+	}
+	report.Cycles = append(report.Cycles, execCycle)
+	report.Warnings = append(report.Warnings, res.Warnings...)
+	if res.RestorePointID != "" {
+		report.SnapshotID = res.RestorePointID
+		report.RollbackAvailable = true
+		report.RollbackCommand = res.RollbackCommand
+	}
+	if dry {
+		report.Status = "planned"
+		report.HumanSummary = "Privileged " + pd.RepairLevel + "-tier network repair for " + pd.FailureClass + " is planned (dry-run). It is reversible via a captured network snapshot; apply it with administrator approval."
+		report.NextAction = "sudo ./bin/agentlink rescue --level " + pd.RepairLevel + " --yes --json"
+		return finish(report, opts.Home)
+	}
+	switch {
+	case res.Status == "rolled_back_after_worsening":
+		report.Status = "rolled_back_after_worsening"
+		report.HumanSummary = "Postflight was worse than preflight, so AgentLink automatically rolled back."
+		report.WorsenedSignals = []string{"critical postflight comparator triggered"}
+	case res.Status == "partial_rollback_failed" || res.Status == "rollback_failed_after_worsening":
+		report.Status = "manual_action_required"
+		report.HumanSummary = "Network repair worsened connectivity and rollback did not fully complete; export a support bundle."
+		report.NextAction = "agentlink support bundle"
+	case res.ExitCode == 0:
+		report.Status = "repaired"
+		report.HumanSummary = "Privileged " + pd.RepairLevel + "-tier network repair completed and verification improved."
+	default:
+		report.Status = "manual_action_required"
+		report.HumanSummary = "Network repair did not prove success; export a support bundle before trying a broader reset."
 		report.NextAction = "agentlink support bundle"
 	}
 	return finish(report, opts.Home)

@@ -200,6 +200,52 @@ func TestUnboundRawAudioSignalDoesNotCreateProtectedTrap(t *testing.T) {
 	}
 }
 
+func TestClassifierNetworkLocationSuspected(t *testing.T) {
+	r := healthyReport()
+	r.Network.CurrentLocation = "Work VPN"
+	r.Network.DefaultRoute.Present = false // internet broken via no default route
+	classes := Classify(r)
+	if !has(classes, NetworkLocationSuspected) {
+		t.Fatalf("missing NETWORK_LOCATION_SUSPECTED: %v", classes)
+	}
+}
+
+func TestClassifierSysconfigSuspectedByExclusion(t *testing.T) {
+	r := healthyReport()
+	// Gateway answers but nothing beyond it works, with no proxy/TUN/residue cause.
+	r.Reachability.RawIPs = map[string]diagnose.ProbeResult{"1.1.1.1": {Target: "1.1.1.1", OK: false}}
+	r.Reachability.DNSNames = map[string]diagnose.ProbeResult{"apple.com": {Target: "apple.com", OK: false}}
+	r.Reachability.HTTPSTargets = map[string]diagnose.ProbeResult{"https://github.com/": {Target: "https://github.com/", OK: false}}
+	classes := Classify(r)
+	if !has(classes, SysconfigSuspected) {
+		t.Fatalf("missing SYSCONFIG_SUSPECTED: %v", classes)
+	}
+	if got := RecommendedRepairLevel(classes); got != "deep" {
+		t.Fatalf("level=%s classes=%v", got, classes)
+	}
+}
+
+func TestClassifierNetworkExtensionSessionStale(t *testing.T) {
+	r := healthyReport()
+	r.Reachability.RawIPs = map[string]diagnose.ProbeResult{"1.1.1.1": {Target: "1.1.1.1", OK: false}}
+	r.Network.Interfaces = append(r.Network.Interfaces, diagnose.NetworkInterface{Name: "utun0", Status: "active", IsUTun: true, IPv4: []string{"198.18.0.1"}, IPv6: []string{"fdfe:dcba:9876::1"}})
+	r.Residues.PrivilegedHelpers = []diagnose.ResidueMatch{{
+		RuleID: "clash_verge", DisplayName: "Clash Verge Rev", Risk: "network_proxy_tun_residue",
+		Path: "/Library/PrivilegedHelperTools/io.github.clash-verge-rev", Kind: "privilegedHelper", AutoQuarantineAllowed: true,
+	}}
+	r.Residues.SystemExtensions = []diagnose.ResidueMatch{{
+		RuleID: "clash_ne", DisplayName: "Clash NetworkExtension", Risk: "network_extension",
+		Path: "/Applications/Clash.app/Contents/Library/SystemExtensions/x.systemextension", Kind: "systemExtension",
+	}}
+	classes := Classify(r)
+	if !has(classes, NetworkExtensionSessionStale) {
+		t.Fatalf("missing NETWORK_EXTENSION_SESSION_STALE: %v", classes)
+	}
+	if !has(classes, ClashTunActiveOrStale) {
+		t.Fatalf("expected TUN active alongside stale NE session: %v", classes)
+	}
+}
+
 func protectedRouteTrapBase() diagnose.DiagnosticReport {
 	r := healthyReport()
 	r.Network.DefaultRoute = diagnose.DefaultRoute{Present: true, Gateway: "192.168.0.1", Interface: "en0"}

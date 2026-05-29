@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "id": "proxy-clean-stale-env",
-  "title": "Clean stale shell proxy env",
-  "description": "Adds a managed zsh block that unsets proxy environment variables.",
+  "title": "Clean stale shell + Homebrew proxy env",
+  "description": "Adds a managed zsh block that unsets generic and Homebrew proxy environment variables.",
   "supportedOS": ["darwin"],
-  "failureClasses": ["USER_PROXY_DIRTY"],
+  "failureClasses": ["USER_PROXY_DIRTY", "BREW_PROXY_DIRTY"],
   "risk": "reversible_patch",
   "requiresRoot": false,
   "autoAllowed": false,
@@ -19,7 +19,7 @@
       "type": "append_managed_block_if_missing",
       "path": "~/.zshrc",
       "marker": "PROXY_CLEAN_BLOCK",
-      "content": "unset HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY\nunset http_proxy https_proxy all_proxy no_proxy"
+      "content": "unset HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY\nunset http_proxy https_proxy all_proxy no_proxy\nunset HOMEBREW_HTTP_PROXY HOMEBREW_HTTPS_PROXY HOMEBREW_ALL_PROXY HOMEBREW_NO_PROXY"
     }
   ],
   "verify": [

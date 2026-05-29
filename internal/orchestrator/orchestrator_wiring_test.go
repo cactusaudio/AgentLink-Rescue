@@ -50,9 +50,9 @@ func TestReversibleRepairPlanRoutesReversibleClass(t *testing.T) {
 		Network:         diagnose.NetworkInfo{ProxySummary: diagnose.ProxySummary{Dirty: true}},
 	}
 	g := diagnosisgraph.Build(diag, true)
-	pd, ok := reversibleRepairPlan(g, reg, verifier.NewRegistry())
-	if !ok {
-		t.Fatalf("expected executable reversible repair, got intent=%q stop=%q", pd.Intent, pd.StopReason)
+	pd, kind := plannerRepairPlan(g, reg, verifier.NewRegistry())
+	if kind != "recipe" {
+		t.Fatalf("expected reversible recipe route, got kind=%q intent=%q stop=%q", kind, pd.Intent, pd.StopReason)
 	}
 	if pd.SelectedRecipe.ID != "proxy-clean-stale-env" {
 		t.Fatalf("routed to %q, want proxy-clean-stale-env", pd.SelectedRecipe.ID)
@@ -65,11 +65,11 @@ func TestReversibleRepairPlanRoutesReversibleClass(t *testing.T) {
 	}
 }
 
-// TestReversibleRepairPlanRefusesPrivilegedClass proves the executor split is
-// preserved: a class routed only to a privileged recipe (NO_DEFAULT_ROUTE ->
-// clean-network-baseline-reset) must NOT be sent to the reversible recipe.Run
-// executor — it belongs to the deterministic supervisor / ticket path.
-func TestReversibleRepairPlanRefusesPrivilegedClass(t *testing.T) {
+// TestPlannerRepairPlanRoutesNetworkStateClassToLevel proves the executor split:
+// a system network-state class (NO_DEFAULT_ROUTE) routes to the privileged
+// repair.Run level executor (not the reversible recipe.Run path), and the
+// graduated tier (standard) is chosen rather than a heavy clean-baseline recipe.
+func TestPlannerRepairPlanRoutesNetworkStateClassToLevel(t *testing.T) {
 	reg, err := recipe.LoadRegistry(repoRecipesDir)
 	if err != nil {
 		t.Fatalf("load registry: %v", err)
@@ -77,8 +77,15 @@ func TestReversibleRepairPlanRefusesPrivilegedClass(t *testing.T) {
 	g := diagnosisgraph.Build(diagnose.DiagnosticReport{
 		Classifications: []string{classify.NoDefaultRoute},
 	}, true)
-	if pd, ok := reversibleRepairPlan(g, reg, verifier.NewRegistry()); ok {
-		t.Fatalf("privileged-only class routed to reversible executor: %+v", pd)
+	pd, kind := plannerRepairPlan(g, reg, verifier.NewRegistry())
+	if kind != "level" {
+		t.Fatalf("NO_DEFAULT_ROUTE must route to the repair-level executor, got kind=%q", kind)
+	}
+	if pd.RepairLevel != planner.LevelStandard {
+		t.Fatalf("expected standard tier, got %q", pd.RepairLevel)
+	}
+	if pd.SelectedRecipe.ID != "" {
+		t.Fatalf("level decision must not also name a recipe: %+v", pd)
 	}
 }
 
@@ -107,6 +114,28 @@ func TestRunReversibleRepairDryRunReportsPlanned(t *testing.T) {
 	}
 	if rep.PlanSource != "planner" || rep.SelectedRecipe != "proxy-clean-stale-env" {
 		t.Fatalf("planner dispatch metadata wrong: source=%q recipe=%q", rep.PlanSource, rep.SelectedRecipe)
+	}
+	if !hasCycle(rep, "PlannerDecision") || !hasCycle(rep, "DryRunOrExecute") {
+		t.Fatalf("missing planner/execute cycles: %+v", rep.Cycles)
+	}
+}
+
+// TestRunLevelRepairDryRunReportsPlanned proves the network-state executor:
+// runLevelRepair drives the privileged repair engine in dry-run for a
+// network-state class and reports a planned, admin-gated, snapshot-reversible
+// repair with planner provenance.
+func TestRunLevelRepairDryRunReportsPlanned(t *testing.T) {
+	pd := planner.Decision{
+		SchemaVersion: 1, Intent: "repair", FailureClass: classify.SystemProxyDirty,
+		Confidence: 0.85, RepairLevel: planner.LevelSafe, Risk: recipe.RiskNetworkAction, RequiresUserApproval: true,
+	}
+	base := Report{SchemaVersion: 1, Status: "failed", Cycles: []Cycle{}, FailureClasses: []string{classify.SystemProxyDirty}}
+	rep := runLevelRepair(context.Background(), &command.MockRunner{}, pd, Options{DryRun: true, Home: t.TempDir()}, base)
+	if rep.Status != "planned" {
+		t.Fatalf("dry-run level repair status = %q, want planned", rep.Status)
+	}
+	if rep.PlanSource != "planner" || !rep.RequiresAdmin {
+		t.Fatalf("level repair provenance wrong: source=%q admin=%v", rep.PlanSource, rep.RequiresAdmin)
 	}
 	if !hasCycle(rep, "PlannerDecision") || !hasCycle(rep, "DryRunOrExecute") {
 		t.Fatalf("missing planner/execute cycles: %+v", rep.Cycles)

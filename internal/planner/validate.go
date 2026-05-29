@@ -42,7 +42,21 @@ func ValidateDecision(d Decision, recipes recipe.Registry, verifiers verifier.Re
 		return fmt.Errorf("repair risk required")
 	}
 	var rec recipe.Recipe
-	if d.Intent == "repair" || d.SelectedRecipe.ID != "" {
+	switch {
+	case d.RepairLevel != "":
+		// Privileged network-state repair tier (executed by the repair engine,
+		// not a registry recipe). Reversibility is enforced by the engine's
+		// captured network snapshot + rollback, not by a recipe rollback block.
+		if d.SelectedRecipe.ID != "" {
+			return fmt.Errorf("decision sets both repairLevel and selectedRecipe")
+		}
+		if !validRepairLevel(d.RepairLevel) {
+			return fmt.Errorf("invalid repair level: %s", d.RepairLevel)
+		}
+		if recipe.RiskRank(d.Risk) < recipe.RiskRank(recipe.RiskNetworkAction) {
+			return fmt.Errorf("repair-level decision must carry network or privileged risk")
+		}
+	case d.Intent == "repair" || d.SelectedRecipe.ID != "":
 		var ok bool
 		rec, ok = recipes.Get(d.SelectedRecipe.ID)
 		if !ok {
@@ -57,7 +71,7 @@ func ValidateDecision(d Decision, recipes recipe.Registry, verifiers verifier.Re
 		if recipe.WritableRisk(rec.Risk) && len(rec.Patches) > 0 && len(rec.Rollback) == 0 {
 			return fmt.Errorf("writable recipe lacks rollback")
 		}
-	} else if d.Risk != "" && recipe.RiskRank(d.Risk) > recipe.RiskRank(recipe.RiskNetworkAction) {
+	case d.Risk != "" && recipe.RiskRank(d.Risk) > recipe.RiskRank(recipe.RiskNetworkAction):
 		return fmt.Errorf("invalid report/probe risk")
 	}
 	for _, id := range d.ExpectedVerifiers {

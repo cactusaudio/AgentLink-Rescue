@@ -5,8 +5,6 @@
   "description": "Last-resort terminal-assisted reset to reach a clean local online baseline after targeted repair, rollback, restart-gate verification, or support review shows no safer remaining path. Execution is implemented by agentlink rescue --level clean-baseline, not by raw shell in this recipe file.",
   "supportedOS": ["darwin"],
   "failureClasses": [
-    "RESTART_GATE_REQUIRED",
-    "CLASH_CLEAN_REINSTALL_REQUIRED",
     "NO_DEFAULT_ROUTE",
     "RAW_IP_UNREACHABLE",
     "HTTPS_FAIL"
