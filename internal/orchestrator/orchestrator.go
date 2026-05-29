@@ -11,11 +11,15 @@ import (
 	"cactus-agentlink-rescue/internal/classify"
 	"cactus-agentlink-rescue/internal/command"
 	"cactus-agentlink-rescue/internal/diagnose"
+	"cactus-agentlink-rescue/internal/diagnosisgraph"
 	"cactus-agentlink-rescue/internal/networkverify"
+	"cactus-agentlink-rescue/internal/planner"
+	"cactus-agentlink-rescue/internal/recipe"
 	"cactus-agentlink-rescue/internal/repair"
 	"cactus-agentlink-rescue/internal/restartgate"
 	"cactus-agentlink-rescue/internal/system"
 	"cactus-agentlink-rescue/internal/ticket"
+	"cactus-agentlink-rescue/internal/verifier"
 )
 
 type Options struct {
@@ -25,6 +29,7 @@ type Options struct {
 	MaxCycles      int
 	TimeoutSeconds int
 	RulesDir       string
+	RecipesDir     string
 	Home           string
 	PackageRoot    string
 	BrainBackend   brain.BrainBackend
@@ -59,6 +64,10 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Report {
 	engine := diagnose.NewEngine(runner, diagnose.Options{RulesDir: opts.RulesDir})
 	diag := engine.Run(ctx)
 	classify.Apply(&diag)
+	// diagnose -> classify -> graph: project the heavy report into the compact
+	// confidence/edge-weighted diagnosis graph so the kernel routes on a
+	// ranked primary hypothesis, not a flat unordered class set.
+	graph := diagnosisgraph.Build(diag, true)
 	tun := diagnose.DiagnoseTun(diag)
 	report.FailureClasses = append([]string(nil), diag.Classifications...)
 	if tun.RecommendedRepair == "tun" && !contains(report.FailureClasses, classify.ClashTunActiveOrStale) {
@@ -75,6 +84,8 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Report {
 			"providers":            tun.Providers,
 			"protectedConstraints": len(diag.Topology.ProtectedConstraints),
 			"repairCorridor":       diag.Topology.RepairCorridor,
+			"graphPrimaryClass":    graph.PrimaryClass,
+			"graphConfidence":      graph.Confidence,
 		},
 		Result: "facts_collected",
 	})
@@ -138,6 +149,15 @@ func Run(ctx context.Context, runner command.Runner, opts Options) Report {
 	}
 	report.Cycles = append(report.Cycles, validateCycle)
 	if decision.Intent != "repair" {
+		// recipe -> planner -> orchestrator -> verifier -> safety: the
+		// deterministic TUN supervisor produced no executable privileged
+		// repair, so consult the registry-driven planner for a bounded,
+		// reversible repair routed to the diagnosis graph's primary class.
+		if reg, regErr := recipe.LoadRegistry(opts.RecipesDir); regErr == nil {
+			if pd, ok := reversibleRepairPlan(graph, reg, verifier.NewRegistry()); ok {
+				return runReversibleRepair(ctx, runner, reg, pd, opts, report)
+			}
+		}
 		report.SelectedRecipe = decision.SelectedRecipe
 		report.RequiresAdmin = decision.RequiresAdmin
 		switch decision.Intent {
@@ -543,6 +563,99 @@ func writeIncident(report Report, home string) string {
 		writeArtifact("restart-gate.json", report.RestartGate)
 	}
 	return dir
+}
+
+// reversibleRepairPlan consults the registry-driven planner (the distilled
+// routing judgment) for a bounded repair when the deterministic supervisor
+// produced no executable privileged repair. It returns the validated decision
+// and true ONLY when the decision is an executable reversible/safe repair, so
+// recipe.Run is the correct executor. Privileged / root / network recipes are
+// refused here — they belong to the deterministic supervisor or the
+// user-approved terminal-ticket / last-resort path.
+func reversibleRepairPlan(graph diagnosisgraph.Graph, reg recipe.Registry, vreg verifier.Registry) (planner.Decision, bool) {
+	pd := planner.Plan(planner.Inputs{
+		PrimaryClass:      graph.PrimaryClass,
+		Classes:           graph.FailureClasses,
+		Confidence:        graph.Confidence,
+		ProtectedTopology: len(graph.ProtectedConstraints) > 0,
+	}, reg)
+	if planner.ValidateDecision(pd, reg, vreg) != nil {
+		return pd, false
+	}
+	if pd.Intent != "repair" {
+		return pd, false
+	}
+	rec, ok := reg.Get(pd.SelectedRecipe.ID)
+	if !ok {
+		return pd, false
+	}
+	if rec.RequiresRoot || rec.Risk == recipe.RiskPrivilegedAction || !recipe.WritableRisk(rec.Risk) {
+		return pd, false
+	}
+	return pd, true
+}
+
+// runReversibleRepair executes a planner-selected reversible recipe through
+// the recipe runner — snapshot, verifier, and rollback are all enforced inside
+// recipe.Run — and maps the runner result onto the orchestrator report.
+func runReversibleRepair(ctx context.Context, runner command.Runner, reg recipe.Registry, pd planner.Decision, opts Options, report Report) Report {
+	report.SupervisorMode = "deterministic_planner"
+	report.PlanSource = "planner"
+	report.SelectedRecipe = pd.SelectedRecipe.ID
+	report.Cycles = append(report.Cycles, Cycle{
+		Index:              len(report.Cycles) + 1,
+		State:              "PlannerDecision",
+		FailureClasses:     report.FailureClasses,
+		SupervisorDecision: pd,
+		PlanValidation:     map[string]any{"ok": true, "planSource": "planner", "recipe": pd.SelectedRecipe.ID, "risk": pd.Risk},
+		Result:             "plan_validated",
+	})
+	dry := opts.DryRun || !opts.Yes
+	rr := recipe.Run(ctx, runner, reg, pd.SelectedRecipe.ID, recipe.RunOptions{
+		Home:   opts.Home,
+		DryRun: dry,
+		Yes:    opts.Yes,
+		JSON:   true,
+		Params: pd.SelectedRecipe.Params,
+	})
+	execCycle := Cycle{Index: len(report.Cycles) + 1, State: "DryRunOrExecute", Execution: rr, Result: rr.Status}
+	if dry {
+		execCycle.DryRun = rr
+	}
+	report.Cycles = append(report.Cycles, execCycle)
+	if rr.SnapshotID != "" {
+		report.SnapshotID = rr.SnapshotID
+		report.RollbackAvailable = true
+		report.RollbackCommand = "agentlink rollback --id " + rr.SnapshotID
+	}
+	report.Warnings = append(report.Warnings, rr.Warnings...)
+	if dry {
+		report.Status = "planned"
+		report.HumanSummary = "Reversible repair dry-run for " + pd.SelectedRecipe.ID + " is complete. No changes were made."
+		report.NextAction = "agentlink recipe run " + pd.SelectedRecipe.ID + " --yes --json"
+		return finish(report, opts.Home)
+	}
+	switch rr.Status {
+	case recipe.StatusSuccess, recipe.StatusSuccessWithWarnings:
+		report.Status = "repaired"
+		report.HumanSummary = "Reversible repair " + pd.SelectedRecipe.ID + " completed and verifiers passed."
+	case recipe.StatusRolledBack:
+		report.Status = "rolled_back_after_worsening"
+		report.HumanSummary = "Reversible repair verifiers worsened, so AgentLink rolled back automatically."
+		report.WorsenedSignals = []string{"recipe verifier rollback"}
+	case recipe.StatusVerifierFailed:
+		report.Status = "manual_action_required"
+		report.HumanSummary = "Reversible repair ran but verifiers did not confirm success."
+		report.NextAction = "agentlink support bundle"
+	default:
+		report.Status = "manual_action_required"
+		report.HumanSummary = pd.ExplanationForUser
+		if report.HumanSummary == "" {
+			report.HumanSummary = "Reversible repair did not complete; see recipe result."
+		}
+		report.NextAction = "agentlink support bundle"
+	}
+	return finish(report, opts.Home)
 }
 
 func contains(values []string, target string) bool {
