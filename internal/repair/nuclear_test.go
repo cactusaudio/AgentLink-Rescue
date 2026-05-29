@@ -8,6 +8,7 @@ import (
 	"cactus-agentlink-rescue/internal/classify"
 	"cactus-agentlink-rescue/internal/command"
 	"cactus-agentlink-rescue/internal/diagnose"
+	"cactus-agentlink-rescue/internal/snapshot"
 )
 
 // TestNuclearBypassesProtectedTopology proves the connectivity-first override:
@@ -81,6 +82,73 @@ func TestNuclearSuccessRequiresOnlineCapablePostState(t *testing.T) {
 	if code, _ := compare(brokenPre, stillBroken, 0); code == 0 {
 		t.Fatal("unchanged-broken post-state must not be reported as success")
 	}
+}
+
+// TestStaticFallbackGatewayDerivation covers the static-IP fallback used when a
+// network has no DHCP router: prefer a known safe gateway, else derive the
+// conventional .1 gateway from the active interface, rejecting TUN-hijack ones.
+func TestStaticFallbackGatewayDerivation(t *testing.T) {
+	known := diagnose.DiagnosticReport{Network: diagnose.NetworkInfo{DefaultRoute: diagnose.DefaultRoute{Gateway: "10.0.0.1"}}}
+	if g := staticFallbackGateway(known); g != "10.0.0.1" {
+		t.Fatalf("known safe gateway not preferred: %q", g)
+	}
+	staticNet := diagnose.DiagnosticReport{Network: diagnose.NetworkInfo{Interfaces: []diagnose.NetworkInterface{
+		{Name: "en0", Status: "active", IPv4: []string{"192.168.50.42"}},
+	}}}
+	if g := staticFallbackGateway(staticNet); g != "192.168.50.1" {
+		t.Fatalf("static .1 fallback wrong: %q", g)
+	}
+	tunTrap := diagnose.DiagnosticReport{Network: diagnose.NetworkInfo{
+		DefaultRoute: diagnose.DefaultRoute{Gateway: "198.18.0.1"},
+		Interfaces: []diagnose.NetworkInterface{
+			{Name: "en0", Status: "active", IPv4: []string{"192.168.1.20"}},
+			{Name: "utun4", IsUTun: true, IPv4: []string{"198.18.0.1"}},
+		},
+	}}
+	if g := staticFallbackGateway(tunTrap); g != "192.168.1.1" {
+		t.Fatalf("TUN gateway must be rejected and utun skipped, got %q", g)
+	}
+}
+
+// TestSafeDefaultRouteRebuildUsesStaticFallback proves the route rebuild falls
+// back to the static gateway (Args[1]) when there is no DHCP router.
+func TestSafeDefaultRouteRebuildUsesStaticFallback(t *testing.T) {
+	rp, err := snapshot.NewRestorePoint(t.TempDir(), "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner := &command.MockRunner{Results: map[string]command.Result{
+		`/sbin/route -n get default`:              {ExitCode: 1},
+		`/usr/sbin/ipconfig getoption en0 router`: {ExitCode: 0, Stdout: "\n"},
+		`/sbin/route add default 192.168.1.1`:     {ExitCode: 0},
+	}}
+	got := runSafeDefaultRouteFromDHCP(context.Background(), runner, &rp,
+		action{ID: "clean.route.rebuild.safe_dhcp", Dynamic: "safe-default-route-from-dhcp", Args: []string{"en0", "192.168.1.1"}},
+		ActionResult{ID: "clean.route.rebuild.safe_dhcp"})
+	if got.Error != "" || !got.RouteAddAttempted || got.RouteAddGateway != "192.168.1.1" {
+		t.Fatalf("static fallback gateway not used: %+v calls=%v", got, runner.Calls)
+	}
+}
+
+// TestNuclearPlanCarriesStaticFallbackGateway proves the nuclear plan embeds the
+// derived static-IP gateway so the route can be rebuilt on DHCP-less networks.
+func TestNuclearPlanCarriesStaticFallbackGateway(t *testing.T) {
+	report := diagnose.DiagnosticReport{
+		Network: diagnose.NetworkInfo{
+			Services:      []diagnose.NetworkService{{Name: "Wi-Fi"}},
+			HardwarePorts: []diagnose.HardwarePort{{Port: "Wi-Fi", Device: "en0"}},
+			Interfaces:    []diagnose.NetworkInterface{{Name: "en0", Status: "active", IPv4: []string{"192.168.7.33"}}},
+		},
+	}
+	for _, a := range buildActions(LevelNuclear, report) {
+		if a.Dynamic == "safe-default-route-from-dhcp" {
+			if len(a.Args) < 2 || a.Args[1] != "192.168.7.1" {
+				t.Fatalf("nuclear route rebuild missing static fallback gateway: %+v", a.Args)
+			}
+			return
+		}
+	}
+	t.Fatal("nuclear plan has no route-rebuild action")
 }
 
 // TestNuclearRequiresYesForMutation keeps the safety gate: the nuclear button

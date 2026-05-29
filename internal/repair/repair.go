@@ -515,7 +515,7 @@ func buildCleanBaselineActions(pre diagnose.DiagnosticReport) []action {
 	if wifiDevice != "" {
 		actions = append(actions,
 			action{Stage: "4_route_dns_awdl_verify_baseline", ID: "clean.ipconfig.dhcp." + sanitizeID(wifiDevice), Description: "Renew DHCP on active Wi-Fi/default device " + wifiDevice, Path: "/usr/sbin/ipconfig", Args: []string{"set", wifiDevice, "DHCP"}, IgnoreFailure: true},
-			action{Stage: "4_route_dns_awdl_verify_baseline", ID: "clean.route.rebuild.safe_dhcp", Description: "Rebuild default route only from current safe DHCP router if missing", Dynamic: "safe-default-route-from-dhcp", Args: []string{wifiDevice}, RollbackAvailable: true},
+			action{Stage: "4_route_dns_awdl_verify_baseline", ID: "clean.route.rebuild.safe_dhcp", Description: "Rebuild default route from safe DHCP router, or static-IP fallback gateway if no DHCP router", Dynamic: "safe-default-route-from-dhcp", Args: []string{wifiDevice, staticFallbackGateway(pre)}, RollbackAvailable: true},
 		)
 	}
 	actions = append(actions,
@@ -603,7 +603,7 @@ func buildTunPostActions(pre diagnose.DiagnosticReport) []action {
 	if wifiDevice != "" {
 		actions = append(actions,
 			action{Stage: "6_active_wifi_repair", ID: "tun.ipconfig.dhcp." + sanitizeID(wifiDevice), Description: "Renew DHCP on active Wi-Fi device " + wifiDevice, Path: "/usr/sbin/ipconfig", Args: []string{"set", wifiDevice, "DHCP"}, IgnoreFailure: true},
-			action{Stage: "6_active_wifi_repair", ID: "tun.route.rebuild.safe_dhcp", Description: "Rebuild default route only from current safe DHCP router if missing", Dynamic: "safe-default-route-from-dhcp", Args: []string{wifiDevice}, RollbackAvailable: true},
+			action{Stage: "6_active_wifi_repair", ID: "tun.route.rebuild.safe_dhcp", Description: "Rebuild default route from safe DHCP router, or static-IP fallback gateway if no DHCP router", Dynamic: "safe-default-route-from-dhcp", Args: []string{wifiDevice, staticFallbackGateway(pre)}, RollbackAvailable: true},
 		)
 	}
 	actions = append(actions,
@@ -696,13 +696,21 @@ func runSafeDefaultRouteFromDHCP(ctx context.Context, runner command.Runner, rp 
 	_ = rp.LogCommand(a.ID+".dhcp_router", router, false)
 	fields := strings.Fields(router.Stdout)
 	gateway := ""
-	if len(fields) > 0 {
+	if router.ExitCode == 0 && len(fields) > 0 {
 		gateway = strings.TrimSpace(fields[0])
 	}
-	if router.ExitCode != 0 || !safeDHCPGateway(gateway) {
-		ar.ExitCode = 0
-		ar.SkippedReason = "route_rebuild_skipped_no_safe_gateway"
-		return ar
+	if !safeDHCPGateway(gateway) {
+		// Static-IP fallback: no safe DHCP router (static-IP LAN or dead DHCP).
+		// Use the planner-supplied statically-derived gateway if it is safe.
+		gateway = ""
+		if len(a.Args) > 1 {
+			gateway = strings.TrimSpace(a.Args[1])
+		}
+		if !safeDHCPGateway(gateway) {
+			ar.ExitCode = 0
+			ar.SkippedReason = "route_rebuild_skipped_no_safe_gateway"
+			return ar
+		}
 	}
 	ar.RouteAddGateway = gateway
 	if routeExists && routeSuspicious {
@@ -729,6 +737,43 @@ func runSafeDefaultRouteFromDHCP(ctx context.Context, runner command.Runner, rp 
 		}
 	}
 	return ar
+}
+
+// staticFallbackGateway derives a safe default-route gateway for networks with
+// no DHCP router (static-IP LANs, or dead DHCP). It prefers the gateway already
+// known to the system (if safe and not a TUN-hijack address), then falls back to
+// the conventional .1 gateway of the active routable interface's IPv4. Returns
+// "" when nothing safe can be derived.
+func staticFallbackGateway(pre diagnose.DiagnosticReport) string {
+	if g := strings.TrimSpace(pre.Network.DefaultRoute.Gateway); safeDHCPGateway(g) {
+		return g
+	}
+	for _, iface := range pre.Network.Interfaces {
+		if iface.IsUTun {
+			continue
+		}
+		for _, ip := range iface.IPv4 {
+			if g := conventionalGatewayForIPv4(ip); safeDHCPGateway(g) {
+				return g
+			}
+		}
+	}
+	return ""
+}
+
+// conventionalGatewayForIPv4 returns the conventional .1 gateway of a routable
+// IPv4 address (192.168.1.20 -> 192.168.1.1), or "" for loopback/link-local or
+// malformed input.
+func conventionalGatewayForIPv4(ip string) string {
+	ip = strings.TrimSpace(ip)
+	if ip == "" || strings.HasPrefix(ip, "127.") || strings.HasPrefix(ip, "169.254.") {
+		return ""
+	}
+	parts := strings.Split(ip, ".")
+	if len(parts) != 4 {
+		return ""
+	}
+	return parts[0] + "." + parts[1] + "." + parts[2] + ".1"
 }
 
 func runQuarantine(ctx context.Context, runner command.Runner, rp *snapshot.RestorePoint, opts Options, pre diagnose.DiagnosticReport, result *Result, jm journal.Manager, tx *journal.Transaction) int {
