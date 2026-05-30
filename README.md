@@ -2,6 +2,8 @@
 
 Cactus AgentLink Rescue is an offline, portable, reversible macOS rescue tool for restoring the broken path between a Mac and AI agents such as Codex, Claude, GitHub, and API endpoints.
 
+> **Working repo — the live branch is `agentlink-rescue-by-opus`.** The body below documents the v0.5.2 GUI field-beta base (the shared CLI core reports `0.5.1`). The live branch adds, on top of that base, the **Opus kernel refactor** — the distilled knowledge is now wired into the execution kernel (`diagnose → classify → diagnosisgraph → planner → recipe/repair → verifier → safety`, no orphan classes) — plus the connectivity-first **`nuclear`** repair level. Authoritative current-state docs: **[HANDOFF.md](HANDOFF.md)**, `governor/reports/AGENTLINK_KERNEL_OPUS_REFACTOR_SCORECARD.md`, and `governor/reports/AGENTLINK_KERNEL_ARCHITECTURE_REVIEW.md`. The clean public snapshot of this branch is the separate repo `cactusaudio/AgentLink-Rescue-by-Opus`.
+
 Current line: v0.5.2 GUI field beta, hardened at commit `01ced16` (`Harden AgentLink field beta`). The shared CLI core still reports `agentlink 0.5.1`; v0.5.2 is the GUI/audit/portable-beta product line. The current verified portable bundle is a universal macOS app (`arm64` + `x86_64`) with dry-run-first GUI rescue, support-bundle export, tighter private file permissions, symlink-safe support-bundle zipping, config-mode preservation, and fuzz coverage for redaction, planner decisions, recipe decoding, and diagnosis-graph JSON input.
 
 This is still a controlled field beta, not a notarized public release. Gemma 4 E4B-it Q4_K_M remains explanation/shadow-only for rescue decisions; deterministic rules, policy validation, recipes, verifier, rollback, and restart gate own release behavior. There is still no telemetry, daemon, privileged helper, SMAppService, RAG, queue, remote mutation, sudo execution in the GUI, or arbitrary shell execution.
@@ -150,7 +152,7 @@ agentlink planner validate <decision.json>
 agentlink report --for-human --latest
 agentlink report --for-codex --latest
 agentlink classify [--json]
-agentlink rescue [--level safe|tun|standard|clean-baseline|standard-system-reset|deep] [--yes] [--dry-run] [--json]
+agentlink rescue [--level safe|tun|standard|clean-baseline|standard-system-reset|deep|nuclear] [--yes] [--dry-run] [--json]
 agentlink rollback [--last | --id RESTORE_POINT_ID] [--dry-run] [--json]
 agentlink report [--latest | --id REPORT_ID] [--json]
 agentlink selftest
@@ -171,6 +173,7 @@ sudo ./bin/agentlink rescue --level tun --yes
 sudo ./bin/agentlink rescue --level clean-baseline --yes
 sudo ./bin/agentlink rescue --level standard-system-reset --yes
 sudo ./bin/agentlink rescue --level deep --yes
+sudo ./bin/agentlink rescue --level nuclear --yes
 ./bin/agentlink ticket create --type clash-tun-fix --json
 sudo ./bin/agentlink rollback --last
 ```
@@ -189,7 +192,9 @@ sudo ./bin/agentlink rollback --last
 
 `deep` requires `--yes`. It includes safe and standard repair, quarantines eligible known residue, backs up selected network configuration plists, removes them by moving them into the restore point quarantine, and recommends reboot.
 
-Protected topology note: if AgentLink detects a protected topology constraint, mutating rescue levels are refused and the next action is route/network snapshot, support bundle, or incident report. See `docs/offline/PROTECTED_TOPOLOGY_SAFETY.md`.
+`nuclear` requires `--yes`. It is the connectivity-first maximal reset for any Apple-Silicon Mac: it tears down route-hijacking interference and TUN/NetworkExtension residue, resets every network service's proxy/DNS/search/DHCP/IPv6, rebuilds the default route from DHCP (with a static-IP route-rebuild fallback), and flushes DNS. By operator directive it **overrides the protected-topology refusal** — getting online outranks preserving a protected audio VLAN. It stays reversible via a captured network snapshot and auto-rolls-back if connectivity worsens. (Added by the Opus kernel refactor; the graduated tiers above still respect protected topology.)
+
+Protected topology note: if AgentLink detects a protected topology constraint, the graduated mutating rescue levels are refused and the next action is route/network snapshot, support bundle, or incident report. See `docs/offline/PROTECTED_TOPOLOGY_SAFETY.md`. The `nuclear` level deliberately overrides this refusal (connectivity-first operator directive — see above).
 
 ## Build
 
