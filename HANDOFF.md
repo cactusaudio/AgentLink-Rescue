@@ -1,5 +1,7 @@
 # AgentLink Rescue — Engineer / Agent Handoff
 
+> **First read [VISION.md](VISION.md)** — the human vision + the settled judgment calls you must not re-litigate. Then this file for current-state orientation.
+
 Read this FIRST to take over cold. This is the **working monorepo** for the macOS
 connectivity-rescue tool. The top-level `README.md` body documents the *pre-Opus*
 v0.5.2 GUI field-beta base; this handoff + the two governor reports below are the

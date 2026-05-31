@@ -1,5 +1,7 @@
 # AGENTS.md — AgentLink Rescue v0.5
 
+> **Read [VISION.md](VISION.md) first** — the human vision + the settled judgment calls you must not re-litigate — then **[HANDOFF.md](HANDOFF.md)** for current state. This file is the engineering contract (pipeline, safety gates, definition of done) and it still holds. Current kernel: the Opus refactor wired `genome → classify → diagnosisgraph → planner → recipe/repair → verifier` end-to-end and added the connectivity-first `nuclear` repair level; the deterministic core below is intact and **still owns truth** (the local model remains shadow-only). Authoritative current status: `governor/reports/AGENTLINK_KERNEL_OPUS_REFACTOR_SCORECARD.md`.
+
 ## Product mission
 
 AgentLink Rescue v0.5 is a local-first macOS network rescue runtime.
